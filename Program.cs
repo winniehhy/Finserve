@@ -1,4 +1,10 @@
-using MySql.Data.MySqlClient;
+﻿using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+// Remove the MySQL reference as it is not needed  
+// using MySql.Data.MySqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,7 +12,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 
 var app = builder.Build();
-
 var logger = app.Logger;
 
 // --- Debug: Confirm Configuration Loading ---
@@ -26,19 +31,19 @@ if (string.IsNullOrEmpty(connectionString))
 }
 else
 {
-    Console.WriteLine("Attempting MySQL connection...");
+    Console.WriteLine("Attempting SQL Server connection...");
 
     try
     {
-        using var connection = new MySqlConnection(connectionString);
-        await connection.OpenAsync(); // Use async version
-        logger.LogInformation("MySQL CONNECTED SUCCESSFULLY!");
-        Console.WriteLine("SUCCESS: MySQL connected!");
+        using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(); // Async for better performance
+        logger.LogInformation("✅ MSSQL CONNECTED SUCCESSFULLY!");
+        Console.WriteLine("✅ SUCCESS: SQL Server connected!");
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "MySQL connection failed");
-        Console.WriteLine($"ERROR: {ex.Message}");
+        logger.LogError(ex, "❌ SQL Server connection failed");
+        Console.WriteLine($"❌ ERROR: {ex.Message}");
     }
 }
 
@@ -53,6 +58,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}"
 );
-
 
 app.Run();
