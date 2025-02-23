@@ -3,13 +3,18 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-// Remove the MySQL reference as it is not needed  
-// using MySql.Data.MySqlClient;
+using Finserve3.Models; // Import your models and DbContext
+using Microsoft.EntityFrameworkCore; // For UseSqlServer extension
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorPages();
+builder.Services.AddControllersWithViews();  // Use controllers with views
+
+// Register your ApplicationDbContext with SQL Server provider
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+);
 
 var app = builder.Build();
 var logger = app.Logger;
@@ -18,7 +23,7 @@ var logger = app.Logger;
 logger.LogInformation("Environment: {Environment}", app.Environment.EnvironmentName);
 Console.WriteLine("=== STARTING DATABASE CONNECTION TEST ===");
 
-// Retrieve the connection string
+// Retrieve the connection string from environment variable or configuration
 var connectionString = Environment.GetEnvironmentVariable("DefaultConnection")
     ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -49,11 +54,13 @@ else
 
 Console.WriteLine("=== CONNECTION TEST COMPLETED ===");
 
-// Rest of your middleware setup
+// Configure the HTTP request pipeline.
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
+
+// Map the default controller route.
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}"
