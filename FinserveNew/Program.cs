@@ -26,9 +26,9 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
-// ✅ Change default route to Claims controller
+// ✅ Default route to home
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Claim}/{action=Index}/{id?}"); 
+    pattern: "{controller=Home}/{action=Index}/{id?}"); 
 
 app.Run();
