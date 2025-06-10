@@ -21,7 +21,7 @@
 }
 
 <div class="form-container">
-    @if (Model.Any())
+    @if (Model != null && Model.Any())
     {
         <div class="table-responsive">
             <table class="table table-hover">
