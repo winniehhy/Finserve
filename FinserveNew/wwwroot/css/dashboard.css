@@ -1,0 +1,72 @@
+﻿
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+        .sidebar.show {
+            transform: translateX(0);
+        }
+
+    .main-content {
+        margin-left: 0 !important;
+    }
+
+    .mobile-menu-btn {
+        display: block !important;
+    }
+
+    .footer {
+        margin-left: 0 !important;
+    }
+
+    .header-right .d-none.d-md-inline {
+        display: none !important;
+    }
+}
+
+/* Tablet Responsive Styles */
+@media (max-width: 992px) {
+    .header-right {
+        gap: 10px;
+    }
+
+    .start-trading-btn {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+}
+
+/* Large Screen Adjustments */
+@media (min-width: 1200px) {
+    .main-content {
+        padding: 30px;
+    }
+
+    .sidebar {
+        width: 280px;
+    }
+
+    .main-content {
+        margin-left: 280px;
+    }
+
+    .footer {
+        margin-left: 280px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .sidebar,
+    .main-header,
+    .footer {
+        display: none;
+    }
+
+    .main-content {
+        margin: 0;
+        padding: 0;
+    }
+}

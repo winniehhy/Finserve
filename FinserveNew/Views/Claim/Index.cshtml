@@ -1,0 +1,100 @@
+﻿@model IEnumerable<FinserveNew.Models.Claim>
+
+@{
+    ViewData["Title"] = "My Claims";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">My Claims</h2>
+    <a asp-action="Create" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>
+        Create New Claim
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="form-container">
+    @if (Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Claim Type</th>
+                        <th>Amount</th>
+                        <th>Remark</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var claim in Model)
+                    {
+                        <tr>
+                            <td>
+                                <span class="badge bg-info">@claim.ClaimType</span>
+                            </td>
+                            <td>
+                                <strong>RM @claim.ClaimAmount.ToString("F2")</strong>
+                            </td>
+                            <td>
+                                @* <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Remark">
+                                    @(claim.Remark?.Length > 50 ? claim.Remark.Substring(0, 50) + "..." : claim.Remark)
+                                </span> *@
+                            </td>
+                            <td>
+                                @if (claim.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning">@claim.Status</span>
+                                }
+                                else if (claim.Status == "Approved")
+                                {
+                                    <span class="badge bg-success">@claim.Status</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">@claim.Status</span>
+                                }
+                            </td>
+                            <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a asp-action="Edit" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-success" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a asp-action="Delete" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-danger" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                @if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
+                                {
+                                    <a href="@claim.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-info" title="Download Document">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No claims found</h5>
+            <p class="text-muted">You haven't submitted any claims yet.</p>
+         
+        </div>
+    }
+</div>
