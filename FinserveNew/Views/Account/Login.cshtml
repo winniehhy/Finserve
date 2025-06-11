@@ -1,0 +1,44 @@
+﻿@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="container mt-5" style="max-width:400px;">
+    <h2>Login</h2>
+    @if (ViewBag.Error != null)
+    {
+        <div class="alert alert-danger">@ViewBag.Error</div>
+    }
+    <form method="post">
+        <div class="mb-3">
+            <label for="email" class="form-label">Email or Username</label>
+            <input type="text" class="form-control" id="email" name="email" required />
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required />
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Login</button>
+    </form>
+</div>
+
+@* use this at the controllers *@
+
+@* [Authorize(Roles = "Admin")] *@
+@* public IActionResult AdminDashboard() => View(); *@
+
+@* [Authorize(Roles = "Employee")] *@
+@* public IActionResult EmployeeDashboard() => View(); *@
+
+
+@* Uncomment and use this in the layout or specific views to show different menus based on roles *@
+@* at the nav bar layout *@
+
+@* @if (User.IsInRole("Admin")) *@
+@* { *@
+@*     <!-- Admin menu items --> *@
+@* } *@
+@* @if (User.IsInRole("Employee")) *@
+@* { *@
+@*     <!-- Employee menu items --> *@
+@* } *@
+
