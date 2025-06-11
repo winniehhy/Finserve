@@ -1,5 +1,4 @@
 ﻿@model FinserveNew.Models.Claim
-
 @{
     ViewData["Title"] = "Create New Claim";
 }
@@ -21,7 +20,7 @@
         <!-- Claim Type -->
         <div class="mb-3">
             <label asp-for="ClaimType" class="form-label">Claim Type</label>
-            <select asp-for="ClaimType" class="form-select">
+            <select asp-for="ClaimType" class="form-select" required>
                 <option value="">Select claim type...</option>
                 <option value="Travel">Travel</option>
                 <option value="Medical">Medical</option>
@@ -38,24 +37,17 @@
             <label asp-for="ClaimAmount" class="form-label">Claim Amount</label>
             <div class="input-group">
                 <span class="input-group-text">RM</span>
-                <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0" placeholder="0.00" />
+                <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" placeholder="0.00" required />
             </div>
             <span asp-validation-for="ClaimAmount" class="text-danger"></span>
         </div>
-
-        @* <!-- Remark -->
-        <div class="mb-3">
-            <label asp-for="Remark" class="form-label">Remark</label>
-            <textarea asp-for="Remark" class="form-control" rows="4" placeholder="business travel on behalf company to meet ABC company's client from 3-5 April 2025"></textarea>
-            <span asp-validation-for="Remark" class="text-danger"></span>
-        </div> *@
 
         <!-- Upload Supporting Document -->
         <div class="mb-4">
             <label class="form-label">Upload Supporting Document</label>
             <div class="input-group">
                 <input type="file" name="supportingDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-                <label class="input-group-text">petrol receipt.png</label>
+                <label class="input-group-text" id="file-label">Choose file...</label>
             </div>
             <small class="form-text text-muted">Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 5MB)</small>
         </div>
@@ -81,8 +73,8 @@
     <script>
         // Preview selected file name
         document.querySelector('input[type="file"]').addEventListener('change', function(e) {
-            const fileName = e.target.files[0]?.name || 'petrol receipt.png';
-            document.querySelector('.input-group-text').textContent = fileName;
+            const fileName = e.target.files[0]?.name || 'Choose file...';
+            document.getElementById('file-label').textContent = fileName;
         });
     </script>
 }
