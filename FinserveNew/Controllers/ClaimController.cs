@@ -1,79 +1,35 @@
-﻿using FinserveNew.Data;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FinserveNew.Data;
 using FinserveNew.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FinserveNew.Controllers
 {
+    // [Authorize]
     public class ClaimController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly IWebHostEnvironment _environment;
+        private readonly ILogger<ClaimController> _logger;
 
-        public ClaimController(AppDbContext context, IWebHostEnvironment webHostEnvironment)
+        public ClaimController(AppDbContext context, IWebHostEnvironment environment, ILogger<ClaimController> logger)
         {
             _context = context;
-            _webHostEnvironment = webHostEnvironment;
+            _environment = environment;
+            _logger = logger;
         }
 
-        // GET: Claim/Index - Show all claims
+        // GET: Claim
         public async Task<IActionResult> Index()
         {
             var claims = await _context.Claims
-                .Include(c => c.User)
+                .Include(c => c.Employee)
+                .Include(c => c.Approval)
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
+
             return View(claims);
-        }
-
-        // GET: Claim/Create - Show create form
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: Claim/Create - Handle form submission
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Claim claim, IFormFile? supportingDocument)
-        {
-            if (ModelState.IsValid)
-            {
-                // Handle file upload
-                if (supportingDocument != null && supportingDocument.Length > 0)
-                {
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
-
-                    // Create uploads directory if it doesn't exist
-                    if (!Directory.Exists(uploadsFolder))
-                    {
-                        Directory.CreateDirectory(uploadsFolder);
-                    }
-
-                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + supportingDocument.FileName;
-                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await supportingDocument.CopyToAsync(fileStream);
-                    }
-
-                    claim.SupportingDocumentPath = "/uploads/" + uniqueFileName;
-                    claim.SupportingDocumentName = supportingDocument.FileName;
-                }
-
-                // For demo purposes, use UserId = 1. In real app, get from authentication
-                claim.UserId = 1;
-                claim.CreatedDate = DateTime.Now;
-
-                _context.Claims.Add(claim);
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Claim submitted successfully!";
-                return RedirectToAction(nameof(Index));
-            }
-
-            return View(claim);
         }
 
         // GET: Claim/Details/5
@@ -85,7 +41,8 @@ namespace FinserveNew.Controllers
             }
 
             var claim = await _context.Claims
-                .Include(c => c.User)
+                .Include(c => c.Employee)
+                .Include(c => c.Approval)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (claim == null)
@@ -94,6 +51,126 @@ namespace FinserveNew.Controllers
             }
 
             return View(claim);
+        }
+
+        // GET: Claim/Create
+        public async Task<IActionResult> Create()
+        {
+            // Check if any employees exist
+            var employeeExists = await _context.Employees.AnyAsync();
+            if (!employeeExists)
+            {
+                TempData["Error"] = "No employees found. Please create an employee first.";
+                return RedirectToAction("Index", "Employee");
+            }
+
+            // Populate ViewBag for dropdowns
+            ViewBag.Employees = await _context.Employees
+                .Select(e => new { e.EmployeeID, FullName = e.FirstName + " " + e.LastName })
+                .ToListAsync();
+
+            ViewBag.ClaimTypes = new List<string>
+            {
+                "Medical",
+                "Travel",
+                "Equipment",
+                "Training",
+                "Other"
+            };
+
+            return View();
+        }
+
+        // POST: Claim/Create
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(Claim claim, IFormFile? supportingDocument)
+        {
+            try
+            {
+                _logger.LogInformation($"[DEBUG] Attempting to create claim for EmployeeId: {claim.EmployeeId}");
+
+                // 1. Validate Employee exists
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeId);
+
+                if (employee == null)
+                {
+                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeId}' does not exist.");
+                    await PopulateViewBagData();
+                    return View(claim);
+                }
+
+                // 2. Handle file upload
+                if (supportingDocument != null && supportingDocument.Length > 0)
+                {
+                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
+
+                    // Create directory if it doesn't exist
+                    if (!Directory.Exists(uploadsFolder))
+                    {
+                        Directory.CreateDirectory(uploadsFolder);
+                    }
+
+                    // Generate unique filename
+                    var uniqueFileName = $"{Guid.NewGuid()}_{supportingDocument.FileName}";
+                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                    // Save file
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await supportingDocument.CopyToAsync(fileStream);
+                    }
+
+                    claim.SupportingDocumentName = supportingDocument.FileName;
+                    claim.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
+                }
+
+                // 3. Set claim properties
+                claim.CreatedDate = DateTime.Now;
+                claim.SubmissionDate = DateTime.Now;
+                claim.Status = "Pending";
+                claim.TotalAmount = claim.ClaimAmount; // Set total amount same as claim amount initially
+
+                // Don't set ApprovalID or ApprovalDate yet (will be set when approved)
+                claim.ApprovalID = null;
+                claim.ApprovalDate = null;
+
+                _logger.LogInformation($"[DEBUG] Claim details - EmployeeId: {claim.EmployeeId}, CreatedDate: {claim.CreatedDate}");
+
+                // 4. Add to context and save
+                _context.Claims.Add(claim);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"[DEBUG] Claim created successfully with ID: {claim.Id}");
+
+                TempData["Success"] = "Claim submitted successfully!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "[DEBUG] Database error while saving claim");
+
+                // Check for specific foreign key constraint errors
+                if (ex.InnerException?.Message.Contains("FK_Claims_Employees_EmployeeId") == true)
+                {
+                    ModelState.AddModelError("EmployeeId", "The selected employee does not exist in the system.");
+                }
+                else
+                {
+                    ModelState.AddModelError("", "An error occurred while saving the claim. Please try again.");
+                }
+
+                await PopulateViewBagData();
+                return View(claim);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[DEBUG] Unexpected error while creating claim");
+                ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+                await PopulateViewBagData();
+                return View(claim);
+            }
         }
 
         // GET: Claim/Edit/5
@@ -109,6 +186,8 @@ namespace FinserveNew.Controllers
             {
                 return NotFound();
             }
+
+            await PopulateViewBagData();
             return View(claim);
         }
 
@@ -122,44 +201,74 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
+            try
             {
-                try
+                // Validate Employee exists
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeId);
+
+                if (employee == null)
                 {
-                    // Handle file upload if new file is provided
-                    if (supportingDocument != null && supportingDocument.Length > 0)
-                    {
-                        string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads");
-                        string uniqueFileName = Guid.NewGuid().ToString() + "_" + supportingDocument.FileName;
-                        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                        using (var fileStream = new FileStream(filePath, FileMode.Create))
-                        {
-                            await supportingDocument.CopyToAsync(fileStream);
-                        }
-
-                        claim.SupportingDocumentPath = "/uploads/" + uniqueFileName;
-                        claim.SupportingDocumentName = supportingDocument.FileName;
-                    }
-
-                    _context.Update(claim);
-                    await _context.SaveChangesAsync();
-                    TempData["Success"] = "Claim updated successfully!";
+                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeId}' does not exist.");
+                    await PopulateViewBagData();
+                    return View(claim);
                 }
-                catch (DbUpdateConcurrencyException)
+
+                // Handle new file upload
+                if (supportingDocument != null && supportingDocument.Length > 0)
                 {
-                    if (!ClaimExists(claim.Id))
+                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
+
+                    if (!Directory.Exists(uploadsFolder))
                     {
-                        return NotFound();
+                        Directory.CreateDirectory(uploadsFolder);
                     }
-                    else
+
+                    var uniqueFileName = $"{Guid.NewGuid()}_{supportingDocument.FileName}";
+                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
                     {
-                        throw;
+                        await supportingDocument.CopyToAsync(fileStream);
                     }
+
+                    claim.SupportingDocumentName = supportingDocument.FileName;
+                    claim.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
                 }
+
+                _context.Update(claim);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Claim updated successfully!";
                 return RedirectToAction(nameof(Index));
             }
-            return View(claim);
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!ClaimExists(claim.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error while updating claim");
+
+                if (ex.InnerException?.Message.Contains("FK_Claims_Employees_EmployeeId") == true)
+                {
+                    ModelState.AddModelError("EmployeeId", "The selected employee does not exist in the system.");
+                }
+                else
+                {
+                    ModelState.AddModelError("", "An error occurred while updating the claim. Please try again.");
+                }
+
+                await PopulateViewBagData();
+                return View(claim);
+            }
         }
 
         // GET: Claim/Delete/5
@@ -171,8 +280,10 @@ namespace FinserveNew.Controllers
             }
 
             var claim = await _context.Claims
-                .Include(c => c.User)
+                .Include(c => c.Employee)
+                .Include(c => c.Approval)
                 .FirstOrDefaultAsync(m => m.Id == id);
+
             if (claim == null)
             {
                 return NotFound();
@@ -192,7 +303,7 @@ namespace FinserveNew.Controllers
                 // Delete associated file if exists
                 if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
                 {
-                    string filePath = Path.Combine(_webHostEnvironment.WebRootPath, claim.SupportingDocumentPath.TrimStart('/'));
+                    var filePath = Path.Combine(_environment.WebRootPath, claim.SupportingDocumentPath.TrimStart('/'));
                     if (System.IO.File.Exists(filePath))
                     {
                         System.IO.File.Delete(filePath);
@@ -207,9 +318,36 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // Helper method to populate ViewBag data
+        private async Task PopulateViewBagData()
+        {
+            ViewBag.Employees = await _context.Employees
+                .Select(e => new { e.EmployeeID, FullName = e.FirstName + " " + e.LastName })
+                .ToListAsync();
+
+            ViewBag.ClaimTypes = new List<string>
+            {
+                "Medical",
+                "Travel",
+                "Equipment",
+                "Training",
+                "Other"
+            };
+        }
+
         private bool ClaimExists(int id)
         {
             return _context.Claims.Any(e => e.Id == id);
+        }
+
+        // Additional action to check employees (for debugging)
+        public async Task<IActionResult> CheckEmployees()
+        {
+            var employees = await _context.Employees
+                .Select(e => new { e.EmployeeID, e.FirstName, e.LastName })
+                .ToListAsync();
+
+            return Json(employees);
         }
     }
 }
