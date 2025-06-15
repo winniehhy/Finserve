@@ -117,10 +117,7 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     BankID = table.Column<int>(type: "int", nullable: false),
                     EmergencyID = table.Column<int>(type: "int", nullable: false),
-                    RoleID = table.Column<int>(type: "int", nullable: false),
-                    BankInformationBankID = table.Column<int>(type: "int", nullable: true),
-                    EmergencyContactEmergencyID = table.Column<int>(type: "int", nullable: true),
-                    RoleID1 = table.Column<int>(type: "int", nullable: true)
+                    RoleID = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -131,16 +128,6 @@ namespace FinserveNew.Migrations
                         principalTable: "BankInformations",
                         principalColumn: "BankID",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Employees_BankInformations_BankInformationBankID",
-                        column: x => x.BankInformationBankID,
-                        principalTable: "BankInformations",
-                        principalColumn: "BankID");
-                    table.ForeignKey(
-                        name: "FK_Employees_EmergencyContacts_EmergencyContactEmergencyID",
-                        column: x => x.EmergencyContactEmergencyID,
-                        principalTable: "EmergencyContacts",
-                        principalColumn: "EmergencyID");
                     table.ForeignKey(
                         name: "FK_Employees_EmergencyContacts_EmergencyID",
                         column: x => x.EmergencyID,
@@ -153,11 +140,6 @@ namespace FinserveNew.Migrations
                         principalTable: "Roles",
                         principalColumn: "RoleID",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Employees_Roles_RoleID1",
-                        column: x => x.RoleID1,
-                        principalTable: "Roles",
-                        principalColumn: "RoleID");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -213,7 +195,7 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Pending")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    EmployeeId = table.Column<string>(type: "varchar(255)", nullable: false)
+                    EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
                     SubmissionDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
@@ -236,8 +218,8 @@ namespace FinserveNew.Migrations
                         principalTable: "Approvals",
                         principalColumn: "ApprovalID");
                     table.ForeignKey(
-                        name: "FK_Claims_Employees_EmployeeId",
-                        column: x => x.EmployeeId,
+                        name: "FK_Claims_Employees_EmployeeID",
+                        column: x => x.EmployeeID,
                         principalTable: "Employees",
                         principalColumn: "EmployeeID",
                         onDelete: ReferentialAction.Cascade);
@@ -361,24 +343,14 @@ namespace FinserveNew.Migrations
                 column: "ApprovalID1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Claims_EmployeeId",
+                name: "IX_Claims_EmployeeID",
                 table: "Claims",
-                column: "EmployeeId");
+                column: "EmployeeID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_BankID",
                 table: "Employees",
                 column: "BankID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Employees_BankInformationBankID",
-                table: "Employees",
-                column: "BankInformationBankID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Employees_EmergencyContactEmergencyID",
-                table: "Employees",
-                column: "EmergencyContactEmergencyID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_EmergencyID",
@@ -389,11 +361,6 @@ namespace FinserveNew.Migrations
                 name: "IX_Employees_RoleID",
                 table: "Employees",
                 column: "RoleID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Employees_RoleID1",
-                table: "Employees",
-                column: "RoleID1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Salaries_ApprovalID",

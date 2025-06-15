@@ -90,22 +90,16 @@ namespace FinserveNew.Models
 
         // Navigation Properties
         [ForeignKey("BankID")]
-        public virtual BankInformation BankInformation { get; set; } = null!;
+        public virtual BankInformation? BankInformation { get; set; }
 
         [ForeignKey("EmergencyID")]
-        public virtual EmergencyContact EmergencyContact { get; set; } = null!;
+        public virtual EmergencyContact? EmergencyContact { get; set; }
 
         [ForeignKey("RoleID")]
-        public virtual Role Role { get; set; } = null!;
+        public virtual Role? Role { get; set; }
 
         // One Employee can have many Claims
         public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
-
-        // One Employee can have many Documents
-       // public virtual ICollection<Documents> Documents { get; set; } = new List<Documents>();
-
-        // One Employee can have many Leave records
-        //public virtual ICollection<Leave> Leaves { get; set; } = new List<Leave>();
 
         // One Employee can have many Salary records
         public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();

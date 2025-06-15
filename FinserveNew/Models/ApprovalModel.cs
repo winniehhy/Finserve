@@ -23,10 +23,10 @@ namespace FinserveNew.Models
         [MaxLength(100)]
         public string ApprovedBy { get; set; } = string.Empty;
 
-        // Foreign Key - Based on your ERD, Approval links to Employee
+        // Foreign Key - Based on  ERD, Approval links to Employee
         [Required(ErrorMessage = "Employee is required")]
         [Display(Name = "Employee")]
-        public string EmployeeID { get; set; }
+        public string? EmployeeID { get; set; }
 
         // Navigation Properties
         [ForeignKey("EmployeeID")]

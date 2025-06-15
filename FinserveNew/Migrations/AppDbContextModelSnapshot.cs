@@ -121,7 +121,7 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("varchar(1000)");
 
-                    b.Property<string>("EmployeeId")
+                    b.Property<string>("EmployeeID")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
 
@@ -152,7 +152,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("ApprovalID1");
 
-                    b.HasIndex("EmployeeId");
+                    b.HasIndex("EmployeeID");
 
                     b.ToTable("Claims");
                 });
@@ -244,9 +244,6 @@ namespace FinserveNew.Migrations
                     b.Property<int>("BankID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("BankInformationBankID")
-                        .HasColumnType("int");
-
                     b.Property<string>("ConfirmationStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -261,9 +258,6 @@ namespace FinserveNew.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
-
-                    b.Property<int?>("EmergencyContactEmergencyID")
-                        .HasColumnType("int");
 
                     b.Property<int>("EmergencyID")
                         .HasColumnType("int");
@@ -312,9 +306,6 @@ namespace FinserveNew.Migrations
                     b.Property<int>("RoleID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("RoleID1")
-                        .HasColumnType("int");
-
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -324,15 +315,9 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("BankID");
 
-                    b.HasIndex("BankInformationBankID");
-
-                    b.HasIndex("EmergencyContactEmergencyID");
-
                     b.HasIndex("EmergencyID");
 
                     b.HasIndex("RoleID");
-
-                    b.HasIndex("RoleID1");
 
                     b.ToTable("Employees");
                 });
@@ -460,7 +445,7 @@ namespace FinserveNew.Migrations
 
                     b.HasOne("FinserveNew.Models.EmployeeModel", "Employee")
                         .WithMany("Claims")
-                        .HasForeignKey("EmployeeId")
+                        .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -495,34 +480,22 @@ namespace FinserveNew.Migrations
             modelBuilder.Entity("FinserveNew.Models.EmployeeModel", b =>
                 {
                     b.HasOne("FinserveNew.Models.BankInformation", "BankInformation")
-                        .WithMany()
+                        .WithMany("Employees")
                         .HasForeignKey("BankID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("FinserveNew.Models.BankInformation", null)
-                        .WithMany("Employees")
-                        .HasForeignKey("BankInformationBankID");
-
-                    b.HasOne("FinserveNew.Models.EmergencyContact", null)
-                        .WithMany("Employees")
-                        .HasForeignKey("EmergencyContactEmergencyID");
-
                     b.HasOne("FinserveNew.Models.EmergencyContact", "EmergencyContact")
-                        .WithMany()
+                        .WithMany("Employees")
                         .HasForeignKey("EmergencyID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("FinserveNew.Models.Role", "Role")
-                        .WithMany()
+                        .WithMany("Employees")
                         .HasForeignKey("RoleID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("FinserveNew.Models.Role", null)
-                        .WithMany("Employees")
-                        .HasForeignKey("RoleID1");
 
                     b.Navigation("BankInformation");
 

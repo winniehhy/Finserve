@@ -69,7 +69,7 @@ namespace FinserveNew.Models
         // Foreign Keys
         [Required(ErrorMessage = "Employee is required")]
         [Display(Name = "Employee")]
-        public string EmployeeID { get; set; }
+        public string? EmployeeID { get; set; }
 
         [Required(ErrorMessage = "Approval is required")]
         [Display(Name = "Approval")]
