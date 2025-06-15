@@ -42,10 +42,10 @@ namespace FinserveNew.Models
         // Foreign Key - This is what gets validated
         [Required(ErrorMessage = "Employee is required")]
         [Display(Name = "Employee")]
-        public string EmployeeId { get; set; } = "E001";
+        public string EmployeeID { get; set; } = "E001";
 
         // Navigation Property - REMOVE validation attributes and make it non-required for model binding
-        [ForeignKey("EmployeeId")]
+        [ForeignKey("EmployeeID")]
         [ValidateNever] // This tells ASP.NET Core to skip validation for this property
         public virtual EmployeeModel Employee { get; set; } = null!;
 

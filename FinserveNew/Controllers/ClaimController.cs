@@ -88,15 +88,15 @@ namespace FinserveNew.Controllers
         {
             try
             {
-                _logger.LogInformation($"[DEBUG] Attempting to create claim for EmployeeId: {claim.EmployeeId}");
+                _logger.LogInformation($"[DEBUG] Attempting to create claim for EmployeeId: {claim.EmployeeID}");
 
                 // 1. Validate Employee exists
                 var employee = await _context.Employees
-                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeId);
+                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeID);
 
                 if (employee == null)
                 {
-                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeId}' does not exist.");
+                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeID}' does not exist.");
                     await PopulateViewBagData();
                     return View(claim);
                 }
@@ -136,7 +136,7 @@ namespace FinserveNew.Controllers
                 claim.ApprovalID = null;
                 claim.ApprovalDate = null;
 
-                _logger.LogInformation($"[DEBUG] Claim details - EmployeeId: {claim.EmployeeId}, CreatedDate: {claim.CreatedDate}");
+                _logger.LogInformation($"[DEBUG] Claim details - EmployeeId: {claim.EmployeeID}, CreatedDate: {claim.CreatedDate}");
 
                 // 4. Add to context and save
                 _context.Claims.Add(claim);
@@ -205,11 +205,11 @@ namespace FinserveNew.Controllers
             {
                 // Validate Employee exists
                 var employee = await _context.Employees
-                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeId);
+                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeID);
 
                 if (employee == null)
                 {
-                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeId}' does not exist.");
+                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeID}' does not exist.");
                     await PopulateViewBagData();
                     return View(claim);
                 }

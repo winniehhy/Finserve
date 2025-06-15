@@ -29,7 +29,7 @@
                     <tr>
                         <th>Claim Type</th>
                         <th>Amount</th>
-                        <th>Remark</th>
+                        <th>Description</th>
                         <th>Status</th>
                         <th>Date</th>
                         <th>Actions</th>
@@ -46,9 +46,9 @@
                                 <strong>RM @claim.ClaimAmount.ToString("F2")</strong>
                             </td>
                             <td>
-                                @* <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Remark">
-                                    @(claim.Remark?.Length > 50 ? claim.Remark.Substring(0, 50) + "..." : claim.Remark)
-                                </span> *@
+                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
+                                    @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
+                                </span>
                             </td>
                             <td>
                                 @if (claim.Status == "Pending")

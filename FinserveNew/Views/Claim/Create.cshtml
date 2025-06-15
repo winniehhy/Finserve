@@ -42,7 +42,7 @@
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
         @* Fixed: Set default value if model is null *@
-        <input type="hidden" name="EmployeeId" value="@(Model?.EmployeeId ?? "E001")" />
+        <input type="hidden" name="EmployeeId" value="@(Model?.EmployeeID ?? "E001")" />
 
         <!-- Claim Type -->
         <div class="mb-3">
