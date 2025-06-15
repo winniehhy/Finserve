@@ -1,10 +1,10 @@
 ﻿@model FinserveNew.Models.Claim
 @{
-    ViewData["Title"] = "Create New Claim";
+    ViewData["Title"] = "Create New Claim"; // Set the page title
 }
-
 <div class="page-title">Create New Claim</div>
 
+@* Display success message if available *@
 @if (TempData["Success"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -13,11 +13,43 @@
     </div>
 }
 
+@* Display error message if available *@
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* Display file upload status if available *@
+@if (TempData["FileUploadStatus"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <strong>File Upload Status:</strong> @TempData["FileUploadStatus"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@* Display debug info if available *@
+@if (TempData["DebugInfo"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <strong>Debug Info:</strong> @TempData["DebugInfo"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
 <div class="form-container">
-    <form asp-action="Create" method="post" enctype="multipart/form-data">
+    @* Claim form starts here *@
+    <form asp-action="Create" method="post" enctype="multipart/form-data" id="claimForm">
+        @* Display model validation errors *@
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-        <!-- Claim Type -->
+        @* Hidden input for EmployeeId (default: "E001" if model is null) *@
+        <input type="hidden" name="EmployeeId" value="@(Model?.EmployeeID ?? "E001")" />
+
+        @* Claim Type dropdown selection *@
         <div class="mb-3">
             <label asp-for="ClaimType" class="form-label">Claim Type</label>
             <select asp-for="ClaimType" class="form-select" required>
@@ -32,7 +64,7 @@
             <span asp-validation-for="ClaimType" class="text-danger"></span>
         </div>
 
-        <!-- Claim Amount -->
+        @* Claim Amount input with currency prefix *@
         <div class="mb-3">
             <label asp-for="ClaimAmount" class="form-label">Claim Amount</label>
             <div class="input-group">
@@ -42,21 +74,29 @@
             <span asp-validation-for="ClaimAmount" class="text-danger"></span>
         </div>
 
-        <!-- Upload Supporting Document -->
+        @* File upload for supporting documents *@
         <div class="mb-4">
             <label class="form-label">Upload Supporting Document</label>
             <div class="input-group">
-                <input type="file" name="supportingDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                <input type="file" name="supportingDocument" id="fileInput" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
                 <label class="input-group-text" id="file-label">Choose file...</label>
             </div>
             <small class="form-text text-muted">Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 5MB)</small>
+            <div id="fileDebugInfo" class="mt-2 text-muted" style="display: none;"></div>
         </div>
 
-        <!-- Submit Button -->
+        @* Optional description field *@
+        <div class="mb-3">
+            <label asp-for="Description" class="form-label">Description (Optional)</label>
+            <textarea asp-for="Description" class="form-control" rows="3" placeholder="Enter additional details about your claim..."></textarea>
+            <span asp-validation-for="Description" class="text-danger"></span>
+        </div>
+
+        @* Submit and cancel buttons *@
         <div class="d-grid gap-2 d-md-flex justify-content-md-start">
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary" id="submitBtn">
                 <i class="fas fa-paper-plane me-2"></i>
-                Submit Claim
+                <span id="submitText">Submit Claim</span>
             </button>
             <a asp-action="Index" class="btn btn-outline-secondary">
                 <i class="fas fa-times me-2"></i>
@@ -68,13 +108,114 @@
 
 @section Scripts {
     @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+        await Html.RenderPartialAsync("_ValidationScriptsPartial"); // Load jQuery validation
     }
     <script>
-        // Preview selected file name
-        document.querySelector('input[type="file"]').addEventListener('change', function(e) {
-            const fileName = e.target.files[0]?.name || 'Choose file...';
-            document.getElementById('file-label').textContent = fileName;
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize variables for form and input elements
+            const fileInput = document.getElementById('fileInput');
+            const fileLabel = document.getElementById('file-label');
+            const fileDebugInfo = document.getElementById('fileDebugInfo');
+            const form = document.getElementById('claimForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+
+            // Log employee ID field for debugging
+            const employeeIdInput = document.querySelector('[name="EmployeeId"]');
+            console.log('EmployeeId input found:', employeeIdInput ? 'Yes' : 'No');
+            console.log('EmployeeId value:', employeeIdInput?.value || 'Not set');
+
+            // Handle file input changes
+            fileInput.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+
+                if (file) {
+                    // Show file name and details
+                    fileLabel.textContent = file.name;
+                    const debugInfo = `
+                        <strong>File Selected:</strong><br>
+                        • Name: ${file.name}<br>
+                        • Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                        • Type: ${file.type}<br>
+                        • Last Modified: ${new Date(file.lastModified).toLocaleString()}
+                    `;
+                    fileDebugInfo.innerHTML = debugInfo;
+                    fileDebugInfo.style.display = 'block';
+
+                    // Check for max file size (5MB)
+                    const maxSize = 5 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        alert(`File size (${(file.size / 1024 / 1024).toFixed(2)} MB) exceeds the maximum limit of 5MB`);
+                        fileInput.value = '';
+                        fileLabel.textContent = 'Choose file...';
+                        fileDebugInfo.style.display = 'none';
+                    }
+
+                    // Log file details to console
+                    console.log('File selected:', {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        lastModified: file.lastModified
+                    });
+                } else {
+                    // Reset UI if no file selected
+                    fileLabel.textContent = 'Choose file...';
+                    fileDebugInfo.style.display = 'none';
+                }
+            });
+
+            // Handle form submission
+            form.addEventListener('submit', function (e) {
+                console.log('Form submission started...');
+
+                // Disable button and change text to avoid double submission
+                submitBtn.disabled = true;
+                submitText.textContent = 'Submitting...';
+
+                // Log form data
+                const formData = new FormData(form);
+                console.log('Form data being submitted:');
+                for (let [key, value] of formData.entries()) {
+                    if (key === 'supportingDocument' && value instanceof File) {
+                        console.log(`${key}:`, {
+                            name: value.name,
+                            size: value.size,
+                            type: value.type
+                        });
+                    } else {
+                        console.log(`${key}: ${value}`);
+                    }
+                }
+
+                // Validate required fields before submission
+                const claimType = document.querySelector('[name="ClaimType"]').value;
+                const claimAmount = document.querySelector('[name="ClaimAmount"]').value;
+                const employeeId = document.querySelector('[name="EmployeeId"]').value;
+
+                console.log('Validation check:', {
+                    claimType: claimType,
+                    claimAmount: claimAmount,
+                    hasFile: fileInput.files.length > 0,
+                    employeeId: employeeId
+                });
+
+                // Stop submission if fields are missing
+                if (!claimType || !claimAmount || !employeeId) {
+                    console.error('Validation failed: Missing required fields');
+                    submitBtn.disabled = false;
+                    submitText.textContent = 'Submit Claim';
+                    return false;
+                }
+
+                console.log('Form validation passed, submitting...');
+                return true;
+            });
+
+            // Debug on page load
+            console.log('Employee claim form page loaded successfully');
+            console.log('Form element found:', form ? 'Yes' : 'No');
+            console.log('File input found:', fileInput ? 'Yes' : 'No');
         });
     </script>
 }
