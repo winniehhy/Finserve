@@ -72,7 +72,7 @@ namespace FinserveNew.Data
                 // Configure the relationship with EmployeeModel
                 entity.HasOne(c => c.Employee)
                     .WithMany(e => e.Claims)
-                    .HasForeignKey(c => c.EmployeeId)
+                    .HasForeignKey(c => c.EmployeeID)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 // Optional: Configure relationship with Approval if needed
