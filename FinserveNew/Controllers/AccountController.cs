@@ -27,16 +27,16 @@ namespace FinserveNew.Controllers
 
             if (user != null)
             {
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, user.Name),
-                    new Claim(ClaimTypes.Role, user.Role)
-                };
+                //var claims = new List<Claim>
+                //{
+                //    new Claim(ClaimTypes.Name, user.Name),
+                //    new Claim(ClaimTypes.Role, user.Role)
+                //};
 
-                var claimsIdentity = new ClaimsIdentity(claims, "MyCookieAuth");
-                var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
+                //var claimsIdentity = new ClaimsIdentity(claims, "MyCookieAuth");
+                //var claimsPrincipal = new ClaimsPrincipal(claimsIdentity);
 
-                await HttpContext.SignInAsync("MyCookieAuth", claimsPrincipal);
+                //await HttpContext.SignInAsync("MyCookieAuth", claimsPrincipal);
 
                 // Redirect based on role
                 if (user.Role == "Admin")

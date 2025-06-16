@@ -29,17 +29,17 @@ namespace FinserveNew.Controllers
             // Optional: Search logic
             if (!string.IsNullOrWhiteSpace(search))
             {
-                query = query.Where(e =>
-                    e.FullName.Contains(search) ||
-                    e.Position.Contains(search) ||
-                    e.Department.Contains(search) ||
-                    e.Id.ToString().Contains(search)
-                );
+                //query = query.Where(e =>
+                //    e.FullName.Contains(search) ||
+                //    e.Position.Contains(search) ||
+                //    e.Department.Contains(search) ||
+                //    e.Id.ToString().Contains(search)
+                //);
             }
 
             var totalRecords = await query.CountAsync();
             var employees = await query
-                .OrderBy(e => e.Id)
+                //.OrderBy(e => e.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
