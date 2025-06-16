@@ -77,7 +77,7 @@ namespace FinserveNew.Models
 
         // Navigation Properties
         [ForeignKey("EmployeeID")]
-        public virtual EmployeeModel Employee { get; set; } = null!;
+        public virtual Employee Employee { get; set; } = null!;
 
         [ForeignKey("ApprovalID")]
         public virtual Approval Approval { get; set; } = null!;

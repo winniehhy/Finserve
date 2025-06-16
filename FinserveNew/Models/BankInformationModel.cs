@@ -23,6 +23,6 @@ namespace FinserveNew.Models
         public string BankType { get; set; } = string.Empty;
 
         // Navigation Property
-        public virtual ICollection<EmployeeModel> Employees { get; set; } = new List<EmployeeModel>();
+        public virtual ICollection<Employee> Employees { get; set; } = new List<Employee>();
     }
 }

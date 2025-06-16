@@ -1,13 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 
 namespace FinserveNew.Models
 {
-    public class EmployeeModel
+    public class Employee
     {
         [Key]
-        public string EmployeeID { get; set; } = "E001"; // Default value for EmployeeID
+        //public string EmployeeID { get; set; } = "E001"; // Default value for EmployeeID
+        public string EmployeeID { get; set; } = null!;
 
         [Required(ErrorMessage = "Username is required")]
         [Display(Name = "Username")]
@@ -45,25 +46,25 @@ namespace FinserveNew.Models
         [MaxLength(100)]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Phone number is required")]
-        [Display(Name = "Phone Number")]
+        [Required(ErrorMessage = "Telephone number is required")]
+        [Display(Name = "Telephone Number")]
         [MaxLength(20)]
-        public string PhoneNumber { get; set; } = string.Empty;
+        public string TelephoneNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Date of birth is required")]
         [Display(Name = "Date of Birth")]
         [DataType(DataType.Date)]
-        public DateTime DateOfBirth { get; set; }
+        public DateOnly DateOfBirth { get; set; }
 
-        [Required(ErrorMessage = "Job date is required")]
-        [Display(Name = "Job Date")]
+        [Required(ErrorMessage = "Join date is required")]
+        [Display(Name = "Join Date")]
         [DataType(DataType.Date)]
-        public DateTime JobDate { get; set; }
+        public DateOnly JoinDate { get; set; }
 
-        [Required(ErrorMessage = "Resignation date is required")]
+        //[Required(ErrorMessage = "Resignation date is required")]
         [Display(Name = "Resignation Date")]
         [DataType(DataType.Date)]
-        public DateTime ResignationDate { get; set; }
+        public DateOnly? ResignationDate { get; set; }
 
         [Required(ErrorMessage = "Confirmation status is required")]
         [Display(Name = "Confirmation Status")]

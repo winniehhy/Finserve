@@ -1,0 +1,172 @@
+﻿@model FinserveNew.Models.Employee
+
+@{
+    ViewData["Title"] = "Employee Details";
+}
+
+<div class="row mb-4">
+    <div class="col-auto">
+        @* <img src="@(Model.ProfileImagePath ?? "/images/default-profile.png")" alt="Profile" style="width:120px;height:120px;object-fit:cover;border:1px solid #ccc;" /> *@
+        <div class="user-avatar" style="width:100px;height:100px;object-fit:cover;border:1px solid #ccc;">JD</div>
+    </div>
+    <div class="col-auto align-self-center">
+        <div class="card" style="padding:16px;">
+            <div><strong>@Model.FirstName @Model.LastName</strong></div>
+            <div>@Model.Role?.Description</div>
+            <div>@Model.Email</div>
+        </div>
+    </div>
+</div>
+
+<div>
+    <div class="d-flex justify-content-between align-items-center">
+        <nav>
+            <ul class="nav nav-tabs" id="employeeTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">Personal Information</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="professional-tab" data-bs-toggle="tab" data-bs-target="#professional" type="button" role="tab">Professional Information</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">Documents</button>
+                </li>
+            </ul>
+        </nav>
+        <a asp-action="Edit" asp-route-id="@Model.EmployeeID" class="btn btn-primary">Edit Profile</a>
+    </div>
+    <div class="tab-content p-4 bg-white" id="employeeTabContent">
+        <div class="tab-pane fade show active" id="personal" role="tabpanel">
+            <div class="row mb-2">
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">First Name</label>
+                    <div>@Model.FirstName</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Last Name</label>
+                    <div>@Model.LastName</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Mobile Number</label>
+                    <div>@Model.TelephoneNumber</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Email Address</label>
+                    <div>@Model.Email</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Date of Birth</label>
+                    <div>@Model.DateOfBirth.ToShortDateString()</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Marital Status</label>
+                    <div>Married</div> <!-- Replace with actual property if available -->
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Gender</label>
+                    <div>Female</div> <!-- Replace with actual property if available -->
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Nationality</label>
+                    <div>@Model.Nationality</div>
+                </div>
+                <div class="col-md-12 mb-2">
+                    <label class="label-text">Address</label>
+                    <div>2464 Royal Ln. Mesa, New Jersey</div> <!-- Replace with actual property if available -->
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="professional" role="tabpanel">
+            <div class="row mb-2">
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Employee ID</label>
+                    <div>@Model.EmployeeID</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">User Name</label>
+                    <div>@Model.Username</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Department</label>
+                    <div>Project Manager</div> <!-- Replace with actual property if available -->
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Designation</label>
+                    <div>@Model.Position</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Joining Date</label>
+                    <div>@Model.JoinDate.ToShortDateString()</div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="label-text">Working Days</label>
+                    <div>5 Days</div> <!-- Replace with actual property if available -->
+                </div>
+                <div class="col-md-12 mb-2">
+                    <label class="label-text">Office Location</label>
+                    <div>2464 Royal Ln. Mesa, New Jersey</div> <!-- Replace with actual property if available -->
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="documents" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <div class="list-group">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Appointment Letter.pdf
+                            <span>
+                                <a href="#"><i class="fa fa-eye"></i></a>
+                                <a href="#"><i class="fa fa-download ms-2"></i></a>
+                            </span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Salary Slip_May.pdf
+                            <span>
+                                <a href="#"><i class="fa fa-eye"></i></a>
+                                <a href="#"><i class="fa fa-download ms-2"></i></a>
+                            </span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Reliving Letter.pdf
+                            <span>
+                                <a href="#"><i class="fa fa-eye"></i></a>
+                                <a href="#"><i class="fa fa-download ms-2"></i></a>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <div class="list-group">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Salary Slip_June.pdf
+                            <span>
+                                <a href="#"><i class="fa fa-eye"></i></a>
+                                <a href="#"><i class="fa fa-download ms-2"></i></a>
+                            </span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Salary Slip_April.pdf
+                            <span>
+                                <a href="#"><i class="fa fa-eye"></i></a>
+                                <a href="#"><i class="fa fa-download ms-2"></i></a>
+                            </span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            Experience Letter.pdf
+                            <span>
+                                <a href="#"><i class="fa fa-eye"></i></a>
+                                <a href="#"><i class="fa fa-download ms-2"></i></a>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .label-text {
+        color: #adb5bd;
+    }
+</style>

@@ -56,7 +56,7 @@ namespace FinserveNew.Models
         // This allows access to employee details from a claim
         [ForeignKey("EmployeeID")]
         [ValidateNever] // Skip validation for this related model
-        public virtual EmployeeModel Employee { get; set; } = null!;
+        public virtual Employee Employee { get; set; } = null!;
 
         // Optional total amount field (e.g. for grouped claims)
         [Display(Name = "Total Amount")]

@@ -57,7 +57,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID1");
 
-                    b.ToTable("Approvals");
+                    b.ToTable("Approvals", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
@@ -85,7 +85,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("BankID");
 
-                    b.ToTable("BankInformations");
+                    b.ToTable("BankInformations", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
@@ -154,7 +154,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Claims");
+                    b.ToTable("Claims", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
@@ -184,7 +184,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("ClaimTypeID1");
 
-                    b.ToTable("ClaimDetails");
+                    b.ToTable("ClaimDetails", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
@@ -205,7 +205,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("ClaimTypeID");
 
-                    b.ToTable("ClaimTypes");
+                    b.ToTable("ClaimTypes", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmergencyContact", b =>
@@ -221,7 +221,7 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<string>("PhoneNumber")
+                    b.Property<string>("TelephoneNumber")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
@@ -233,7 +233,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("EmergencyID");
 
-                    b.ToTable("EmergencyContacts");
+                    b.ToTable("EmergencyContacts", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmployeeModel", b =>
@@ -252,7 +252,7 @@ namespace FinserveNew.Migrations
                         .HasDefaultValue("Pending");
 
                     b.Property<DateTime>("DateOfBirth")
-                        .HasColumnType("datetime(6)");
+                        .HasColumnType("date");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -272,8 +272,8 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<DateTime>("JobDate")
-                        .HasColumnType("datetime(6)");
+                    b.Property<DateTime>("JoinDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -290,7 +290,7 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<string>("PhoneNumber")
+                    b.Property<string>("TelephoneNumber")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
@@ -300,8 +300,8 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
-                    b.Property<DateTime>("ResignationDate")
-                        .HasColumnType("datetime(6)");
+                    b.Property<DateOnly>("ResignationDate")
+                        .HasColumnType("date");
 
                     b.Property<int>("RoleID")
                         .HasColumnType("int");
@@ -319,7 +319,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("RoleID");
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Role", b =>
@@ -341,7 +341,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("RoleID");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Salary", b =>
@@ -412,7 +412,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID1");
 
-                    b.ToTable("Salaries");
+                    b.ToTable("Salaries", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Approval", b =>

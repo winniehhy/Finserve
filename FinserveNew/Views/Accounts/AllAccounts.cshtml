@@ -1,0 +1,180 @@
+﻿@* @model IEnumerable<FinserveNew.Models.Employee> *@
+
+@* @{ *@
+@*     ViewData["Title"] = "All Employee Accounts"; *@
+@* } *@
+
+@* <h2>All Employee Accounts</h2> *@
+
+@* <table class="table table-striped"> *@
+@*     <thead> *@
+@*         <tr> *@
+@*             <th>Full Name</th> *@
+@*             <th>Email</th> *@
+@*             <th>Department</th> *@
+@*             <th>Position</th> *@
+@*         </tr> *@
+@*     </thead> *@
+@*     <tbody> *@
+@*         @foreach (var emp in Model) *@
+@*         { *@
+@*             <tr> *@
+@*                 <td>@emp.FullName</td> *@
+@*                 <td>@emp.Email</td> *@
+@*                 <td>@emp.Department</td> *@
+@*                 <td>@emp.Position</td> *@
+@*             </tr> *@
+@*         } *@
+@*     </tbody> *@
+@* </table> *@
+
+
+@model IEnumerable<FinserveNew.Models.Employee>
+
+@{
+    ViewData["Title"] = "All Employee Accounts";
+    // int rowNo = 1;
+    int rowNo = (ViewBag.Page - 1) * ViewBag.PageSize + 1;
+    int page = ViewBag.Page;
+    int pageSize = ViewBag.PageSize;
+    int totalRecords = ViewBag.TotalRecords;
+    var pageSizes = ViewBag.PageSizes as int[] ?? new[] { 10, 25, 50, 100 };
+    string search = ViewBag.Search as string ?? "";
+    int totalPages = (int)Math.Ceiling((double)totalRecords / pageSize);
+    int startRecord = totalRecords == 0 ? 0 : ((page - 1) * pageSize) + 1;
+    int endRecord = Math.Min(page * pageSize, totalRecords);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Employee Accounts</h2>
+    @* currently logged-in user's name and role, change to put at _Layout.cshtml *@
+    <div>
+        <span class="fw-bold">@User.Identity?.Name</span>
+        <span class="badge bg-secondary ms-2">@User.FindFirst("http:schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value</span>
+    </div>
+</div>
+
+<div class="form-container mb-3">
+    <form class="row g-2 align-items-center" method="get" asp-action="AllAccounts">
+        <div class="col-auto flex-grow-1">
+            <input type="text" name="search" class="form-control" placeholder="Search by name, ID, or position..." value="@Context.Request.Query["search"]" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-outline-primary"><i class="fas fa-search"></i></button>
+        </div>
+        <div class="col-auto ms-auto">
+            <a asp-action="Create" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add new Employee</a>
+        </div>
+        <div class="col-auto">
+            <button type="button" class="btn btn-outline-secondary"><i class="fas fa-filter me-2"></i>Filter</button>
+        </div>
+    </form>
+</div>
+
+<div class="form-container">
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 40px;">No</th>
+                    <th style="width: 120px;">EmployeeID</th>
+                    <th>EmployeeName</th>
+                    <th>Position</th>
+                    <th style="width: 130px;">Join Date</th>
+                    <th>Status</th>
+                    <th style="width: 80px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var emp in Model)
+                    {
+                        <tr>
+                            <td>@rowNo</td>
+                            <td>@(emp.EmployeeID)</td>
+                            <td>@emp.FirstName @emp.LastName</td>
+                            <td>@emp.Position</td> @* Replace with emp.Position if available *@
+                            <td>@emp.JoinDate</td> @* Replace with emp.JoinDate if available *@
+                            <td>
+                                <span class="badge badge-active">Active</span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-0">
+                                    <a asp-action="Edit" asp-route-id="@emp.EmployeeID" class="btn btn-sm btn-icon"><i class="fas fa-pencil"></i></a>
+                                    <a asp-action="View" asp-route-id="@emp.EmployeeID" class="btn btn-sm btn-icon"><i class="fas fa-eye"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        rowNo++;
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No employees found.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="d-flex align-items-center justify-content-between mb-3" style="gap: 1rem; margin-top: 20px;">
+    <div class="d-flex align-items-center gap-2">
+        <span class="text-muted">Showing</span>
+        @* <form method="get" class="d-inline"> *@
+        @*     <select name="pageSize" class="form-select form-select-sm" style="width: 70px; display: inline-block;" onchange="this.form.submit()"> *@
+        @*         @foreach (var size in pageSizes) *@
+        @*         { *@
+        @*             <option value="@size" selected="@(size == pageSize ? "selected" : null)">@size</option> *@
+        @*         } *@
+        @*     </select> *@
+        @* </form> *@
+        <form method="get" class="d-inline">
+            <input type="hidden" name="search" value="@ViewBag.Search" />
+            <select name="pageSize" ... onchange="this.form.submit()" class="form-select-sm" style="border-color: #dee2e6;">
+                @foreach (var size in ViewBag.PageSizes)
+                {
+                    <option value="@size" selected="@(size == pageSize ? "selected" : null)">@size</option>
+                }
+            </select>
+        </form>
+
+    </div>
+    <div class="text-muted small">
+        Showing @startRecord to @endRecord out of @totalRecords records
+    </div>
+    <nav>
+        <ul class="pagination pagination-sm mb-0" style="gap: 0.25rem; ">
+            <li class="page-item @(page == 1 ? "disabled" : "")">
+                <a class="page-link" href="?page=@(page-1)&pageSize=@pageSize&search=@search" tabindex="-1">&lt;</a>
+            </li>
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                <li class="page-item @(i == page ? "active" : "")">
+                    <a class="page-link" href="?page=@i&pageSize=@pageSize&search=@search">@i</a>
+                </li>
+            }
+            <li class="page-item @(page == totalPages ? "disabled" : "")">
+                <a class="page-link" href="?page=@(page+1)&pageSize=@pageSize&search=@search">&gt;</a>
+            </li>
+        </ul>
+    </nav>
+</div>
+
+<style>
+    .pagination .page-item.active .page-link {
+        background: #f4f0ff;
+        color: #6c4cf1;
+        border: 0.5px solid #6c4cf1;
+        border-radius: 5px;
+        font-weight: 500;
+    }
+    .pagination .page-link {
+        color: #222;
+        border: none;
+        min-width: 32px;
+        text-align: center;
+    }
+</style>

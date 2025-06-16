@@ -17,6 +17,6 @@ namespace FinserveNew.Models
         public string? Description { get; set; }
 
         // Navigation Property
-        public virtual ICollection<EmployeeModel> Employees { get; set; } = new List<EmployeeModel>();
+        public virtual ICollection<Employee> Employees { get; set; } = new List<Employee>();
     }
 }

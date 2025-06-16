@@ -1,0 +1,87 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\xuan\\source\\repos\\Finserve\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|c:\\users\\xuan\\source\\repos\\finserve\\views\\claim\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|solutionrelative:views\\claim\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|c:\\users\\xuan\\source\\repos\\finserve\\views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|solutionrelative:views\\home\\index.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|c:\\users\\xuan\\source\\repos\\finserve\\models\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|solutionrelative:models\\applicationdbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|c:\\users\\xuan\\source\\repos\\finserve\\views\\claim\\create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4CF4497B-CF6D-4BAA-AAE8-D164B76A182A}|Finserve3.csproj|solutionrelative:views\\claim\\create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\Users\\xuan\\source\\repos\\Finserve\\Views\\Claim\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Claim\\Index.cshtml",
+              "ToolTip": "C:\\Users\\xuan\\source\\repos\\Finserve\\Views\\Claim\\Index.cshtml",
+              "RelativeToolTip": "Views\\Claim\\Index.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAArAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-06-09T08:50:57.636Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ApplicationDbContext.cs",
+              "DocumentMoniker": "C:\\Users\\xuan\\source\\repos\\Finserve\\Models\\ApplicationDbContext.cs",
+              "RelativeDocumentMoniker": "Models\\ApplicationDbContext.cs",
+              "ToolTip": "C:\\Users\\xuan\\source\\repos\\Finserve\\Models\\ApplicationDbContext.cs",
+              "RelativeToolTip": "Models\\ApplicationDbContext.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-06-09T08:41:57.439Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Create.cshtml",
+              "DocumentMoniker": "C:\\Users\\xuan\\source\\repos\\Finserve\\Views\\Claim\\Create.cshtml",
+              "RelativeDocumentMoniker": "Views\\Claim\\Create.cshtml",
+              "ToolTip": "C:\\Users\\xuan\\source\\repos\\Finserve\\Views\\Claim\\Create.cshtml",
+              "RelativeToolTip": "Views\\Claim\\Create.cshtml",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-06-09T08:33:09.507Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Index.cshtml",
+              "DocumentMoniker": "C:\\Users\\xuan\\source\\repos\\Finserve\\Views\\Home\\Index.cshtml",
+              "RelativeDocumentMoniker": "Views\\Home\\Index.cshtml",
+              "ToolTip": "C:\\Users\\xuan\\source\\repos\\Finserve\\Views\\Home\\Index.cshtml",
+              "RelativeToolTip": "Views\\Home\\Index.cshtml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-06-09T08:32:54.036Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

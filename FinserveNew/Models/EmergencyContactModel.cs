@@ -12,10 +12,10 @@ namespace FinserveNew.Models
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Phone number is required")]
-        [Display(Name = "Phone Number")]
+        [Required(ErrorMessage = "Telephone number is required")]
+        [Display(Name = "Telephone Number")]
         [MaxLength(20)]
-        public string PhoneNumber { get; set; } = string.Empty;
+        public string TelephoneNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Relationship is required")]
         [Display(Name = "Relationship")]
@@ -23,6 +23,6 @@ namespace FinserveNew.Models
         public string Relationship { get; set; } = string.Empty;
 
         // Navigation Property
-        public virtual ICollection<EmployeeModel> Employees { get; set; } = new List<EmployeeModel>();
+        public virtual ICollection<Employee> Employees { get; set; } = new List<Employee>();
     }
 }

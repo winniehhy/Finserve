@@ -11,7 +11,8 @@ namespace FinserveNew.Data
         }
 
         // Tables in the database
-        public DbSet<EmployeeModel> Employees { get; set; }
+        //public DbSet<EmployeeModel> Employees { get; set; }
+        public DbSet<Employee> Employees { get; set; }
         public DbSet<Claim> Claims { get; set; }
         public DbSet<BankInformation> BankInformations { get; set; }
         public DbSet<EmergencyContact> EmergencyContacts { get; set; }
@@ -25,7 +26,7 @@ namespace FinserveNew.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Employee table configuration
-            modelBuilder.Entity<EmployeeModel>(entity =>
+            modelBuilder.Entity<Employee>(entity =>
             {
                 entity.HasKey(e => e.EmployeeID); // Primary key
                 entity.Property(e => e.Username).IsRequired().HasMaxLength(50);
@@ -35,7 +36,7 @@ namespace FinserveNew.Data
                 entity.Property(e => e.IC).IsRequired().HasMaxLength(20);
                 entity.Property(e => e.Nationality).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.PhoneNumber).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.TelephoneNumber).IsRequired().HasMaxLength(20);
                 entity.Property(e => e.Position).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ConfirmationStatus).HasMaxLength(20).HasDefaultValue("Pending");
 
@@ -104,7 +105,7 @@ namespace FinserveNew.Data
                 entity.HasKey(s => s.SalaryID); // Primary key
 
                 // Relationship to employee
-                entity.HasOne<EmployeeModel>()
+                entity.HasOne<Employee>()
                     .WithMany(e => e.Salaries)
                     .HasForeignKey(s => s.EmployeeID)
                     .OnDelete(DeleteBehavior.Cascade);
@@ -116,7 +117,7 @@ namespace FinserveNew.Data
                 entity.HasKey(a => a.ApprovalID); // Primary key
 
                 // Relationship to employee (approver)
-                entity.HasOne<EmployeeModel>()
+                entity.HasOne<Employee>()
                     .WithMany(e => e.Approvals)
                     .HasForeignKey(a => a.EmployeeID)
                     .OnDelete(DeleteBehavior.Cascade);
