@@ -8,7 +8,7 @@ namespace FinserveNew.Models
     {
         [Key]
         //public string EmployeeID { get; set; } = "E001"; // Default value for EmployeeID
-        public string EmployeeID { get; set; } = string.Empty;
+        public string EmployeeID { get; set; } = null!;
 
         [Required(ErrorMessage = "Username is required")]
         [Display(Name = "Username")]
@@ -54,17 +54,17 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "Date of birth is required")]
         [Display(Name = "Date of Birth")]
         [DataType(DataType.Date)]
-        public DateTime DateOfBirth { get; set; }
+        public DateOnly DateOfBirth { get; set; }
 
         [Required(ErrorMessage = "Join date is required")]
         [Display(Name = "Join Date")]
         [DataType(DataType.Date)]
-        public DateTime JoinDate { get; set; }
+        public DateOnly JoinDate { get; set; }
 
-        [Required(ErrorMessage = "Resignation date is required")]
+        //[Required(ErrorMessage = "Resignation date is required")]
         [Display(Name = "Resignation Date")]
         [DataType(DataType.Date)]
-        public DateTime ResignationDate { get; set; }
+        public DateOnly? ResignationDate { get; set; }
 
         [Required(ErrorMessage = "Confirmation status is required")]
         [Display(Name = "Confirmation Status")]

@@ -29,17 +29,17 @@ namespace FinserveNew.Controllers
             // Optional: Search logic
             if (!string.IsNullOrWhiteSpace(search))
             {
-                //query = query.Where(e =>
-                //    e.FullName.Contains(search) ||
-                //    e.Position.Contains(search) ||
-                //    e.Department.Contains(search) ||
-                //    e.Id.ToString().Contains(search)
-                //);
+                query = query.Where(e =>
+                    e.FirstName.Contains(search) ||
+                    e.LastName.Contains(search) ||
+                    e.Position.Contains(search) ||
+                    e.EmployeeID.ToString().Contains(search)
+                );
             }
 
             var totalRecords = await query.CountAsync();
             var employees = await query
-                .OrderBy(e => e.EmployeeId)
+                .OrderBy(e => e.EmployeeID)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -53,5 +53,23 @@ namespace FinserveNew.Controllers
 
             return View(employees);
         }
+
+        public async Task<IActionResult> View(string id)
+        {
+            if (string.IsNullOrEmpty(id))
+                return NotFound();
+
+            var employee = await _context.Employees
+                .Include(e => e.Role)
+                //.Include(e => e.BankInformation)
+                //.Include(e => e.EmergencyContact)
+                .FirstOrDefaultAsync(e => e.EmployeeID == id);
+
+            if (employee == null)
+                return NotFound();
+
+            return View(employee);
+        }
+
     }
 }
