@@ -39,7 +39,7 @@ namespace FinserveNew.Controllers
 
             var totalRecords = await query.CountAsync();
             var employees = await query
-                //.OrderBy(e => e.Id)
+                .OrderBy(e => e.EmployeeId)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
