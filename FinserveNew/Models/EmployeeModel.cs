@@ -107,5 +107,8 @@ namespace FinserveNew.Models
 
         // One Employee can have many Approvals
         public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();
+
+        // One Employee can have many Documents
+        public virtual ICollection<EmployeeDocument> EmployeeDocuments { get; set; } = new List<EmployeeDocument>();
     }
 }

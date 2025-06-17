@@ -1,0 +1,160 @@
+﻿@model FinserveNew.Models.ViewModels.AddEmployeeViewModel
+@{
+    ViewData["Title"] = "Add New Employee";
+}
+<h2 class="mb-4">Add New Employee</h2>
+<ul class="nav nav-tabs mb-3" id="employeeTab" role="tablist">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#personal">Personal & Contact</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#employment">Employment</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#compensation">Compensation</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#emergency">Emergency</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#documents">Documents</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#login">Login</a></li>
+</ul>
+<form asp-action="Add" method="post" enctype="multipart/form-data">
+    <div class="tab-content card p-4">
+        <div class="tab-pane fade show active" id="personal">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>First Name *</label>
+                    <input asp-for="FirstName" class="form-control" required />
+                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label>Last Name *</label>
+                    <input asp-for="LastName" class="form-control" required />
+                    <span asp-validation-for="LastName" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label>IC *</label>
+                    <input asp-for="IC" class="form-control" placeholder="e.g., 901231-14-5678" required />
+                    <span asp-validation-for="IC" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label>Nationality *</label>
+                    <select asp-for="Nationality" class="form-select" asp-items="@(new SelectList(Model.Nationalities))"></select>
+                </div>
+                <div class="col-md-6">
+                    <label>Date of Birth *</label>
+                    <input asp-for="DateOfBirth" class="form-control" type="date" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Email *</label>
+                    <input asp-for="Email" class="form-control" type="email" required />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label>Telephone Number *</label>
+                    <input asp-for="TelephoneNumber" class="form-control" required />
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="employment">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>Employee ID</label>
+                    <input asp-for="EmployeeID" class="form-control" readonly />
+                </div>
+                <div class="col-md-6">
+                    <label>Position *</label>
+                    <input asp-for="Position" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Join Date *</label>
+                    <input asp-for="JoinDate" class="form-control" type="date" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Confirmation Status *</label>
+                    <select asp-for="ConfirmationStatus" class="form-select" asp-items="@(new SelectList(Model.ConfirmationStatuses))"></select>
+                </div>
+                <div class="col-md-6">
+                    <label>Resignation Date</label>
+                    <input asp-for="ResignationDate" class="form-control" type="date" />
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="compensation">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>Salary *</label>
+                    <input asp-for="Salary" class="form-control" type="number" step="0.01" min="0" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Bank Name *</label>
+                    <select asp-for="BankName" class="form-select" asp-items="@(new SelectList(Model.BankNames))"></select>
+                </div>
+                <div class="col-md-6">
+                    <label>Bank Account Number *</label>
+                    <input asp-for="BankAccountNumber" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Type of Bank *</label>
+                    <select asp-for="BankType" class="form-select" asp-items="@(new SelectList(Model.BankTypes))"></select>
+                </div>
+                <div class="col-md-6">
+                    <label>Income Tax Number *</label>
+                    <input asp-for="IncomeTaxNumber" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label>EPF Number *</label>
+                    <input asp-for="EPFNumber" class="form-control" required />
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="emergency">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>Emergency Name *</label>
+                    <input asp-for="EmergencyName" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Emergency Phone *</label>
+                    <input asp-for="EmergencyPhone" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Relationship *</label>
+                    <select asp-for="EmergencyRelationship" class="form-select" asp-items="@(new SelectList(Model.Relationships))"></select>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="documents">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label>IC (JPG, PNG, PDF)</label>
+                    <input asp-for="ICFile" type="file" class="form-control" accept=".jpg,.jpeg,.png,.pdf" />
+                </div>
+                <div class="col-md-4">
+                    <label>Resume (PDF, DOCX)</label>
+                    <input asp-for="ResumeFile" type="file" class="form-control" accept=".pdf,.docx" />
+                </div>
+                <div class="col-md-4">
+                    <label>Offer Letter (PDF)</label>
+                    <input asp-for="OfferLetterFile" type="file" class="form-control" accept=".pdf" />
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade" id="login">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>Username *</label>
+                    <input asp-for="Username" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Password *</label>
+                    <input asp-for="Password" class="form-control" type="password" required />
+                </div>
+                <div class="col-md-6">
+                    <label>Confirm Password *</label>
+                    <input asp-for="ConfirmPassword" class="form-control" type="password" required />
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex justify-content-end mt-4">
+        <button type="submit" class="btn btn-primary">Create Employee</button>
+        <a asp-action="AllAccounts" class="btn btn-outline-secondary ms-2">Cancel</a>
+    </div>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
