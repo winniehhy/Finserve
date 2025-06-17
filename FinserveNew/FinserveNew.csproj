@@ -11,6 +11,12 @@
     <Compile Remove="Efmigrationshistory.cs" />
     <Compile Remove="Employee.cs" />
     <Compile Remove="FinserveNewDbContext.cs" />
+    <Compile Remove="Views\Accounts\Create.cshtml.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Views\Accounts\Component.razor" />
+    <Content Remove="Views\Accounts\Create.cshtml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -26,6 +32,10 @@
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.7" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\ViewModels\" />
   </ItemGroup>
 
 </Project>

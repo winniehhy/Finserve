@@ -21,6 +21,8 @@ namespace FinserveNew.Data
         public DbSet<Approval> Approvals { get; set; }
         public DbSet<ClaimDetails> ClaimDetails { get; set; }
         public DbSet<ClaimType> ClaimTypes { get; set; }
+        public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
+
 
         // Configure the table structures and relationships
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -148,6 +150,18 @@ namespace FinserveNew.Data
             modelBuilder.Entity<ClaimType>(entity =>
             {
                 entity.HasKey(ct => ct.ClaimTypeID); // Primary key
+            });
+
+            // EmployeeDocument table configuration
+            modelBuilder.Entity<EmployeeDocument>(entity =>
+            {
+                entity.HasKey(ed => ed.DocumentID); // Primary key
+
+                // Relationship to employee
+                entity.HasOne(ed => ed.Employee)
+                    .WithMany(e => e.EmployeeDocuments)
+                    .HasForeignKey(ed => ed.EmployeeID)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Call the base method

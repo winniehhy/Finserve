@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using FinserveNew.Data;
 using FinserveNew.Models;
 using System.Threading.Tasks;
+using System.Linq;
+using FinserveNew.Models.ViewModels;
 
 namespace FinserveNew.Controllers
 {
@@ -22,6 +24,7 @@ namespace FinserveNew.Controllers
         //    return View(employees);
         //}
 
+        // Get all employee accounts
         public async Task<IActionResult> AllAccounts(int page = 1, int pageSize = 10, string? search = null)
         {
             var query = _context.Employees.AsQueryable();
@@ -54,7 +57,8 @@ namespace FinserveNew.Controllers
             return View(employees);
         }
 
-        public async Task<IActionResult> View(string id)
+        // View employee details
+        public async Task<IActionResult> ViewDetails(string id)
         {
             if (string.IsNullOrEmpty(id))
                 return NotFound();
@@ -70,6 +74,46 @@ namespace FinserveNew.Controllers
 
             return View(employee);
         }
+
+        // Add new employee
+        [HttpGet]
+        public IActionResult Add()
+        {
+            var vm = new AddEmployeeViewModel
+            {
+                Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" },
+                BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
+                BankTypes = new[] { "Savings", "Current" }
+            };
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Add(AddEmployeeViewModel vm)
+        {
+            // Uniqueness checks (IC, Email, BankAccountNumber, etc.)
+            if (_context.Employees.Any(e => e.IC == vm.IC))
+                ModelState.AddModelError("IC", "IC already exists.");
+            if (_context.Employees.Any(e => e.Email == vm.Email))
+                ModelState.AddModelError("Email", "Email already exists.");
+            // ... more checks
+
+            if (!ModelState.IsValid)
+            {
+                vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
+                vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
+                vm.BankTypes = new[] { "Savings", "Current" };
+                return View(vm);
+            }
+
+            // Generate EmployeeID, save Employee, Bank, Emergency, etc.
+            // Save files (ICFile, ResumeFile, OfferLetterFile) to disk/db and reference in EmployeeDocument table
+
+            TempData["Success"] = $"Employee {vm.FirstName} {vm.LastName} added successfully!";
+            return RedirectToAction("AllAccounts");
+        }
+
 
     }
 }
