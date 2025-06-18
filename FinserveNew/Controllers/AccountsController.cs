@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using FinserveNew.Data;
 using FinserveNew.Models;
 using System.Threading.Tasks;
-using System.Linq;
 using FinserveNew.Models.ViewModels;
 using System.Security.Cryptography;
 using System.Text;
@@ -76,7 +75,40 @@ namespace FinserveNew.Controllers
             if (employee == null)
                 return NotFound();
 
-            return View(employee);
+            var viewModel = new EmployeeDetailsViewModel
+            {
+                EmployeeID = employee.EmployeeID,
+                FirstName = employee.FirstName,
+                LastName = employee.LastName,
+                IC = employee.IC,
+                Nationality = employee.Nationality,
+                Email = employee.Email,
+                TelephoneNumber = employee.TelephoneNumber,
+                DateOfBirth = employee.DateOfBirth,
+                JoinDate = employee.JoinDate,
+                ResignationDate = employee.ResignationDate,
+                ConfirmationStatus = employee.ConfirmationStatus,
+                Position = employee.Position,
+                BankName = employee.BankInformation?.BankName ?? string.Empty,
+                BankType = employee.BankInformation?.BankType ?? string.Empty,
+                BankAccountNumber = employee.BankInformation?.BankAccountNumber ?? string.Empty,
+                EmergencyContactName = employee.EmergencyContact?.Name ?? string.Empty,
+                EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber ?? string.Empty,
+                EmergencyContactRelationship = employee.EmergencyContact?.Relationship ?? string.Empty,
+                // Documents = employee.EmployeeDocuments?.Select(d => new DocumentViewModel
+                // {
+                //     DocumentID = d.DocumentID,
+                //     DocumentType = d.DocumentType,
+                //     FilePath = d.FilePath,
+                //     //UploadDate = d.UploadDate
+                // }).ToList() ?? new List<DocumentViewModel>(),
+                Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>(),
+                Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" },
+                BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
+                BankTypes = new[] { "Savings", "Current" }
+            };
+
+            return View(viewModel);
         }
 
         // GET: Accounts/Add
@@ -118,12 +150,40 @@ namespace FinserveNew.Controllers
                 .OrderByDescending(e => e.EmployeeID)
                 .FirstOrDefaultAsync();
             
-            string newEmployeeId = "E001";
+            string newEmployeeId = "EM001";
             if (lastEmployee != null)
             {
-                var lastNumber = int.Parse(lastEmployee.EmployeeID.Substring(1));
-                newEmployeeId = $"E{(lastNumber + 1):D3}";
+                var lastNumber = int.Parse(lastEmployee.EmployeeID.Substring(2));
+                newEmployeeId = $"EM{(lastNumber + 1):D3}";
             }
+
+            //// Generate BankID
+            //var lastBank = await _context.BankInformations
+            //    .OrderByDescending(b => b.BankID)
+            //    .FirstOrDefaultAsync();
+
+            //string newBankID = "B001";
+            //if (lastBank != null)
+            //{
+            //    //var lastNumber = int.Parse(lastBank.BankID.Substring(1));
+            //    //newBankID = $"B{(lastNumber + 1):D3}";
+            //    var lastNumber = lastBank.BankID; // currently the id is put as 1, havnt give proper format
+            //    newBankID = $"B{(lastNumber + 1):D3}";
+            //}
+
+            //// Generate EmergencyID
+            //var lastContact = await _context.EmergencyContacts
+            //    .OrderByDescending(ec => ec.EmergencyID)
+            //    .FirstOrDefaultAsync();
+
+            //string newEmergencyID = "EC001";
+            //if (lastContact != null)
+            //{
+            //    //var lastNumber = int.Parse(lastBank.BankID.Substring(1));
+            //    //newBankID = $"B{(lastNumber + 1):D3}";
+            //    var lastNumber = lastContact.EmergencyID;
+            //    newEmergencyID = $"EC{(lastNumber + 1):D3}";
+            //}
 
             // Create Bank Information
             var bankInfo = new BankInformation
@@ -164,7 +224,7 @@ namespace FinserveNew.Controllers
                 Position = vm.Position,
                 BankID = bankInfo.BankID,
                 EmergencyID = emergencyContact.EmergencyID,
-                RoleID = 2 // Default role for new employees
+                RoleID = 1 // Default role for new employees
             };
             _context.Employees.Add(employee);
             await _context.SaveChangesAsync();
@@ -337,6 +397,94 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(Documents), new { id });
         }
 
+        // POST: Accounts/UpdateEmployee
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateEmployee(EmployeeDetailsViewModel vm)
+        {
+            if (!ModelState.IsValid)
+            {
+                vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
+                vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
+                vm.BankTypes = new[] { "Savings", "Current" };
+                return View("ViewDetails", vm);
+            }
+
+            var employee = await _context.Employees
+                .Include(e => e.BankInformation)
+                .Include(e => e.EmergencyContact)
+                .FirstOrDefaultAsync(e => e.EmployeeID == vm.EmployeeID);
+
+            if (employee == null)
+                return NotFound();
+
+            // Update employee details
+            employee.FirstName = vm.FirstName;
+            employee.LastName = vm.LastName;
+            employee.IC = vm.IC;
+            employee.Nationality = vm.Nationality;
+            employee.Email = vm.Email;
+            employee.TelephoneNumber = vm.TelephoneNumber;
+            employee.DateOfBirth = vm.DateOfBirth;
+            employee.JoinDate = vm.JoinDate;
+            employee.ResignationDate = vm.ResignationDate;
+            employee.ConfirmationStatus = vm.ConfirmationStatus;
+            employee.Position = vm.Position;
+
+            // Update bank information
+            if (employee.BankInformation != null)
+            {
+                employee.BankInformation.BankName = vm.BankName;
+                employee.BankInformation.BankType = vm.BankType;
+                employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
+            }
+
+            // Update emergency contact
+            if (employee.EmergencyContact != null)
+            {
+                employee.EmergencyContact.Name = vm.EmergencyContactName;
+                employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
+                employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Employee updated successfully!";
+                return RedirectToAction(nameof(ViewDetails), new { id = vm.EmployeeID });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!EmployeeExists(vm.EmployeeID))
+                    return NotFound();
+                else
+                    throw;
+            }
+        }
+
+        // POST: Accounts/DeleteDocument
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteDocument(int documentId)
+        {
+            var document = await _context.EmployeeDocuments.FindAsync(documentId);
+            if (document == null)
+                return NotFound();
+
+            // Delete the physical file
+            var filePath = Path.Combine(_webHostEnvironment.WebRootPath, document.FilePath.TrimStart('/'));
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+
+            _context.EmployeeDocuments.Remove(document);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Document deleted successfully!";
+            return RedirectToAction(nameof(ViewDetails), new { id = document.EmployeeID });
+        }
+
         private async Task<string> SaveFile(IFormFile file, string folder)
         {
             if (file == null || file.Length == 0)
@@ -364,7 +512,7 @@ namespace FinserveNew.Controllers
                 EmployeeID = employeeId,
                 DocumentType = documentType,
                 FilePath = filePath,
-                UploadDate = DateTime.UtcNow
+                // UploadDate = DateTime.UtcNow
             };
 
             _context.EmployeeDocuments.Add(document);

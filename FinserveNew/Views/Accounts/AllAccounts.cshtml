@@ -33,20 +33,24 @@
 
 @{
     ViewData["Title"] = "Employee List";
+    int rowNo = (ViewBag.Page - 1) * ViewBag.PageSize + 1;
 }
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Employee List</h2>
-        <a asp-action="Add" class="btn btn-primary">Add New Employee</a>
+        <a asp-action="Add" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add New Employee</a>
     </div>
 
     <div class="card">
         <div class="card-body">
-            <form asp-action="AllAccounts" method="get" class="mb-4">
-                <div class="input-group">
+            <form asp-action="AllAccounts" method="get" class="mb-4 row align-items-center">
+                <div class="col-auto input-group flex-grow-1" style="width: auto">
                     <input type="text" name="search" class="form-control" placeholder="Search by name, position or ID..." value="@ViewBag.Search" />
-                    <button type="submit" class="btn btn-outline-secondary">Search</button>
+                    <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-search"></i></button>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-outline-secondary"><i class="fas fa-filter me-2"></i>Filter</button>
                 </div>
             </form>
 
@@ -54,32 +58,41 @@
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Employee ID</th>
-                            <th>Full Name</th>
-                            <th>Position</th>
-                            <th>Join Date</th>
-                            <th>Email</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th style="width: 40px">No</th>
+                            <th style="width: 120px">Employee ID</th>
+                            <th>Employee Name</th>
+                            <th style="width: 130px">Position</th>
+                            <th style="width: 130px">Join Date</th>
+                            <th style="width: 130px">Status</th>
+                            <th style="width: 80px">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var item in Model)
+                        @if (Model != null && Model.Any())
+                        {
+                            @foreach (var item in Model)
+                            {
+                                <tr>
+                                    <td>@rowNo</td>
+                                    <td>@item.EmployeeID</td>
+                                    <td>@item.FirstName @item.LastName</td>
+                                    <td>@item.Position</td>
+                                    <td>@item.JoinDate.ToShortDateString()</td>
+                                    <td><span class="badge badge-active">@item.ConfirmationStatus</span></td>
+                                    <td class="d-flex justify-content-around">
+                                        <div class="btn-group">
+                                            @* <a asp-action="Edit" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-icon"><i class="fas fa-pencil"></i></a> *@
+                                            <a asp-action="ViewDetails" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-icon"><i class="fas fa-eye"></i></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                rowNo++;
+                            }
+                        }
+                        else
                         {
                             <tr>
-                                <td>@item.EmployeeID</td>
-                                <td>@item.FirstName @item.LastName</td>
-                                <td>@item.Position</td>
-                                <td>@item.JoinDate.ToShortDateString()</td>
-                                <td>@item.Email</td>
-                                <td>@item.ConfirmationStatus</td>
-                                <td>
-                                    <div class="btn-group">
-                                        <a asp-action="ViewDetails" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-outline-primary">View</a>
-                                        <a asp-action="Edit" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                        <a asp-action="Documents" asp-route-id="@item.EmployeeID" class="btn btn-sm btn-outline-info">Documents</a>
-                                    </div>
-                                </td>
+                                <td colspan="7" class="text-center text-muted">No employees found.</td>
                             </tr>
                         }
                     </tbody>
@@ -89,9 +102,6 @@
             @if (ViewBag.TotalRecords > 0)
             {
                 <div class="d-flex justify-content-between align-items-center mt-4">
-                    <div>
-                        <span>Showing @(((ViewBag.Page - 1) * ViewBag.PageSize) + 1) to @(Math.Min(ViewBag.Page * ViewBag.PageSize, ViewBag.TotalRecords)) of @ViewBag.TotalRecords entries</span>
-                    </div>
                     <div class="d-flex align-items-center">
                         <span class="me-2">Page size:</span>
                         <select class="form-select form-select-sm me-3" style="width: auto;" onchange="changePageSize(this.value)">
@@ -100,34 +110,57 @@
                                 <option value="@size" selected="@(size == ViewBag.PageSize)">@size</option>
                             }
                         </select>
-                        <nav>
-                            <ul class="pagination mb-0">
-                                @{
-                                    var totalPages = (int)Math.Ceiling(ViewBag.TotalRecords / (double)ViewBag.PageSize);
-                                    var startPage = Math.Max(1, ViewBag.Page - 2);
-                                    var endPage = Math.Min(totalPages, startPage + 4);
-                                    startPage = Math.Max(1, endPage - 4);
-                                }
-                                <li class="page-item @(ViewBag.Page == 1 ? "disabled" : "")">
-                                    <a class="page-link" href="@Url.Action("AllAccounts", new { page = ViewBag.Page - 1, pageSize = ViewBag.PageSize, search = ViewBag.Search })">Previous</a>
-                                </li>
-                                @for (int i = startPage; i <= endPage; i++)
-                                {
-                                    <li class="page-item @(i == ViewBag.Page ? "active" : "")">
-                                        <a class="page-link" href="@Url.Action("AllAccounts", new { page = i, pageSize = ViewBag.PageSize, search = ViewBag.Search })">@i</a>
-                                    </li>
-                                }
-                                <li class="page-item @(ViewBag.Page == totalPages ? "disabled" : "")">
-                                    <a class="page-link" href="@Url.Action("AllAccounts", new { page = ViewBag.Page + 1, pageSize = ViewBag.PageSize, search = ViewBag.Search })">Next</a>
-                                </li>
-                            </ul>
-                        </nav>
                     </div>
+                    <div>
+                        <span>Showing @(((ViewBag.Page - 1) * ViewBag.PageSize) + 1) to @(Math.Min(ViewBag.Page * ViewBag.PageSize, ViewBag.TotalRecords)) of @ViewBag.TotalRecords entries</span>
+                    </div>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            @{
+                                var totalPages = (int)Math.Ceiling(ViewBag.TotalRecords / (double)ViewBag.PageSize);
+                                var startPage = Math.Max(1, ViewBag.Page - 2);
+                                var endPage = Math.Min(totalPages, startPage + 4);
+                                startPage = Math.Max(1, endPage - 4);
+                            }
+                            <li class="page-item @(ViewBag.Page == 1 ? "disabled" : "")">
+                                <a class="page-link" href="@Url.Action("AllAccounts", new { page = ViewBag.Page - 1, pageSize = ViewBag.PageSize, search = ViewBag.Search })">&lt;</a>
+                            </li>
+                            @for (int i = startPage; i <= endPage; i++)
+                            {
+                                <li class="page-item @(i == ViewBag.Page ? "active" : "")">
+                                    <a class="page-link" href="@Url.Action("AllAccounts", new { page = i, pageSize = ViewBag.PageSize, search = ViewBag.Search })">@i</a>
+                                </li>
+                            }
+                            <li class="page-item @(ViewBag.Page == totalPages ? "disabled" : "")">
+                                <a class="page-link" href="@Url.Action("AllAccounts", new { page = ViewBag.Page + 1, pageSize = ViewBag.PageSize, search = ViewBag.Search })">&gt;</a>
+                            </li>
+                        </ul>
+                    </nav>
                 </div>
             }
         </div>
     </div>
 </div>
+
+<style>
+    .pagination .page-item.active .page-link {
+        background: #f4f0ff;
+        color: #6c4cf1;
+        border: 0.5px solid #6c4cf1;
+        border-radius: 5px;
+        font-weight: 500;
+    }
+    .pagination .page-link {
+        color: #222;
+        border: none;
+        min-width: 32px;
+        text-align: center;
+    }
+
+    .pagination .page-item.disabled {
+        --bs-pagination-disabled-bg: none;
+    }
+</style>
 
 @section Scripts {
     <script>

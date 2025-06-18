@@ -54,8 +54,8 @@ namespace FinserveNew.Models.ViewModels
         public DateOnly? ResignationDate { get; set; }
 
         // 3. Compensation & Statutory
-        [Required, Range(0.01, double.MaxValue)]
-        public decimal Salary { get; set; }
+        //[Required, Range(0.01, double.MaxValue)]
+        //public decimal Salary { get; set; }
         [Required]
         [StringLength(100)]
         [Display(Name = "Bank Name")]
@@ -105,8 +105,8 @@ namespace FinserveNew.Models.ViewModels
         [StringLength(100, MinimumLength = 8)]
         [DataType(DataType.Password)]
         public string Password { get; set; } = string.Empty;
-        [Required, Compare("Password")]
-        public string ConfirmPassword { get; set; } = string.Empty;
+        //[Required, Compare("Password")]
+        //public string ConfirmPassword { get; set; } = string.Empty;
 
         // Dropdowns
         public string[] Nationalities { get; set; } = Array.Empty<string>();

@@ -35,7 +35,7 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="Nationality" class="control-label">Nationality</label>
-                        <select asp-for="Nationality" class="form-control" required>
+                        <select asp-for="Nationality" class="form-select" required>
                             <option value="">Select Nationality</option>
                             @foreach (var nationality in Model.Nationalities)
                             {
@@ -59,7 +59,7 @@
                     </div>
                 </div>
 
-                <div class="mb-3">
+                <div class="col-md-6 mb-3">
                     <label asp-for="TelephoneNumber" class="control-label">Telephone Number</label>
                     <input asp-for="TelephoneNumber" class="form-control" required />
                     <span asp-validation-for="TelephoneNumber" class="text-danger"></span>
@@ -88,7 +88,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="ConfirmationStatus" class="control-label">Confirmation Status</label>
-                        <select asp-for="ConfirmationStatus" class="form-control" required>
+                        <select asp-for="ConfirmationStatus" class="form-select" required>
                             <option value="Pending">Pending</option>
                             <option value="Probation">Probation</option>
                             <option value="Confirmed">Confirmed</option>
@@ -113,7 +113,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="BankName" class="control-label">Bank Name</label>
-                        <select asp-for="BankName" class="form-control" required>
+                        <select asp-for="BankName" class="form-select" required>
                             <option value="">Select Bank</option>
                             @foreach (var bank in Model.BankNames)
                             {
@@ -123,8 +123,8 @@
                         <span asp-validation-for="BankName" class="text-danger"></span>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label asp-for="BankType" class="control-label">Bank Type</label>
-                        <select asp-for="BankType" class="form-control" required>
+                        <label asp-for="BankType" class="control-label">Account Type</label>
+                        <select asp-for="BankType" class="form-select" required>
                             <option value="">Select Type</option>
                             @foreach (var type in Model.BankTypes)
                             {
@@ -147,23 +147,43 @@
 
         <div class="card mb-4">
             <div class="card-header">
+                <h4>Statutory Information</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="IncomeTaxNumber" class="control-label">Income Tax Number</label>
+                        <input asp-for="IncomeTaxNumber" class="form-control" required />
+                        <span asp-validation-for="IncomeTaxNumber" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="EPFNumber" class="control-label">EPF (Employee Provident Fund) Number</label>
+                        <input asp-for="EPFNumber" class="form-control" required />
+                        <span asp-validation-for="EPFNumber" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
                 <h4>Emergency Contact Information</h4>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label asp-for="EmergencyContactName" class="control-label">Contact Name</label>
+                        <label asp-for="EmergencyContactName" class="control-label">Full Name</label>
                         <input asp-for="EmergencyContactName" class="form-control" required />
                         <span asp-validation-for="EmergencyContactName" class="text-danger"></span>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label asp-for="EmergencyContactPhone" class="control-label">Contact Phone</label>
+                        <label asp-for="EmergencyContactPhone" class="control-label">Contact Number</label>
                         <input asp-for="EmergencyContactPhone" class="form-control" required />
                         <span asp-validation-for="EmergencyContactPhone" class="text-danger"></span>
                     </div>
                 </div>
 
-                <div class="mb-3">
+                <div class="col-md-6 mb-3">
                     <label asp-for="EmergencyContactRelationship" class="control-label">Relationship</label>
                     <input asp-for="EmergencyContactRelationship" class="form-control" required />
                     <span asp-validation-for="EmergencyContactRelationship" class="text-danger"></span>
@@ -201,7 +221,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="control-label">IC Photo</label>
-                        <input type="file" name="ICFile" class="form-control" accept="image/*" />
+                        <input type="file" name="ICFile" class="form-control" accept="image/*, .pdf" />
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="control-label">Resume</label>
@@ -218,7 +238,7 @@
         </div>
 
         <div class="form-group text-center">
-            <button type="submit" class="btn btn-primary">Create Employee</button>
+            <button type="submit" class="btn btn-primary">Add Employee</button>
             <a asp-action="AllAccounts" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
@@ -233,8 +253,8 @@
         document.getElementById('LastName').addEventListener('input', updateUsername);
 
         function updateUsername() {
-            const firstName = document.getElementById('FirstName').value.toLowerCase();
-            const lastName = document.getElementById('LastName').value.toLowerCase();
+            const firstName = document.getElementById('FirstName').value.toLowerCase().replace(/\s+/g, '');
+            const lastName = document.getElementById('LastName').value.toLowerCase().replace(/\s+/g, '');
             if (firstName && lastName) {
                 document.getElementById('Username').value = `${firstName}.${lastName}`;
             }
