@@ -505,16 +505,19 @@
         <ul class="sidebar-menu">
             <!-- Main Section -->
             <li class="menu-section">
+                @{
+                    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+                }
             <li class="menu-item">
-                <a href="@Url.Action("Index", "Home")" class="menu-link active">
+                <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" ? "active" : "")">
                     <i class="fas fa-tachometer-alt menu-icon"></i>
                     Dashboard
                 </a>
             </li>
             <li class="menu-item">
-                <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link">
+                <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
                     <i class="fas fa-university menu-icon"></i>
-                    Accounts Overview
+                    Employees
                 </a>
             </li>
             <li class="menu-item">
@@ -660,15 +663,15 @@
             document.documentElement.setAttribute('data-theme', savedTheme);
 
             // Active menu highlighting
-            const currentPath = window.location.pathname;
-            const menuLinks = document.querySelectorAll('.menu-link');
+            // const currentPath = window.location.pathname;
+            // const menuLinks = document.querySelectorAll('.menu-link');
 
-            menuLinks.forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
-                }
-            });
+            // menuLinks.forEach(link => {
+            //     link.classList.remove('active');
+            //     if (link.getAttribute('href') === currentPath) {
+            //         link.classList.add('active');
+            //     }
+            // });
         });
 
         // Toggle sidebar for mobile

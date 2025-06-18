@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System;
 
 namespace FinserveNew.Models
 {
@@ -22,6 +23,9 @@ namespace FinserveNew.Models
         [Required]
         [MaxLength(500)]
         public string FilePath { get; set; } = string.Empty;
+
+        // [Required]
+        // public DateTime UploadDate { get; set; } = DateTime.UtcNow;
 
         [ForeignKey("EmployeeID")]
         public virtual Employee Employee { get; set; } = null!;

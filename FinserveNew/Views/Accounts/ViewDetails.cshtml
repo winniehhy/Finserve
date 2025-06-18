@@ -1,172 +1,322 @@
-﻿@model FinserveNew.Models.Employee
+﻿@model FinserveNew.Models.ViewModels.EmployeeDetailsViewModel
 
 @{
     ViewData["Title"] = "Employee Details";
 }
 
-<div class="row mb-4">
-    <div class="col-auto">
-        @* <img src="@(Model.ProfileImagePath ?? "/images/default-profile.png")" alt="Profile" style="width:120px;height:120px;object-fit:cover;border:1px solid #ccc;" /> *@
-        <div class="user-avatar" style="width:100px;height:100px;object-fit:cover;border:1px solid #ccc;">JD</div>
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
-    <div class="col-auto align-self-center">
-        <div class="card" style="padding:16px;">
-            <div><strong>@Model.FirstName @Model.LastName</strong></div>
-            <div>@Model.Role?.Description</div>
-            <div>@Model.Email</div>
-        </div>
-    </div>
-</div>
+}
 
-<div>
-    <div class="d-flex justify-content-between align-items-center">
-        <nav>
-            <ul class="nav nav-tabs" id="employeeTab" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab">Personal Information</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="professional-tab" data-bs-toggle="tab" data-bs-target="#professional" type="button" role="tab">Professional Information</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">Documents</button>
-                </li>
-            </ul>
-        </nav>
-        <a asp-action="Edit" asp-route-id="@Model.EmployeeID" class="btn btn-primary">Edit Profile</a>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Employee Details</h2>
+            <h4 class="text-muted">ID: @Model.EmployeeID</h4>
+        </div>
+        <div class="col-auto">
+            @* <a asp-action="AllAccounts" class="btn btn-secondary"> *@
+            @*     <i class="fas fa-arrow-left"></i> Back to List *@
+            @* </a> *@
+            <button type="button" class="btn btn-primary" id="editButton">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            <button type="button" class="btn btn-primary d-none" id="saveButton">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+            <button type="button" class="btn btn-secondary d-none" id="cancelButton">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
     </div>
-    <div class="tab-content p-4 bg-white" id="employeeTabContent">
-        <div class="tab-pane fade show active" id="personal" role="tabpanel">
-            <div class="row mb-2">
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">First Name</label>
-                    <div>@Model.FirstName</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Last Name</label>
-                    <div>@Model.LastName</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Mobile Number</label>
-                    <div>@Model.TelephoneNumber</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Email Address</label>
-                    <div>@Model.Email</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Date of Birth</label>
-                    <div>@Model.DateOfBirth.ToShortDateString()</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Marital Status</label>
-                    <div>Married</div> <!-- Replace with actual property if available -->
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Gender</label>
-                    <div>Female</div> <!-- Replace with actual property if available -->
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Nationality</label>
-                    <div>@Model.Nationality</div>
-                </div>
-                <div class="col-md-12 mb-2">
-                    <label class="label-text">Address</label>
-                    <div>2464 Royal Ln. Mesa, New Jersey</div> <!-- Replace with actual property if available -->
-                </div>
-            </div>
-        </div>
-        <div class="tab-pane fade" id="professional" role="tabpanel">
-            <div class="row mb-2">
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Employee ID</label>
-                    <div>@Model.EmployeeID</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">User Name</label>
-                    <div>@Model.Username</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Department</label>
-                    <div>Project Manager</div> <!-- Replace with actual property if available -->
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Designation</label>
-                    <div>@Model.Position</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Joining Date</label>
-                    <div>@Model.JoinDate.ToShortDateString()</div>
-                </div>
-                <div class="col-md-6 mb-2">
-                    <label class="label-text">Working Days</label>
-                    <div>5 Days</div> <!-- Replace with actual property if available -->
-                </div>
-                <div class="col-md-12 mb-2">
-                    <label class="label-text">Office Location</label>
-                    <div>2464 Royal Ln. Mesa, New Jersey</div> <!-- Replace with actual property if available -->
-                </div>
-            </div>
-        </div>
-        <div class="tab-pane fade" id="documents" role="tabpanel">
-            <div class="row">
-                <div class="col-md-6 mb-2">
-                    <div class="list-group">
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            Appointment Letter.pdf
-                            <span>
-                                <a href="#"><i class="fa fa-eye"></i></a>
-                                <a href="#"><i class="fa fa-download ms-2"></i></a>
-                            </span>
+
+    <form id="employeeForm" asp-action="UpdateEmployee" method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="EmployeeID" />
+
+        <ul class="nav nav-tabs" id="employeeTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="personal-tab" data-bs-toggle="tab" href="#personal" role="tab">
+                    <i class="fas fa-user"></i> Personal Info
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="employment-tab" data-bs-toggle="tab" href="#employment" role="tab">
+                    <i class="fas fa-briefcase"></i> Employment
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="bank-tab" data-bs-toggle="tab" href="#bank" role="tab">
+                    <i class="fas fa-university"></i> Bank Info
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="emergency-tab" data-bs-toggle="tab" href="#emergency" role="tab">
+                    <i class="fas fa-phone-alt"></i> Emergency Contact
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="documents-tab" data-bs-toggle="tab" href="#documents" role="tab">
+                    <i class="fas fa-file-alt"></i> Documents
+                </a>
+            </li>
+        </ul>
+
+        <div class="tab-content p-4 border border-top-0 rounded-bottom bg-white" id="employeeTabContent">
+            <!-- Personal Info Tab -->
+            <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="FirstName" class="form-label"></label>
+                            <input asp-for="FirstName" class="form-control" readonly />
                         </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            Salary Slip_May.pdf
-                            <span>
-                                <a href="#"><i class="fa fa-eye"></i></a>
-                                <a href="#"><i class="fa fa-download ms-2"></i></a>
-                            </span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            Reliving Letter.pdf
-                            <span>
-                                <a href="#"><i class="fa fa-eye"></i></a>
-                                <a href="#"><i class="fa fa-download ms-2"></i></a>
-                            </span>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="LastName" class="form-label"></label>
+                            <input asp-for="LastName" class="form-control" readonly />
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 mb-2">
-                    <div class="list-group">
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            Salary Slip_June.pdf
-                            <span>
-                                <a href="#"><i class="fa fa-eye"></i></a>
-                                <a href="#"><i class="fa fa-download ms-2"></i></a>
-                            </span>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="IC" class="form-label"></label>
+                            <input asp-for="IC" class="form-control" readonly />
                         </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            Salary Slip_April.pdf
-                            <span>
-                                <a href="#"><i class="fa fa-eye"></i></a>
-                                <a href="#"><i class="fa fa-download ms-2"></i></a>
-                            </span>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="Nationality" class="form-label"></label>
+                            <select asp-for="Nationality" asp-items="@(new SelectList(Model.Nationalities))" class="form-control" disabled></select>
                         </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            Experience Letter.pdf
-                            <span>
-                                <a href="#"><i class="fa fa-eye"></i></a>
-                                <a href="#"><i class="fa fa-download ms-2"></i></a>
-                            </span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label"></label>
+                            <input asp-for="Email" class="form-control" type="email" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="TelephoneNumber" class="form-label"></label>
+                            <input asp-for="TelephoneNumber" class="form-control" readonly />
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="DateOfBirth" class="form-label"></label>
+                            <input asp-for="DateOfBirth" class="form-control" type="date" readonly />
                         </div>
                     </div>
                 </div>
             </div>
+
+            <!-- Employment Tab -->
+            <div class="tab-pane fade" id="employment" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="Position" class="form-label"></label>
+                            <input asp-for="Position" class="form-control" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="ConfirmationStatus" class="form-label"></label>
+                            <select asp-for="ConfirmationStatus" asp-items="@(new SelectList(Model.ConfirmationStatuses))" class="form-control" disabled></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="JoinDate" class="form-label"></label>
+                            <input asp-for="JoinDate" class="form-control" type="date" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="ResignationDate" class="form-label"></label>
+                            <input asp-for="ResignationDate" class="form-control" type="date" readonly />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bank Info Tab -->
+            <div class="tab-pane fade" id="bank" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="BankName" class="form-label"></label>
+                            <select asp-for="BankName" asp-items="@(new SelectList(Model.BankNames))" class="form-control" disabled></select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="BankType" class="form-label"></label>
+                            <select asp-for="BankType" asp-items="@(new SelectList(Model.BankTypes))" class="form-control" disabled></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="BankAccountNumber" class="form-label"></label>
+                            <input asp-for="BankAccountNumber" class="form-control" readonly />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergency Contact Tab -->
+            <div class="tab-pane fade" id="emergency" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="EmergencyContactName" class="form-label"></label>
+                            <input asp-for="EmergencyContactName" class="form-control" readonly />
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="EmergencyContactPhone" class="form-label"></label>
+                            <input asp-for="EmergencyContactPhone" class="form-control" readonly />
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="EmergencyContactRelationship" class="form-label"></label>
+                            <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships))" class="form-control" disabled></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents Tab -->
+            <div class="tab-pane fade" id="documents" role="tabpanel">
+                <div class="row mb-4 d-none" id="uploadDocs">
+                    <div class="col">
+                        <h5>Upload New Document</h5>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label asp-for="NewDocumentType" class="form-label">Document Type</label>
+                                    <input asp-for="NewDocumentType" class="form-control" />
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    @* <label asp-for="NewDocument" class="form-label">File</label> *@
+                                    <input asp-for="NewDocument" class="form-control" type="file" />
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <h5>Existing Documents</h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        @* <th>Upload Date</th> *@
+                                        <th>File Name</th>
+                                        @* <th>Actions</th> *@
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.Documents != null && Model.Documents.Any())
+                                    {
+                                        @foreach (var doc in Model.Documents)
+                                        {
+                                            <tr>
+                                                <td>@doc.DocumentType</td>
+                                                @* <td>@doc.UploadDate.ToString("g")</td> *@
+                                                <td>@doc.FileName</td>
+                                                <td>
+                                                    <a href="@doc.FilePath" class="btn btn-sm btn-info" target="_blank">
+                                                        <i class="fas fa-eye"></i> View
+                                                    </a>
+                                                    <button type="submit" class="btn btn-sm btn-danger" asp-action="DeleteDocument" asp-route-documentId="@doc.DocumentID">
+                                                        <i class="fas fa-trash"></i> Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted">No documents uploaded.</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
 
 <style>
-    .label-text {
-        color: #adb5bd;
+    select[disabled], .form-control:disabled {
+        background-color: white;
     }
 </style>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            const form = $('#employeeForm');
+            const editButton = $('#editButton');
+            const saveButton = $('#saveButton');
+            const cancelButton = $('#cancelButton');
+            const inputs = form.find('input, select').not('[type="hidden"]');
+            const selects = form.find('select').not('[type="hidden"]');
+            const uploadDocs = $('#uploadDocs');
+
+            // Auto-dismiss alert after 3 seconds
+            setTimeout(function () {
+                $('.alert.alert-success').alert('close');
+            }, 3000);
+
+            editButton.click(function () {
+                inputs.prop('readonly', false).prop('disabled', false);
+                selects.addClass('form-select');
+                editButton.addClass('d-none');
+                saveButton.removeClass('d-none');
+                cancelButton.removeClass('d-none');
+                uploadDocs.removeClass('d-none');
+            });
+
+            cancelButton.click(function () {
+                location.reload();
+            });
+
+            saveButton.click(function () {
+                form.submit();
+            });
+        });
+    </script>
+}
