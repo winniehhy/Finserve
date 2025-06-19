@@ -22,6 +22,11 @@ namespace FinserveNew.Data
         public DbSet<ClaimDetails> ClaimDetails { get; set; }
         public DbSet<ClaimType> ClaimTypes { get; set; }
         public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
+        
+        public DbSet<PayrollBatch> PayrollBatches { get; set; }
+        public DbSet<PayrollRecord> PayrollRecords { get; set; }
+        public DbSet<PayrollComponent> PayrollComponents { get; set; }
+        public DbSet<StatutoryRate> StatutoryRates { get; set; }
 
 
         // Configure the table structures and relationships
@@ -162,6 +167,48 @@ namespace FinserveNew.Data
                     .WithMany(e => e.EmployeeDocuments)
                     .HasForeignKey(ed => ed.EmployeeID)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // PayrollBatch configuration
+            modelBuilder.Entity<PayrollBatch>(entity =>
+            {
+                entity.HasKey(pb => pb.PayrollBatchId);
+                entity.Property(pb => pb.Status).HasMaxLength(20).HasDefaultValue("Draft");
+                entity.HasMany(pb => pb.PayrollRecords)
+                      .WithOne(pr => pr.PayrollBatch)
+                      .HasForeignKey(pr => pr.PayrollBatchId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // PayrollRecord configuration
+            modelBuilder.Entity<PayrollRecord>(entity =>
+            {
+                entity.HasKey(pr => pr.PayrollRecordId);
+                entity.Property(pr => pr.Status).HasMaxLength(20).HasDefaultValue("Draft");
+                entity.HasMany(pr => pr.Components)
+                      .WithOne(pc => pc.PayrollRecord)
+                      .HasForeignKey(pc => pc.PayrollRecordId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(pr => pr.Employee)
+                      .WithMany()
+                      .HasForeignKey(pr => pr.EmployeeID)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // PayrollComponent configuration
+            modelBuilder.Entity<PayrollComponent>(entity =>
+            {
+                entity.HasKey(pc => pc.PayrollComponentId);
+                entity.Property(pc => pc.Type).HasMaxLength(20);
+                entity.Property(pc => pc.Name).HasMaxLength(100);
+            });
+
+            // StatutoryRate configuration
+            modelBuilder.Entity<StatutoryRate>(entity =>
+            {
+                entity.HasKey(sr => sr.StatutoryRateId);
+                entity.Property(sr => sr.Name).HasMaxLength(50);
+                entity.Property(sr => sr.Description).HasMaxLength(255);
             });
 
             // Call the base method

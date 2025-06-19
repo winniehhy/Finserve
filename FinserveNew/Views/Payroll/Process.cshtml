@@ -1,0 +1,232 @@
+@model FinserveNew.Models.ViewModels.PayrollProcessViewModel
+@using System.Globalization;
+@{
+    ViewData["Title"] = "Payroll Processing";
+    var monthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(Model.Month);
+}
+
+<div class="container-fluid py-4">
+    <h2 class="mb-4">Payroll Processing - @monthName @Model.Year</h2>
+    <ul class="nav nav-tabs mb-3" id="payrollTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="salary-tab" data-bs-toggle="tab" data-bs-target="#salary" type="button" role="tab">1. Basic Salary & Allowances</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="contrib-tab" data-bs-toggle="tab" data-bs-target="#contrib" type="button" role="tab">2. Contributions</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="deduct-tab" data-bs-toggle="tab" data-bs-target="#deduct" type="button" role="tab">3. Deductions</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review" type="button" role="tab">4. Review & Calculation</button>
+        </li>
+    </ul>
+    <div class="tab-content bg-white p-4 border rounded-bottom" id="payrollTabContent">
+        <!-- Step 1: Basic Salary & Allowances -->
+        <div class="tab-pane fade show active" id="salary" role="tabpanel">
+            <form method="post" asp-action="SaveSalaryStep" asp-route-batchId="@Model.BatchId">
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Name</th>
+                                <th>Basic Salary</th>
+                                <th>Housing</th>
+                                <th>Transport</th>
+                                <th>Other</th>
+                                <th>Total Allowances</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rec in Model.Records)
+                            {
+                                var emp = rec.Employee;
+                                var housing = rec.Components.FirstOrDefault(c => c.Type == "Allowance" && c.Name == "Housing")?.Amount ?? 0;
+                                var transport = rec.Components.FirstOrDefault(c => c.Type == "Allowance" && c.Name == "Transport")?.Amount ?? 0;
+                                var other = rec.Components.Where(c => c.Type == "Allowance" && c.Name != "Housing" && c.Name != "Transport").Sum(c => c.Amount);
+                                <tr>
+                                    <td>@rec.EmployeeID</td>
+                                    <td>@emp?.FirstName @emp?.LastName</td>
+                                    <td><input type="number" step="0.01" name="BasicSalary_@rec.PayrollRecordId" value="@rec.BasicSalary" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="Housing_@rec.PayrollRecordId" value="@housing" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="Transport_@rec.PayrollRecordId" value="@transport" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="Other_@rec.PayrollRecordId" value="@other" class="form-control" /></td>
+                                    <td>@((housing + transport + other).ToString("C"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">Save & Next</button>
+                </div>
+            </form>
+        </div>
+        <!-- Step 2: Contributions -->
+        <div class="tab-pane fade" id="contrib" role="tabpanel">
+            <form method="post" asp-action="SaveContributionsStep" asp-route-batchId="@Model.BatchId">
+                <div class="mb-3">
+                    <strong>Reference Rates:</strong>
+                    @foreach (var rate in Model.StatutoryRates)
+                    {
+                        <span class="badge bg-info me-2">@rate.Name: @(rate.Rate * 100)%</span>
+                    }
+                </div>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Name</th>
+                                <th>EPF</th>
+                                <th>SOCSO</th>
+                                <th>EIS</th>
+                                <th>Total Contributions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rec in Model.Records)
+                            {
+                                var emp = rec.Employee;
+                                var epf = rec.Components.FirstOrDefault(c => c.Type == "Contribution" && c.Name == "EPF")?.Amount ?? 0;
+                                var socso = rec.Components.FirstOrDefault(c => c.Type == "Contribution" && c.Name == "SOCSO")?.Amount ?? 0;
+                                var eis = rec.Components.FirstOrDefault(c => c.Type == "Contribution" && c.Name == "EIS")?.Amount ?? 0;
+                                <tr>
+                                    <td>@rec.EmployeeID</td>
+                                    <td>@emp?.FirstName @emp?.LastName</td>
+                                    <td><input type="number" step="0.01" name="EPF_@rec.PayrollRecordId" value="@epf" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="SOCSO_@rec.PayrollRecordId" value="@socso" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="EIS_@rec.PayrollRecordId" value="@eis" class="form-control" /></td>
+                                    <td>@((epf + socso + eis).ToString("C"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="$('#salary-tab').tab('show')">Back</button>
+                    <button type="submit" class="btn btn-primary">Save & Next</button>
+                </div>
+            </form>
+        </div>
+        <!-- Step 3: Deductions -->
+        <div class="tab-pane fade" id="deduct" role="tabpanel">
+            <form method="post" asp-action="SaveDeductionsStep" asp-route-batchId="@Model.BatchId">
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Name</th>
+                                <th>Income Tax (PCB)</th>
+                                <th>Zakat</th>
+                                <th>Loan Deductions</th>
+                                <th>Other Deductions</th>
+                                <th>Total Deductions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rec in Model.Records)
+                            {
+                                var emp = rec.Employee;
+                                var pcb = rec.Components.FirstOrDefault(c => c.Type == "Deduction" && c.Name == "PCB")?.Amount ?? 0;
+                                var zakat = rec.Components.FirstOrDefault(c => c.Type == "Deduction" && c.Name == "Zakat")?.Amount ?? 0;
+                                var loan = rec.Components.FirstOrDefault(c => c.Type == "Deduction" && c.Name == "Loan")?.Amount ?? 0;
+                                var other = rec.Components.Where(c => c.Type == "Deduction" && c.Name != "PCB" && c.Name != "Zakat" && c.Name != "Loan").Sum(c => c.Amount);
+                                <tr>
+                                    <td>@rec.EmployeeID</td>
+                                    <td>@emp?.FirstName @emp?.LastName</td>
+                                    <td><input type="number" step="0.01" name="PCB_@rec.PayrollRecordId" value="@pcb" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="Zakat_@rec.PayrollRecordId" value="@zakat" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="Loan_@rec.PayrollRecordId" value="@loan" class="form-control" /></td>
+                                    <td><input type="number" step="0.01" name="OtherDeduct_@rec.PayrollRecordId" value="@other" class="form-control" /></td>
+                                    <td>@((pcb + zakat + loan + other).ToString("C"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary" onclick="$('#contrib-tab').tab('show')">Back</button>
+                    <button type="submit" class="btn btn-primary">Save & Next</button>
+                </div>
+            </form>
+        </div>
+        <!-- Step 4: Review & Calculation -->
+        <div class="tab-pane fade" id="review" role="tabpanel">
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee ID</th>
+                            <th>Name</th>
+                            <th>Gross Salary</th>
+                            <th>Total Contributions</th>
+                            <th>Total Deductions</th>
+                            <th>Net Salary</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rec in Model.Records)
+                        {
+                            var emp = rec.Employee;
+                            <tr>
+                                <td>@rec.EmployeeID</td>
+                                <td>@emp?.FirstName @emp?.LastName</td>
+                                <td>@((rec.BasicSalary + rec.TotalAllowances).ToString("C"))</td>
+                                <td>@rec.TotalContributions.ToString("C")</td>
+                                <td>@rec.TotalDeductions.ToString("C")</td>
+                                <td>@rec.NetSalary.ToString("C")</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="collapse" data-bs-target="#details-@rec.PayrollRecordId">Breakdown</button>
+                                </td>
+                            </tr>
+                            <tr class="collapse" id="details-@rec.PayrollRecordId">
+                                <td colspan="7">
+                                    <strong>Allowances:</strong>
+                                    <ul>
+                                        @foreach (var c in rec.Components.Where(c => c.Type == "Allowance"))
+                                        {
+                                            <li>@c.Name: @c.Amount.ToString("C")</li>
+                                        }
+                                    </ul>
+                                    <strong>Contributions:</strong>
+                                    <ul>
+                                        @foreach (var c in rec.Components.Where(c => c.Type == "Contribution"))
+                                        {
+                                            <li>@c.Name: @c.Amount.ToString("C")</li>
+                                        }
+                                    </ul>
+                                    <strong>Deductions:</strong>
+                                    <ul>
+                                        @foreach (var c in rec.Components.Where(c => c.Type == "Deduction"))
+                                        {
+                                            <li>@c.Name: @c.Amount.ToString("C")</li>
+                                        }
+                                    </ul>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary" onclick="$('#deduct-tab').tab('show')">Back</button>
+                <a asp-action="Dashboard" class="btn btn-success">Finish & Return to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Enable tab navigation with Next/Back buttons
+        $(function () {
+            $('#payrollTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                window.scrollTo(0, 0);
+            });
+        });
+    </script>
+} 
