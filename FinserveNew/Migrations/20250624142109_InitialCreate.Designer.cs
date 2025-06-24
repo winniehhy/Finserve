@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250619181225_PayrollRelatedTables")]
-    partial class PayrollRelatedTables
+    [Migration("20250624142109_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -397,7 +397,7 @@ namespace FinserveNew.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("PayrollComponentId"));
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<bool>("IsAutoCalculated")
                         .HasColumnType("tinyint(1)");
@@ -431,14 +431,14 @@ namespace FinserveNew.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("PayrollRecordId"));
 
                     b.Property<decimal>("BasicSalary")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("EmployeeID")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
 
                     b.Property<decimal>("NetSalary")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<int>("PayrollBatchId")
                         .HasColumnType("int");
@@ -451,13 +451,13 @@ namespace FinserveNew.Migrations
                         .HasDefaultValue("Draft");
 
                     b.Property<decimal>("TotalAllowances")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<decimal>("TotalContributions")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(65,30)");
 
                     b.Property<decimal>("TotalDeductions")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(65,30)");
 
                     b.HasKey("PayrollRecordId");
 
@@ -583,7 +583,7 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(50)");
 
                     b.Property<decimal>("Rate")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(65,30)");
 
                     b.HasKey("StatutoryRateId");
 

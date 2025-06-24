@@ -70,6 +70,24 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "PayrollBatches",
+                columns: table => new
+                {
+                    PayrollBatchId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Year = table.Column<int>(type: "int", nullable: false),
+                    Month = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Draft")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PayrollBatches", x => x.PayrollBatchId);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Roles",
                 columns: table => new
                 {
@@ -83,6 +101,25 @@ namespace FinserveNew.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Roles", x => x.RoleID);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "StatutoryRates",
+                columns: table => new
+                {
+                    StatutoryRateId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    Name = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Rate = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    Description = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_StatutoryRates", x => x.StatutoryRateId);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -173,6 +210,68 @@ namespace FinserveNew.Migrations
                         column: x => x.EmployeeID1,
                         principalTable: "Employees",
                         principalColumn: "EmployeeID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "EmployeeDocuments",
+                columns: table => new
+                {
+                    DocumentID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DocumentType = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FileName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FilePath = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EmployeeDocuments", x => x.DocumentID);
+                    table.ForeignKey(
+                        name: "FK_EmployeeDocuments_Employees_EmployeeID",
+                        column: x => x.EmployeeID,
+                        principalTable: "Employees",
+                        principalColumn: "EmployeeID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "PayrollRecords",
+                columns: table => new
+                {
+                    PayrollRecordId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    PayrollBatchId = table.Column<int>(type: "int", nullable: false),
+                    EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    BasicSalary = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    TotalAllowances = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    TotalContributions = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    TotalDeductions = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    NetSalary = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Draft")
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PayrollRecords", x => x.PayrollRecordId);
+                    table.ForeignKey(
+                        name: "FK_PayrollRecords_Employees_EmployeeID",
+                        column: x => x.EmployeeID,
+                        principalTable: "Employees",
+                        principalColumn: "EmployeeID",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_PayrollRecords_PayrollBatches_PayrollBatchId",
+                        column: x => x.PayrollBatchId,
+                        principalTable: "PayrollBatches",
+                        principalColumn: "PayrollBatchId",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -278,6 +377,32 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "PayrollComponents",
+                columns: table => new
+                {
+                    PayrollComponentId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    PayrollRecordId = table.Column<int>(type: "int", nullable: false),
+                    Type = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Amount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    IsAutoCalculated = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PayrollComponents", x => x.PayrollComponentId);
+                    table.ForeignKey(
+                        name: "FK_PayrollComponents_PayrollRecords_PayrollRecordId",
+                        column: x => x.PayrollRecordId,
+                        principalTable: "PayrollRecords",
+                        principalColumn: "PayrollRecordId",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "ClaimDetails",
                 columns: table => new
                 {
@@ -348,6 +473,11 @@ namespace FinserveNew.Migrations
                 column: "EmployeeID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_EmployeeDocuments_EmployeeID",
+                table: "EmployeeDocuments",
+                column: "EmployeeID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Employees_BankID",
                 table: "Employees",
                 column: "BankID");
@@ -361,6 +491,21 @@ namespace FinserveNew.Migrations
                 name: "IX_Employees_RoleID",
                 table: "Employees",
                 column: "RoleID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PayrollComponents_PayrollRecordId",
+                table: "PayrollComponents",
+                column: "PayrollRecordId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PayrollRecords_EmployeeID",
+                table: "PayrollRecords",
+                column: "EmployeeID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PayrollRecords_PayrollBatchId",
+                table: "PayrollRecords",
+                column: "PayrollBatchId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Salaries_ApprovalID",
@@ -385,7 +530,16 @@ namespace FinserveNew.Migrations
                 name: "ClaimDetails");
 
             migrationBuilder.DropTable(
+                name: "EmployeeDocuments");
+
+            migrationBuilder.DropTable(
+                name: "PayrollComponents");
+
+            migrationBuilder.DropTable(
                 name: "Salaries");
+
+            migrationBuilder.DropTable(
+                name: "StatutoryRates");
 
             migrationBuilder.DropTable(
                 name: "ClaimTypes");
@@ -394,7 +548,13 @@ namespace FinserveNew.Migrations
                 name: "Claims");
 
             migrationBuilder.DropTable(
+                name: "PayrollRecords");
+
+            migrationBuilder.DropTable(
                 name: "Approvals");
+
+            migrationBuilder.DropTable(
+                name: "PayrollBatches");
 
             migrationBuilder.DropTable(
                 name: "Employees");
