@@ -25,8 +25,6 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> Index()
         {
             var claims = await _context.Claims
-                .Include(c => c.Employee)
-                .Include(c => c.Approval)
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
 
@@ -43,8 +41,6 @@ namespace FinserveNew.Controllers
             }
 
             var claim = await _context.Claims
-                .Include(c => c.Employee)
-                .Include(c => c.Approval)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (claim == null)
@@ -59,13 +55,7 @@ namespace FinserveNew.Controllers
         // Show the form to create a new claim
         public async Task<IActionResult> Create()
         {
-            var employeeExists = await _context.Employees.AnyAsync();
-            if (!employeeExists)
-            {
-                TempData["Error"] = "No employees found. Please create an employee first.";
-                return RedirectToAction("Index", "Employee");
-            }
-
+            // Removed employee existence check
             await PopulateViewBagData();
             return View();
         }
@@ -78,15 +68,7 @@ namespace FinserveNew.Controllers
         {
             try
             {
-                var employee = await _context.Employees
-                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeID);
-
-                if (employee == null)
-                {
-                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeID}' does not exist.");
-                    await PopulateViewBagData();
-                    return View(claim);
-                }
+                // Removed employee validation - just use the provided EmployeeID as is
 
                 // Upload document if provided
                 if (supportingDocument != null && supportingDocument.Length > 0)
@@ -162,15 +144,7 @@ namespace FinserveNew.Controllers
 
             try
             {
-                var employee = await _context.Employees
-                    .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeID);
-
-                if (employee == null)
-                {
-                    ModelState.AddModelError("EmployeeId", $"Employee with ID '{claim.EmployeeID}' does not exist.");
-                    await PopulateViewBagData();
-                    return View(claim);
-                }
+                // Removed employee validation - just use the provided EmployeeID as is
 
                 if (supportingDocument != null && supportingDocument.Length > 0)
                 {
@@ -219,8 +193,6 @@ namespace FinserveNew.Controllers
                 return NotFound();
 
             var claim = await _context.Claims
-                .Include(c => c.Employee)
-                .Include(c => c.Approval)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (claim == null)
@@ -256,19 +228,17 @@ namespace FinserveNew.Controllers
         }
 
         // ================== HELPER: POPULATE DROPDOWNS ==================
-        // Load employee list and claim types for dropdowns
+        // Load claim types for dropdowns (removed employee data)
         private async Task PopulateViewBagData()
         {
-            ViewBag.Employees = await _context.Employees
-                .Select(e => new { e.EmployeeID, FullName = e.FirstName + " " + e.LastName })
-                .ToListAsync();
-
+            // Removed employee dropdown data
             ViewBag.ClaimTypes = new List<string>
             {
                 "Medical",
                 "Travel",
                 "Equipment",
                 "Training",
+                "Entertainment",
                 "Other"
             };
         }
@@ -280,14 +250,6 @@ namespace FinserveNew.Controllers
         }
 
         // ================== DEBUG: VIEW EMPLOYEE LIST AS JSON ==================
-        // For debugging purposes: check available employees in JSON
-        public async Task<IActionResult> CheckEmployees()
-        {
-            var employees = await _context.Employees
-                .Select(e => new { e.EmployeeID, e.FirstName, e.LastName })
-                .ToListAsync();
-
-            return Json(employees);
-        }
+        // Removed CheckEmployees method since we're not using employees
     }
 }
