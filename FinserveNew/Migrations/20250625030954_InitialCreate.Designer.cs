@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250624142109_InitialCreate")]
+    [Migration("20250625030954_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -105,9 +105,6 @@ namespace FinserveNew.Migrations
                     b.Property<int?>("ApprovalID")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ApprovalID1")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("ClaimAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -126,6 +123,7 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("EmployeeID")
                         .IsRequired()
+                        .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("Status")
@@ -147,13 +145,12 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.Property<decimal?>("TotalAmount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ApprovalID");
-
-                    b.HasIndex("ApprovalID1");
 
                     b.HasIndex("EmployeeID");
 
@@ -609,30 +606,21 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
                 {
-                    b.HasOne("FinserveNew.Models.Approval", "Approval")
-                        .WithMany()
-                        .HasForeignKey("ApprovalID")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("FinserveNew.Models.Approval", null)
                         .WithMany("Claims")
-                        .HasForeignKey("ApprovalID1");
+                        .HasForeignKey("ApprovalID");
 
-                    b.HasOne("FinserveNew.Models.Employee", "Employee")
+                    b.HasOne("FinserveNew.Models.Employee", null)
                         .WithMany("Claims")
                         .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Approval");
-
-                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
                 {
                     b.HasOne("FinserveNew.Models.Claim", "Claim")
-                        .WithMany("ClaimDetails")
+                        .WithMany()
                         .HasForeignKey("ClaimID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -755,11 +743,6 @@ namespace FinserveNew.Migrations
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
                 {
                     b.Navigation("Employees");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Claim", b =>
-                {
-                    b.Navigation("ClaimDetails");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>

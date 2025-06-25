@@ -294,13 +294,12 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Pending")
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
+                    EmployeeID = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     SubmissionDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    ApprovalID = table.Column<int>(type: "int", nullable: true),
-                    ApprovalID1 = table.Column<int>(type: "int", nullable: true)
+                    ApprovalID = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -308,12 +307,6 @@ namespace FinserveNew.Migrations
                     table.ForeignKey(
                         name: "FK_Claims_Approvals_ApprovalID",
                         column: x => x.ApprovalID,
-                        principalTable: "Approvals",
-                        principalColumn: "ApprovalID",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_Claims_Approvals_ApprovalID1",
-                        column: x => x.ApprovalID1,
                         principalTable: "Approvals",
                         principalColumn: "ApprovalID");
                     table.ForeignKey(
@@ -461,11 +454,6 @@ namespace FinserveNew.Migrations
                 name: "IX_Claims_ApprovalID",
                 table: "Claims",
                 column: "ApprovalID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Claims_ApprovalID1",
-                table: "Claims",
-                column: "ApprovalID1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Claims_EmployeeID",
