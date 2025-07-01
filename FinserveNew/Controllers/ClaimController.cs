@@ -137,53 +137,58 @@ namespace FinserveNew.Controllers
         // Handle claim update with optional new document upload
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Claim claim, IFormFile? supportingDocument)
+        public async Task<IActionResult> Edit(int id, IFormFile? supportingDocument)
         {
-            if (id != claim.Id)
+            var claimToUpdate = await _context.Claims.FindAsync(id);
+            if (claimToUpdate == null)
                 return NotFound();
 
-            try
+            if (await TryUpdateModelAsync(claimToUpdate, "",
+                c => c.ClaimType, c => c.ClaimAmount, c => c.Description))
             {
-                // Removed employee validation - just use the provided EmployeeID as is
-
-                if (supportingDocument != null && supportingDocument.Length > 0)
+                try
                 {
-                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
-                    Directory.CreateDirectory(uploadsFolder);
-
-                    var uniqueFileName = $"{Guid.NewGuid()}_{supportingDocument.FileName}";
-                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    // Handle new document upload
+                    if (supportingDocument != null && supportingDocument.Length > 0)
                     {
-                        await supportingDocument.CopyToAsync(fileStream);
+                        var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
+                        Directory.CreateDirectory(uploadsFolder);
+
+                        var uniqueFileName = $"{Guid.NewGuid()}_{supportingDocument.FileName}";
+                        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await supportingDocument.CopyToAsync(fileStream);
+                        }
+
+                        // Delete old file if exists
+                        if (!string.IsNullOrEmpty(claimToUpdate.SupportingDocumentPath))
+                        {
+                            var oldPath = Path.Combine(_environment.WebRootPath, claimToUpdate.SupportingDocumentPath.TrimStart('/'));
+                            if (System.IO.File.Exists(oldPath))
+                                System.IO.File.Delete(oldPath);
+                        }
+
+                        claimToUpdate.SupportingDocumentName = supportingDocument.FileName;
+                        claimToUpdate.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
                     }
 
-                    claim.SupportingDocumentName = supportingDocument.FileName;
-                    claim.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
+                    await _context.SaveChangesAsync();
+                    TempData["Success"] = "Claim updated successfully!";
+                    return RedirectToAction(nameof(Index));
                 }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Database error while updating claim");
+                    ModelState.AddModelError("", "An error occurred while updating the claim.");
+                }
+            }
 
-                _context.Update(claim);
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Claim updated successfully!";
-                return RedirectToAction(nameof(Index));
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ClaimExists(claim.Id))
-                    return NotFound();
-                else
-                    throw;
-            }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogError(ex, "Database error while updating claim");
-                ModelState.AddModelError("", "An error occurred while updating the claim.");
-                await PopulateViewBagData();
-                return View(claim);
-            }
+            await PopulateViewBagData();
+            return View(claimToUpdate);
         }
+
 
         // ================== SHOW DELETE CONFIRMATION ==================
         // Show confirmation page before deleting a claim
