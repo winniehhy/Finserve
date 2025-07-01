@@ -353,6 +353,75 @@ namespace FinserveNew.Migrations
                     b.ToTable("EmployeeDocuments");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
+                {
+                    b.Property<int>("LeaveID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LeaveID"));
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("EmployeeID")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LeaveTypeID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("LeaveID");
+
+                    b.HasIndex("EmployeeID");
+
+                    b.HasIndex("LeaveTypeID");
+
+                    b.ToTable("Leaves");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.LeaveTypeModel", b =>
+                {
+                    b.Property<int>("LeaveTypeID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LeaveTypeID"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("MaxDaysAllowed")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TypeName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("LeaveTypeID");
+
+                    b.ToTable("LeaveTypes");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.PayrollBatch", b =>
                 {
                     b.Property<int>("PayrollBatchId")
@@ -675,6 +744,25 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
+                {
+                    b.HasOne("FinserveNew.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinserveNew.Models.LeaveTypeModel", "LeaveType")
+                        .WithMany("Leaves")
+                        .HasForeignKey("LeaveTypeID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("LeaveType");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.PayrollComponent", b =>
                 {
                     b.HasOne("FinserveNew.Models.PayrollRecord", "PayrollRecord")
@@ -761,6 +849,11 @@ namespace FinserveNew.Migrations
                     b.Navigation("EmployeeDocuments");
 
                     b.Navigation("Salaries");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.LeaveTypeModel", b =>
+                {
+                    b.Navigation("Leaves");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.PayrollBatch", b =>

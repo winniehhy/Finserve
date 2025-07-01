@@ -246,6 +246,9 @@ namespace FinserveNew.Data
         public DbSet<PayrollComponent> PayrollComponents { get; set; }
         public DbSet<StatutoryRate> StatutoryRates { get; set; }
 
+        public DbSet<LeaveModel> Leaves { get; set; }
+        public DbSet<LeaveTypeModel> LeaveTypes { get; set; }
+
 
         // Configure the table structures and relationships
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -416,6 +419,29 @@ namespace FinserveNew.Data
                 entity.HasKey(sr => sr.StatutoryRateId);
                 entity.Property(sr => sr.Name).HasMaxLength(50);
                 entity.Property(sr => sr.Description).HasMaxLength(255);
+            });
+
+            // LeaveModel configuration
+            modelBuilder.Entity<LeaveModel>(entity =>
+            {
+                entity.HasKey(l => l.LeaveID); // Primary key
+
+                // Relationships
+                entity.HasOne(l => l.Employee)
+                    .WithMany()
+                    .HasForeignKey(l => l.EmployeeID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(l => l.LeaveType)
+                    .WithMany(lt => lt.Leaves)
+                    .HasForeignKey(l => l.LeaveTypeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // LeaveTypeModel configuration
+            modelBuilder.Entity<LeaveTypeModel>(entity =>
+            {
+                entity.HasKey(lt => lt.LeaveTypeID); // Primary key
             });
 
             // Call the base method

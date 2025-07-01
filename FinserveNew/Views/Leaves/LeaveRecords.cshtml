@@ -1,0 +1,189 @@
+﻿@model IEnumerable<FinserveNew.Models.LeaveModel>
+
+@{
+    ViewData["Title"] = "My Leaves";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">My Leaves</h2>
+    <a href="/Leaves/Create" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>
+        Apply for Leave
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["LeaveReminder"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        @TempData["LeaveReminder"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Annual Leave</h5>
+                <p class="card-text">
+                    <span class="fs-4">@ViewBag.AnnualLeaveBalance</span> / 14 days remaining
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Medical Leave</h5>
+                <p class="card-text">
+                    <span class="fs-4">@ViewBag.MedicalLeaveBalance</span> / 10 days remaining
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Hospitalization Leave</h5>
+                <p class="card-text">
+                    <span class="fs-4">@ViewBag.HospitalizationLeaveBalance</span> / 16 days remaining
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="form-container">
+    @if (Model != null && Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Leave Type</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Duration</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Approved By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var leave in Model)
+                    {
+                        var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+                        <tr>
+                            <td>
+                                <span class="badge bg-primary">@leave.LeaveType?.TypeName</span>
+                            </td>
+                            <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
+                            <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
+                            <td>@duration day(s)</td>
+                            <td>
+                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@leave.Reason">
+                                    @(leave.Reason?.Length > 50 ? leave.Reason.Substring(0, 50) + "..." : leave.Reason)
+                                </span>
+                            </td>
+                            <td>
+                                @if (leave.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning">@leave.Status</span>
+                                }
+                                else if (leave.Status == "Approved")
+                                {
+                                    <span class="badge bg-success">@leave.Status</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">@leave.Status</span>
+                                }
+                            </td>
+                            <td>@(leave.ApprovedBy ?? "N/A")</td>
+                            <td>
+                                @if (leave.Status == "Pending")
+                                {
+                                    <a asp-action="Edit" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-success" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a asp-action="Delete" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-danger" title="Cancel">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No actions available</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No leave records found</h5>
+            <p class="text-muted">You haven't applied for any leave yet.</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Check if today is December 1st and show reminder if needed
+            const today = new Date();
+            if (today.getMonth() === 11 && today.getDate() === 1) {
+                @if (ViewBag.AnnualLeaveBalance > 10 || ViewBag.MedicalLeaveBalance > 10 || ViewBag.HospitalizationLeaveBalance > 10)
+                {
+                        <text>
+                        // Check if reminder was already dismissed for this session
+                        if (!sessionStorage.getItem('leaveReminderDismissed')) {
+                            const reminderText = "Reminder: You have more than 10 days of leave balance remaining. Please consider clearing your leave before the end of the year.";
+
+                            // Show as an alert instead of using localStorage
+                            if (confirm(reminderText + "\n\nWould you like to apply for leave now?")) {
+                                window.location.href = '/Leaves/Create';
+                            }
+
+                            // Mark as dismissed for this session
+                            sessionStorage.setItem('leaveReminderDismissed', 'true');
+                        }
+                        </text>
+                }
+            }
+
+            // Handle alert dismissal
+            $('.alert .btn-close').on('click', function() {
+                if ($(this).closest('.alert').hasClass('alert-warning')) {
+                    // Mark warning alerts as dismissed for this session
+                    sessionStorage.setItem('leaveReminderDismissed', 'true');
+                }
+            });
+
+            // Add confirmation for delete actions
+            $('a[title="Cancel"]').on('click', function(e) {
+                if (!confirm('Are you sure you want to cancel this leave application?')) {
+                    e.preventDefault();
+                }
+            });
+
+            // Auto-hide success messages after 5 seconds
+            setTimeout(function() {
+                $('.alert-success').fadeOut('slow');
+            }, 5000);
+        });
+    </script>
+}

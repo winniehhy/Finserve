@@ -70,6 +70,24 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "LeaveTypes",
+                columns: table => new
+                {
+                    LeaveTypeID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    TypeName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MaxDaysAllowed = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LeaveTypes", x => x.LeaveTypeID);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "PayrollBatches",
                 columns: table => new
                 {
@@ -238,6 +256,42 @@ namespace FinserveNew.Migrations
                         principalTable: "Employees",
                         principalColumn: "EmployeeID",
                         onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Leaves",
+                columns: table => new
+                {
+                    LeaveID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    StartDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    EndDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    Reason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ApprovedBy = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LeaveTypeID = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Leaves", x => x.LeaveID);
+                    table.ForeignKey(
+                        name: "FK_Leaves_Employees_EmployeeID",
+                        column: x => x.EmployeeID,
+                        principalTable: "Employees",
+                        principalColumn: "EmployeeID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Leaves_LeaveTypes_LeaveTypeID",
+                        column: x => x.LeaveTypeID,
+                        principalTable: "LeaveTypes",
+                        principalColumn: "LeaveTypeID",
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -481,6 +535,16 @@ namespace FinserveNew.Migrations
                 column: "RoleID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Leaves_EmployeeID",
+                table: "Leaves",
+                column: "EmployeeID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Leaves_LeaveTypeID",
+                table: "Leaves",
+                column: "LeaveTypeID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_PayrollComponents_PayrollRecordId",
                 table: "PayrollComponents",
                 column: "PayrollRecordId");
@@ -521,6 +585,9 @@ namespace FinserveNew.Migrations
                 name: "EmployeeDocuments");
 
             migrationBuilder.DropTable(
+                name: "Leaves");
+
+            migrationBuilder.DropTable(
                 name: "PayrollComponents");
 
             migrationBuilder.DropTable(
@@ -534,6 +601,9 @@ namespace FinserveNew.Migrations
 
             migrationBuilder.DropTable(
                 name: "Claims");
+
+            migrationBuilder.DropTable(
+                name: "LeaveTypes");
 
             migrationBuilder.DropTable(
                 name: "PayrollRecords");
