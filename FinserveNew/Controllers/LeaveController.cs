@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace FinserveNew.Controllers
 {
-    // [Authorize] // will uncomment for RBAC later
+    //[Authorize(Roles = "Employee")]
     public class LeavesController : Controller
     {
         private readonly AppDbContext _context;

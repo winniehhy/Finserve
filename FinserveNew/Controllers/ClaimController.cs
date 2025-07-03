@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace FinserveNew.Controllers
 {
-    // [Authorize] // will uncomment for RBAC later
+    //[Authorize(Roles = "Employee")]
     public class ClaimController : Controller
     {
         private readonly AppDbContext _context;
@@ -28,7 +28,7 @@ namespace FinserveNew.Controllers
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
 
-            return View(claims);
+            return View("~/Views/Employee/Claim/Index.cshtml", claims);
         }
 
         // ================== VIEW CLAIM DETAILS ==================

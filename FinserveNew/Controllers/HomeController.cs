@@ -15,7 +15,7 @@ namespace FinserveNew.Controllers
 
         public IActionResult Index()
         {
-            return View("~/Views/Claim/Index.cshtml");
+            return View("~/Views/Employee/Claim/Index.cshtml");
         }
 
 
