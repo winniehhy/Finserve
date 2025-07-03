@@ -29,36 +29,65 @@
 }
 
 <div class="row mb-4">
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Annual Leave</h5>
-                <p class="card-text">
-                    <span class="fs-4">@ViewBag.AnnualLeaveBalance</span> / 14 days remaining
-                </p>
+    @if (ViewBag.LeaveBalances != null)
+    {
+        @foreach (var balance in ViewBag.LeaveBalances)
+        {
+            var balanceData = balance.Value;
+            var typeName = balance.Key;
+            var remainingDays = balanceData.RemainingDays;
+            var defaultDays = balanceData.DefaultDays;
+            var usedDays = balanceData.UsedDays;
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@typeName</h5>
+                        <p class="card-text">
+                            <span class="fs-4">@remainingDays</span> / @defaultDays days remaining
+                        </p>
+                        <small class="text-muted">Used: @usedDays days</small>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <!-- Fallback display if ViewBag.LeaveBalances is null -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Annual Leave</h5>
+                    <p class="card-text">
+                        <span class="fs-4">14</span> / 14 days remaining
+                    </p>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Medical Leave</h5>
-                <p class="card-text">
-                    <span class="fs-4">@ViewBag.MedicalLeaveBalance</span> / 10 days remaining
-                </p>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Medical Leave</h5>
+                    <p class="card-text">
+                        <span class="fs-4">10</span> / 10 days remaining
+                    </p>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Hospitalization Leave</h5>
-                <p class="card-text">
-                    <span class="fs-4">@ViewBag.HospitalizationLeaveBalance</span> / 16 days remaining
-                </p>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Hospitalization Leave</h5>
+                    <p class="card-text">
+                        <span class="fs-4">16</span> / 16 days remaining
+                    </p>
+                </div>
             </div>
         </div>
-    </div>
+    }
 </div>
 
 <div class="form-container">
@@ -146,8 +175,21 @@
             // Check if today is December 1st and show reminder if needed
             const today = new Date();
             if (today.getMonth() === 11 && today.getDate() === 1) {
-                @if (ViewBag.AnnualLeaveBalance > 10 || ViewBag.MedicalLeaveBalance > 10 || ViewBag.HospitalizationLeaveBalance > 10)
+                @if (ViewBag.LeaveBalances != null)
                 {
+                    var hasHighBalance = false;
+                    @foreach (var balance in ViewBag.LeaveBalances)
+                    {
+                        var remainingDays = balance.Value.RemainingDays;
+                        if (remainingDays > 10)
+                        {
+                            hasHighBalance = true;
+                            break;
+                        }
+                    }
+                    
+                    @if (hasHighBalance)
+                    {
                         <text>
                         // Check if reminder was already dismissed for this session
                         if (!sessionStorage.getItem('leaveReminderDismissed')) {
@@ -162,6 +204,7 @@
                             sessionStorage.setItem('leaveReminderDismissed', 'true');
                         }
                         </text>
+                    }
                 }
             }
 

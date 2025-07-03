@@ -405,12 +405,12 @@ namespace FinserveNew.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LeaveTypeID"));
 
+                    b.Property<int>("DefaultDaysPerYear")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
-
-                    b.Property<int>("MaxDaysAllowed")
-                        .HasColumnType("int");
 
                     b.Property<string>("TypeName")
                         .IsRequired()

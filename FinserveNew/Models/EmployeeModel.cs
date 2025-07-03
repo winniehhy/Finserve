@@ -7,7 +7,6 @@ namespace FinserveNew.Models
     public class Employee
     {
         [Key]
-        //public string EmployeeID { get; set; } = "E001"; // Default value for EmployeeID
         public string EmployeeID { get; set; } = null!;
 
         [Required(ErrorMessage = "Username is required")]

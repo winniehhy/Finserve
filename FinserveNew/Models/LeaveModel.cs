@@ -47,7 +47,9 @@ namespace FinserveNew.Models
 
         [ForeignKey("LeaveTypeID")]
         public virtual LeaveTypeModel? LeaveType { get; set; }
-    }
 
-   
+        // Calculated property for leave duration
+        [NotMapped]
+        public int LeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;
+    }
 }

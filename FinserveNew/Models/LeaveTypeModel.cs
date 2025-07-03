@@ -13,17 +13,15 @@ namespace FinserveNew.Models
         [MaxLength(100)]
         public string TypeName { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Default days allocation is required")]
+        [Display(Name = "Default Days Per Year")]
+        public int DefaultDaysPerYear { get; set; }
+
         [Display(Name = "Description")]
         [MaxLength(500)]
         public string? Description { get; set; }
-
-        [Required(ErrorMessage = "Maximum days allowed is required")]
-        [Display(Name = "Maximum Days Allowed")]
-        [Range(1, 365, ErrorMessage = "Maximum days must be between 1 and 365")]
-        public int MaxDaysAllowed { get; set; }
 
         // Navigation Property
         public virtual ICollection<LeaveModel>? Leaves { get; set; }
     }
 }
-

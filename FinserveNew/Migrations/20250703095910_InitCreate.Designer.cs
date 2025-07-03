@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250701214329_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20250703095910_InitCreate")]
+    partial class InitCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -408,12 +408,12 @@ namespace FinserveNew.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LeaveTypeID"));
 
+                    b.Property<int>("DefaultDaysPerYear")
+                        .HasColumnType("int");
+
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
-
-                    b.Property<int>("MaxDaysAllowed")
-                        .HasColumnType("int");
 
                     b.Property<string>("TypeName")
                         .IsRequired()
