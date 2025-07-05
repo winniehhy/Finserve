@@ -11,26 +11,25 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="~/css/dashboard.css" rel="stylesheet" />
-    <!-- wwwroot/lib/css/layout -->
     <link href="~/css/layout.css" rel="stylesheet" />
 </head>
 <body>
-    <!-- Header -->
-    <header class="main-header">
-        <div class="header-content">
-            <div class="d-flex align-items-center">
-                <button class="header-btn mobile-menu-btn me-2" onclick="toggleSidebar()">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <a href="@Url.Action("Index", "Home")" class="logo">
-                    <div class="logo-icon">FS</div>
-                    Finserve
-                </a>
-            </div>
+    @if (User.Identity.IsAuthenticated)
+    {
+        <!-- Header -->
+        <header class="main-header">
+            <div class="header-content">
+                <div class="d-flex align-items-center">
+                    <button class="header-btn mobile-menu-btn me-2" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <a href="@Url.Action("Index", "Home")" class="logo">
+                        <div class="logo-icon">FS</div>
+                        Finserve
+                    </a>
+                </div>
 
-            <div class="header-right">
-                @if (User.Identity.IsAuthenticated)
-                {
+                <div class="header-right">
                     <button class="header-btn">
                         <i class="fas fa-search"></i>
                     </button>
@@ -45,12 +44,15 @@
                     <div class="user-menu dropdown" data-bs-toggle="dropdown">
                         <div class="user-avatar">
                             @{
-                                var initials = User.Identity.Name?.Split(' ').Select(x => x.FirstOrDefault()).Take(2);
-                                var userInitials = initials != null ? string.Join("", initials) : "U";
+                                var userName = User.Identity.Name ?? "User";
+                                var nameParts = userName.Split('@')[0].Split('.');
+                                var userInitials = nameParts.Length > 1 ? 
+                                    (nameParts[0].FirstOrDefault().ToString().ToUpper() + nameParts[1].FirstOrDefault().ToString().ToUpper()) :
+                                    userName.Substring(0, Math.Min(2, userName.Length)).ToUpper();
                             }
                             @userInitials
                         </div>
-                        <span class="d-none d-md-inline">@User.Identity.Name</span>
+                        <span class="d-none d-md-inline">@userName</span>
                         <i class="fas fa-chevron-down ms-1"></i>
                     </div>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -65,165 +67,156 @@
                             </form>
                         </li>
                     </ul>
-                }
-                else
-                {
-                    <a href="@Url.Action("Login", "Account")" class="btn btn-primary">Login</a>
-                }
+                </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- Sidebar -->
-    <nav class="sidebar" id="sidebar">
-        <ul class="sidebar-menu">
-            <!-- Main Section -->
-            <li class="menu-section">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <ul class="sidebar-menu">
                 @{
                     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+                    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
                 }
-            <li class="menu-item">
-                <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" ? "active" : "")">
-                    <i class="fas fa-tachometer-alt menu-icon"></i>
-                    Dashboard
-                </a>
-            </li>
-
-            <!-- Admin/HR Only Sections -->
-            @if (User.IsInRole("Admin") || User.IsInRole("HR"))
-            {
+                
+                <!-- Main Dashboard -->
                 <li class="menu-item">
-                    <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
-                        <i class="fas fa-users menu-icon"></i>
-                        Employees
+                    <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" && currentAction == "Index" ? "active" : "")">
+                        <i class="fas fa-tachometer-alt menu-icon"></i>
+                        Dashboard
                     </a>
                 </li>
-            }
 
-            <!-- Admin/HR/Manager Only -->
-            @if (User.IsInRole("Admin") || User.IsInRole("HR") || User.IsInRole("Manager"))
-            {
-                <li class="menu-item">
-                    <a href="@Url.Action("Dashboard", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
-                        <i class="fas fa-money-bill-wave menu-icon"></i>
-                        Payroll
-                    </a>
+                <!-- Admin/HR Only Sections -->
+                @if (User.IsInRole("Admin") || User.IsInRole("HR"))
+                {
+                    <li class="menu-section">
+                        <div class="menu-section-title">MANAGEMENT</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
+                            <i class="fas fa-users menu-icon"></i>
+                            Employee Management
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("Dashboard", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                            <i class="fas fa-money-bill-wave menu-icon"></i>
+                            Payroll Management
+                        </a>
+                    </li>
+                }
+
+                <!-- Claims Section - All authenticated users -->
+                <li class="menu-section">
+                    <div class="menu-section-title">CLAIMS</div>
                 </li>
-            }
-            </li>
-
-            <!-- Employee Claims Section - All authenticated users -->
-            <li class="menu-section">
-                <div class="menu-section-title">CLAIMS</div>
-            <li class="menu-item">
-                <a href="@Url.Action("Index", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
-                    <i class="fas fa-file-medical menu-icon"></i>
-                    My Claims
-                </a>
-            </li>
-
-            <!-- Admin/HR/Manager - Claim Management -->
-            @if (User.IsInRole("Admin") || User.IsInRole("HR") || User.IsInRole("Manager"))
-            {
                 <li class="menu-item">
                     <a href="@Url.Action("Index", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
-                        <i class="fas fa-clipboard-list menu-icon"></i>
-                        Claim Management
+                        <i class="fas fa-file-medical menu-icon"></i>
+                        @if (User.IsInRole("Admin") || User.IsInRole("HR"))
+                        {
+                            <span>Claim Management</span>
+                        }
+                        else
+                        {
+                            <span>My Claims</span>
+                        }
                     </a>
                 </li>
-            }
-            </li>
 
-            <!-- Employee Leaves Section - All authenticated users -->
-            <li class="menu-section">
-                <div class="menu-section-title">LEAVES</div>
-            <li class="menu-item">
-                <a href="@Url.Action("LeaveRecords", "Leaves")" class="menu-link @(currentController == "Employee" && ViewContext.RouteData.Values["action"]?.ToString() == "Leave" ? "active" : "")">
-                    <i class="fas fa-calendar-alt menu-icon"></i>
-                    My Leaves
-                </a>
-            </li>
-
-            <!-- Admin/HR/Manager - Leave Management -->
-            @if (User.IsInRole("Admin") || User.IsInRole("HR") || User.IsInRole("Manager"))
-            {
+                <!-- Leaves Section - All authenticated users -->
+                <li class="menu-section">
+                    <div class="menu-section-title">LEAVES</div>
+                </li>
                 <li class="menu-item">
                     <a href="@Url.Action("LeaveRecords", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
-                        <i class="fas fa-calendar-check menu-icon"></i>
-                        Leave Records
+                        <i class="fas fa-calendar-alt menu-icon"></i>
+                        @if (User.IsInRole("Admin") || User.IsInRole("HR"))
+                        {
+                            <span>Leave Management</span>
+                        }
+                        else
+                        {
+                            <span>My Leaves</span>
+                        }
                     </a>
                 </li>
-            }
-            </li>
 
-            <!-- Reports Section - Admin/HR/Manager Only -->
-            @if (User.IsInRole("Admin") || User.IsInRole("HR") || User.IsInRole("Manager"))
-            {
+                <!-- Reports Section - Admin/HR Only -->
+                @if (User.IsInRole("Admin") || User.IsInRole("HR"))
+                {
+                    <li class="menu-section">
+                        <div class="menu-section-title">REPORTS</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("FinancialReports", "Reports")" class="menu-link @(currentController == "Reports" && currentAction == "FinancialReports" ? "active" : "")">
+                            <i class="fas fa-chart-line menu-icon"></i>
+                            Financial Reports
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("ActivityReports", "Reports")" class="menu-link @(currentController == "Reports" && currentAction == "ActivityReports" ? "active" : "")">
+                            <i class="fas fa-chart-pie menu-icon"></i>
+                            Activity Reports
+                        </a>
+                    </li>
+                }
+
+                <!-- Administration Section - Admin Only -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <li class="menu-section">
+                        <div class="menu-section-title">ADMINISTRATION</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("Settings", "Others")" class="menu-link @(currentController == "Others" && currentAction == "Settings" ? "active" : "")">
+                            <i class="fas fa-cogs menu-icon"></i>
+                            System Settings
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("UserManagement", "Admin")" class="menu-link @(currentController == "Admin" ? "active" : "")">
+                            <i class="fas fa-users-cog menu-icon"></i>
+                            User Management
+                        </a>
+                    </li>
+                }
+
+                <!-- General Section - All authenticated users -->
                 <li class="menu-section">
-                    <div class="menu-section-title">REPORTS</div>
+                    <div class="menu-section-title">GENERAL</div>
+                </li>
                 <li class="menu-item">
-                    <a href="@Url.Action("FinancialReports", "Reports")" class="menu-link @(currentController == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "FinancialReports" ? "active" : "")">
-                        <i class="fas fa-chart-line menu-icon"></i>
-                        Financial Reports
+                    <a href="@Url.Action("HelpCenter", "Others")" class="menu-link @(currentController == "Others" && currentAction == "HelpCenter" ? "active" : "")">
+                        <i class="fas fa-life-ring menu-icon"></i>
+                        Help Center
                     </a>
                 </li>
                 <li class="menu-item">
-                    <a href="@Url.Action("ActivityReports", "Reports")" class="menu-link @(currentController == "Reports" && ViewContext.RouteData.Values["action"]?.ToString() == "ActivityReports" ? "active" : "")">
-                        <i class="fas fa-chart-pie menu-icon"></i>
-                        Activity Reports
+                    <a href="@Url.Action("BackToWebsite", "Others")" class="menu-link @(currentController == "Others" && currentAction == "BackToWebsite" ? "active" : "")">
+                        <i class="fas fa-external-link-alt menu-icon"></i>
+                        Back To Website
                     </a>
                 </li>
-                </li>
-            }
+            </ul>
+        </nav>
 
-            <!-- Others Section - Admin Only -->
-            @if (User.IsInRole("Admin"))
-            {
-                <li class="menu-section">
-                    <div class="menu-section-title">ADMINISTRATION</div>
-                <li class="menu-item">
-                    <a href="@Url.Action("Settings", "Others")" class="menu-link @(currentController == "Others" && ViewContext.RouteData.Values["action"]?.ToString() == "Settings" ? "active" : "")">
-                        <i class="fas fa-cogs menu-icon"></i>
-                        Settings
-                    </a>
-                </li>
-                <li class="menu-item">
-                    <a href="@Url.Action("UserManagement", "Admin")" class="menu-link @(currentController == "Admin" ? "active" : "")">
-                        <i class="fas fa-users-cog menu-icon"></i>
-                        User Management
-                    </a>
-                </li>
-                </li>
-            }
+        <!-- Main Content -->
+        <main class="main-content">
+            @RenderBody()
+        </main>
 
-            <!-- General Section - All authenticated users -->
-            <li class="menu-section">
-                <div class="menu-section-title">GENERAL</div>
-            <li class="menu-item">
-                <a href="@Url.Action("HelpCenter", "Others")" class="menu-link @(currentController == "Others" && ViewContext.RouteData.Values["action"]?.ToString() == "HelpCenter" ? "active" : "")">
-                    <i class="fas fa-life-ring menu-icon"></i>
-                    Help Center
-                </a>
-            </li>
-            <li class="menu-item">
-                <a href="@Url.Action("BackToWebsite", "Others")" class="menu-link @(currentController == "Others" && ViewContext.RouteData.Values["action"]?.ToString() == "BackToWebsite" ? "active" : "")">
-                    <i class="fas fa-external-link-alt menu-icon"></i>
-                    Back To Website
-                </a>
-            </li>
-            </li>
-        </ul>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="main-content">
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Made with <i class="fas fa-heart text-danger"></i> by Finserve</p>
+        </footer>
+    }
+    else
+    {
+        <!-- If user is not authenticated, just render the body (login page) -->
         @RenderBody()
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <p>Made with <i class="fas fa-heart text-danger"></i> by Finserve</p>
-    </footer>
+    }
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

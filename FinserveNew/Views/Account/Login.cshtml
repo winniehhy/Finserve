@@ -1,60 +1,144 @@
-﻿@{
+﻿@model FinserveNew.Models.ViewModels.LoginViewModel
+@{
     ViewData["Title"] = "Login";
+    Layout = null; // Use no layout for login page
 }
 
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card mt-5">
-                <div class="card-header">
-                    <h3 class="text-center">Login</h3>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Finserve</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .login-header h3 {
+            margin: 0;
+            font-weight: 600;
+        }
+        .login-body {
+            padding: 30px;
+        }
+        .form-control {
+            border-radius: 10px;
+            padding: 12px 15px;
+            border: 1px solid #e1e5e9;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .test-accounts {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        .test-accounts h6 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        .test-account {
+            margin-bottom: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">
+                <i class="fas fa-building"></i> Finserve
+            </div>
+            <h3>Welcome Back</h3>
+            <p class="mb-0">Please sign in to your account</p>
+        </div>
+        <div class="login-body">
+            <form asp-action="Login" method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                <input name="__RequestVerificationToken" type="hidden" value="@Html.AntiForgeryToken().ToString()" />
+
+                <div class="form-group mb-3">
+                    <label asp-for="Email" class="form-label">
+                        <i class="fas fa-envelope me-2"></i>Email Address
+                    </label>
+                    <input asp-for="Email" class="form-control" placeholder="Enter your email" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
                 </div>
-                <div class="card-body">
-                    <form asp-action="Login" method="post">
-                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                        
-                        <div class="form-group mb-3">
-                            <label for="email" class="control-label">Email</label>
-                            <input type="email" id="email" name="email" class="form-control" required />
-                        </div>
-                        
-                        <div class="form-group mb-3">
-                            <label for="password" class="control-label">Password</label>
-                            <input type="password" id="password" name="password" class="form-control" required />
-                        </div>
-                        
-                        <div class="form-group text-center">
-                            <button type="submit" class="btn btn-primary">Login</button>
-                        </div>
-                    </form>
+
+                <div class="form-group mb-3">
+                    <label asp-for="Password" class="form-label">
+                        <i class="fas fa-lock me-2"></i>Password
+                    </label>
+                    <input asp-for="Password" class="form-control" placeholder="Enter your password" />
+                    <span asp-validation-for="Password" class="text-danger"></span>
                 </div>
+
+                <div class="form-check mb-3">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label">
+                        Remember me
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-login">
+                    <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                </button>
+            </form>
+
+            <!-- Test Accounts Info -->
+            <div class="test-accounts">
+                <h6><i class="fas fa-info-circle me-2"></i>Test Accounts</h6>
+                <div class="test-account"><strong>Admin:</strong> admin@finserve.com / Test@123</div>
+                <div class="test-account"><strong>HR:</strong> hr@finserve.com / Test@123</div>
+                <div class="test-account"><strong>Employee:</strong> employee@finserve.com / Test@123</div>
             </div>
         </div>
     </div>
-</div>
 
-@section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-}
-
-@* use this at the controllers *@
-
-@* [Authorize(Roles = "Admin")] *@
-@* public IActionResult AdminDashboard() => View(); *@
-
-@* [Authorize(Roles = "Employee")] *@
-@* public IActionResult EmployeeDashboard() => View(); *@
-
-
-@* Uncomment and use this in the layout or specific views to show different menus based on roles *@
-@* at the nav bar layout *@
-
-@* @if (User.IsInRole("Admin")) *@
-@* { *@
-@*     <!-- Admin menu items --> *@
-@* } *@
-@* @if (User.IsInRole("Employee")) *@
-@* { *@
-@*     <!-- Employee menu items --> *@
-@* } *@
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+</body>
+</html>

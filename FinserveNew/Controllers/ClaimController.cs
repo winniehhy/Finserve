@@ -57,7 +57,7 @@ namespace FinserveNew.Controllers
         {
             // Removed employee existence check
             await PopulateViewBagData();
-            return View();
+            return View("~/Views/Employee/Claim/Create.cshtml");
         }
 
         // ================== CREATE CLAIM (POST) ==================
@@ -130,7 +130,7 @@ namespace FinserveNew.Controllers
                 return NotFound();
 
             await PopulateViewBagData();
-            return View(claim);
+            return View("~/Views/Employee/Claim/Edit.cshtml", claim);
         }
 
         // ================== UPDATE CLAIM (POST) ==================
@@ -203,7 +203,7 @@ namespace FinserveNew.Controllers
             if (claim == null)
                 return NotFound();
 
-            return View(claim);
+            return View("~/Views/Employee/Claim/Delete.cshtml", claim);
         }
 
         // ================== DELETE CLAIM (POST) ==================

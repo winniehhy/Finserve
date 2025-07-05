@@ -34,7 +34,7 @@ namespace FinserveNew.Controllers
 
             ViewBag.LeaveBalances = leaveBalances;
 
-            return View(leaves);
+            return View("~/Views/Employee/Leaves/LeaveRecords.cshtml", leaves);
         }
 
         // ================== SHOW LEAVE DETAILS ==================
@@ -73,7 +73,7 @@ namespace FinserveNew.Controllers
             ViewBag.LeaveBalances = leaveBalances;
 
             _logger.LogInformation("✅ Create Leave form loaded successfully");
-            return View();
+            return View("~/Views/Employee/Leaves/Create.cshtml");
         }
 
         // ================== CREATE LEAVE (POST) ==================
@@ -176,7 +176,7 @@ namespace FinserveNew.Controllers
             var leaveBalances = await CalculateLeaveBalancesAsync(currentEmployeeId);
             ViewBag.LeaveBalances = leaveBalances;
 
-            return View(leave);
+            return View("~/Views/Employee/Leaves/Edit.cshtml", leave);
         }
 
         // ================== UPDATE LEAVE (POST) ==================
@@ -244,7 +244,7 @@ namespace FinserveNew.Controllers
             if (leave == null)
                 return NotFound();
 
-            return View(leave);
+            return View("~/Views/Employee/Leaves/Delete.cshtml", leave);
         }
 
         // ================== DELETE LEAVE (POST) ==================
