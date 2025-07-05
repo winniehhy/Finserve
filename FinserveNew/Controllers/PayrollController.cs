@@ -63,7 +63,7 @@ namespace FinserveNew.Controllers
             ViewBag.Records = records;
             ViewBag.BatchId = batch?.PayrollBatchId;
 
-            return View();
+            return View("~/Views/HR/Payroll/Dashboard.cshtml"); // winnie changed path here
         }
 
         // GET: Payroll/Start
