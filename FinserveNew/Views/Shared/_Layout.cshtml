@@ -87,8 +87,22 @@
                     </a>
                 </li>
 
-                <!-- Admin/HR Only Sections -->
-                @if (User.IsInRole("Admin") || User.IsInRole("HR"))
+                <!-- Admin Only Sections -->
+                @if (User.IsInRole("Admin"))
+                {
+                    <li class="menu-section">
+                        <div class="menu-section-title">ADMINISTRATION</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("InvoiceRecord", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
+                            <i class="fas fa-file-invoice menu-icon"></i>
+                            Invoice Management
+                        </a>
+                    </li>
+                }
+
+                <!-- HR Only Sections -->
+                @if (User.IsInRole("HR"))
                 {
                     <li class="menu-section">
                         <div class="menu-section-title">MANAGEMENT</div>
@@ -96,7 +110,7 @@
                     <li class="menu-item">
                         <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
                             <i class="fas fa-users menu-icon"></i>
-                            Employee Management
+                            Accounts Management
                         </a>
                     </li>
                     <li class="menu-item">
@@ -107,80 +121,41 @@
                     </li>
                 }
 
-                <!-- Claims Section - All authenticated users -->
-                <li class="menu-section">
-                    <div class="menu-section-title">CLAIMS</div>
-                </li>
-                <li class="menu-item">
-                    <a href="@Url.Action("Index", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
-                        <i class="fas fa-file-medical menu-icon"></i>
-                        @if (User.IsInRole("Admin") || User.IsInRole("HR"))
-                        {
-                            <span>Claim Management</span>
-                        }
-                        else
-                        {
-                            <span>My Claims</span>
-                        }
-                    </a>
-                </li>
-
-                <!-- Leaves Section - All authenticated users -->
-                <li class="menu-section">
-                    <div class="menu-section-title">LEAVES</div>
-                </li>
-                <li class="menu-item">
-                    <a href="@Url.Action("LeaveRecords", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
-                        <i class="fas fa-calendar-alt menu-icon"></i>
-                        @if (User.IsInRole("Admin") || User.IsInRole("HR"))
-                        {
-                            <span>Leave Management</span>
-                        }
-                        else
-                        {
-                            <span>My Leaves</span>
-                        }
-                    </a>
-                </li>
-
-                <!-- Reports Section - Admin/HR Only -->
-                @if (User.IsInRole("Admin") || User.IsInRole("HR"))
+                <!-- Employee Only Sections -->
+                @if (User.IsInRole("Employee") && !User.IsInRole("Admin") && !User.IsInRole("HR"))
                 {
+                    <!-- Claims Section - Employee Only -->
                     <li class="menu-section">
-                        <div class="menu-section-title">REPORTS</div>
+                        <div class="menu-section-title">CLAIMS</div>
                     </li>
                     <li class="menu-item">
-                        <a href="@Url.Action("FinancialReports", "Reports")" class="menu-link @(currentController == "Reports" && currentAction == "FinancialReports" ? "active" : "")">
-                            <i class="fas fa-chart-line menu-icon"></i>
-                            Financial Reports
+                        <a href="@Url.Action("Index", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
+                            <i class="fas fa-file-medical menu-icon"></i>
+                            My Claims
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("ActivityReports", "Reports")" class="menu-link @(currentController == "Reports" && currentAction == "ActivityReports" ? "active" : "")">
-                            <i class="fas fa-chart-pie menu-icon"></i>
-                            Activity Reports
-                        </a>
-                    </li>
-                }
 
-                <!-- Administration Section - Admin Only -->
-                @if (User.IsInRole("Admin"))
-                {
+                    <!-- Leaves Section - Employee Only -->
                     <li class="menu-section">
-                        <div class="menu-section-title">ADMINISTRATION</div>
+                        <div class="menu-section-title">LEAVES</div>
                     </li>
                     <li class="menu-item">
-                        <a href="@Url.Action("Settings", "Others")" class="menu-link @(currentController == "Others" && currentAction == "Settings" ? "active" : "")">
-                            <i class="fas fa-cogs menu-icon"></i>
-                            System Settings
+                        <a href="@Url.Action("LeaveRecords", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
+                            <i class="fas fa-calendar-alt menu-icon"></i>
+                            My Leaves
                         </a>
+                    </li>
+
+                    <!-- Invoice Section - Employee Only (for their own invoices) -->
+                    @* <li class="menu-section">
+                        <div class="menu-section-title">INVOICES</div>
                     </li>
                     <li class="menu-item">
-                        <a href="@Url.Action("UserManagement", "Admin")" class="menu-link @(currentController == "Admin" ? "active" : "")">
-                            <i class="fas fa-users-cog menu-icon"></i>
-                            User Management
+                        <a href="@Url.Action("Index", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
+                            <i class="fas fa-file-invoice menu-icon"></i>
+                            My Invoices
                         </a>
-                    </li>
+                    </li> *@
                 }
 
                 <!-- General Section - All authenticated users -->

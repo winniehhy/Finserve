@@ -163,19 +163,19 @@
         $(document).ready(function() {
             console.log("🚀 Leave application script loaded");
 
-            // Fixed leave balance data - using actual remaining days
+            // FIXED: Use dynamic leave balance data from ViewBag
             const leaveBalances = {
                 '1': {
                     maxDays: 14,
-                    remaining: @(ViewBag.AnnualLeaveBalance ?? 14) // Default to 14 if null
+                    remaining: @(ViewBag.AnnualLeaveBalance ?? 14)
                 },
                 '2': {
                     maxDays: 10,
-                    remaining: @(ViewBag.MedicalLeaveBalance ?? 10) // Default to 10 if null
+                    remaining: @(ViewBag.MedicalLeaveBalance ?? 10)
                 },
                 '3': {
                     maxDays: 16,
-                    remaining: @(ViewBag.HospitalizationLeaveBalance ?? 16) // Default to 16 if null
+                    remaining: @(ViewBag.HospitalizationLeaveBalance ?? 16)
                 }
             };
 
@@ -185,7 +185,13 @@
                 '3': 'Hospitalization Leave'
             };
 
-            console.log("📊 Leave balances:", leaveBalances);
+            console.log("📊 Leave balances loaded:", leaveBalances);
+
+            // DEBUGGING: Log the actual ViewBag values
+            console.log("🔍 ViewBag values:");
+            console.log("- AnnualLeaveBalance:", @(ViewBag.AnnualLeaveBalance ?? 14));
+            console.log("- MedicalLeaveBalance:", @(ViewBag.MedicalLeaveBalance ?? 10));
+            console.log("- HospitalizationLeaveBalance:", @(ViewBag.HospitalizationLeaveBalance ?? 16));
 
             // Validate leave type selection
             function isValidLeaveType(leaveTypeId) {

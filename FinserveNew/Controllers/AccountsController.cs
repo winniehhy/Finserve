@@ -121,7 +121,7 @@ namespace FinserveNew.Controllers
                 BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
                 BankTypes = new[] { "Savings", "Current" }
             };
-            return View(vm);
+            return View("~/Views/HR/Accounts/Add.cshtml", vm);
         }
 
         // POST: Accounts/Add
@@ -142,7 +142,7 @@ namespace FinserveNew.Controllers
                 vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
                 vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
                 vm.BankTypes = new[] { "Savings", "Current" };
-                return View(vm);
+                return View("~/Views/HR/Accounts/Add.cshtml",vm);
             }
 
             // Generate EmployeeID

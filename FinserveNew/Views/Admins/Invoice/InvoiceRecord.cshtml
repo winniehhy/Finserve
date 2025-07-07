@@ -1,0 +1,304 @@
+﻿@model IEnumerable<FinserveNew.Models.Invoice>
+@{
+    ViewData["Title"] = "Invoice Management";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Invoice Management</h2>
+    <div>
+        <button class="btn btn-outline-primary me-2" onclick="exportToExcel()">
+            <i class="fas fa-file-excel me-2"></i>
+            Export to Excel
+        </button>
+        <a href="@Url.Action("Create", "Invoice")" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>
+            Create New Invoice
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Year</label>
+                <select class="form-select" id="yearFilter">
+                    <option value="">All Years</option>
+                    @for (int year = DateTime.Now.Year; year >= DateTime.Now.Year - 5; year--)
+                    {
+                        <option value="@year">@year</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Employee</label>
+                <input type="text" class="form-control" id="employeeFilter" placeholder="Search by employee name or ID">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="fas fa-times me-1"></i>
+                    Clear
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="form-container">
+    @if (Model != null && Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover" id="invoiceTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Employee</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Year</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var invoice in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>@invoice.InvoiceNumber</strong>
+                                @if (!string.IsNullOrEmpty(invoice.FilePath))
+                                {
+                                    <br />
+                                    <a href="@invoice.FilePath" target="_blank" class="text-primary text-decoration-none">
+                                        <i class="fas fa-file-pdf me-1"></i>
+                                        <small>View File</small>
+                                    </a>
+                                }
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>@invoice.Employee?.FirstName @invoice.Employee?.LastName</strong>
+                                    <br />
+                                    <small class="text-muted">@invoice.EmployeeID</small>
+                                </div>
+                            </td>
+                            <td>@invoice.IssueDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                @invoice.DueDate.ToString("dd MMM yyyy")
+                                @if (invoice.DueDate < DateTime.Now && invoice.Status == "Pending")
+                                {
+                                    <br />
+                                    <small class="text-danger">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        Overdue
+                                    </small>
+                                }
+                            </td>
+                            <td>
+                                <strong>@invoice.FormattedAmount</strong>
+                                <br />
+                                <small class="text-muted">@invoice.Currency</small>
+                            </td>
+                            <td>
+                                <span class="badge @invoice.StatusBadgeClass">@invoice.Status</span>
+                            </td>
+                            <td>@invoice.Year</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a asp-action="Details" asp-route-id="@invoice.InvoiceID" class="btn btn-sm btn-outline-info" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    
+                                    @if (invoice.CanEdit)
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@invoice.InvoiceID" class="btn btn-sm btn-outline-success" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    }
+                                    
+                                    @if (invoice.CanDelete)
+                                    {
+                                        <a asp-action="Delete" asp-route-id="@invoice.InvoiceID" class="btn btn-sm btn-outline-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    }
+                                </div>
+                                
+                                @if (invoice.Status == "Pending")
+                                {
+                                    <div class="btn-group mt-1" role="group">
+                                        <button class="btn btn-sm btn-success" onclick="updateStatus(@invoice.InvoiceID, 'Approved')" title="Approve">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="updateStatus(@invoice.InvoiceID, 'Cancelled')" title="Cancel">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                }
+                                else if (invoice.Status == "Approved")
+                                {
+                                    <div class="mt-1">
+                                        <button class="btn btn-sm btn-primary" onclick="updateStatus(@invoice.InvoiceID, 'Paid')" title="Mark as Paid">
+                                            <i class="fas fa-dollar-sign"></i>
+                                        </button>
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Summary Cards -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending</h5>
+                        <h3>@Model.Count(i => i.Status == "Pending")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Approved</h5>
+                        <h3>@Model.Count(i => i.Status == "Approved")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Paid</h5>
+                        <h3>@Model.Count(i => i.Status == "Paid")</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Amount</h5>
+                        <h3>RM @Model.Sum(i => i.TotalAmount).ToString("F2")</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No invoices found</h5>
+            <p class="text-muted">No invoices have been created yet.</p>
+            <a href="@Url.Action("Create", "Invoice")" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                Create First Invoice
+            </a>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        function updateStatus(invoiceId, status) {
+            if (confirm(`Are you sure you want to update this invoice status to ${status}?`)) {
+                $.ajax({
+                    url: '@Url.Action("UpdateStatus", "Invoice")',
+                    type: 'POST',
+                    data: {
+                        id: invoiceId,
+                        status: status,
+                        __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        alert('Error updating status: ' + error);
+                    }
+                });
+            }
+        }
+
+        function exportToExcel() {
+            var table = document.getElementById('invoiceTable');
+            var wb = XLSX.utils.table_to_book(table, { sheet: "Invoices" });
+            XLSX.writeFile(wb, 'invoices_' + new Date().toISOString().split('T')[0] + '.xlsx');
+        }
+
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('yearFilter').value = '';
+            document.getElementById('employeeFilter').value = '';
+            filterTable();
+        }
+
+        function filterTable() {
+            var statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+            var yearFilter = document.getElementById('yearFilter').value;
+            var employeeFilter = document.getElementById('employeeFilter').value.toLowerCase();
+            
+            var table = document.getElementById('invoiceTable');
+            var rows = table.getElementsByTagName('tr');
+            
+            for (var i = 1; i < rows.length; i++) {
+                var row = rows[i];
+                var cells = row.getElementsByTagName('td');
+                var show = true;
+                
+                if (statusFilter && !cells[5].textContent.toLowerCase().includes(statusFilter)) {
+                    show = false;
+                }
+                
+                if (yearFilter && cells[6].textContent !== yearFilter) {
+                    show = false;
+                }
+                
+                if (employeeFilter && !cells[1].textContent.toLowerCase().includes(employeeFilter)) {
+                    show = false;
+                }
+                
+                row.style.display = show ? '' : 'none';
+            }
+        }
+
+        // Event listeners for filters
+        document.getElementById('statusFilter').addEventListener('change', filterTable);
+        document.getElementById('yearFilter').addEventListener('change', filterTable);
+        document.getElementById('employeeFilter').addEventListener('input', filterTable);
+    </script>
+    
+    <!-- Include SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+}

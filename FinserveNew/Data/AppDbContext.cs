@@ -1,246 +1,10 @@
-﻿//using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-//using Microsoft.EntityFrameworkCore;
-//using FinserveNew.Models;
-
-//namespace FinserveNew.Data
-//{
-//    public class AppDbContext : DbContext
-//    {
-//        // Constructor to configure the DbContext with options (like connection string)
-//        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-//        {
-//        }
-
-//        // Tables in the database
-
-//        public DbSet<Employee> Employees { get; set; }
-//        public DbSet<Claim> Claims { get; set; }
-//        public DbSet<BankInformation> BankInformations { get; set; }
-//        public DbSet<EmergencyContact> EmergencyContacts { get; set; }
-//        public DbSet<Role> Roles { get; set; }
-//        public DbSet<Salary> Salaries { get; set; }
-//        public DbSet<Approval> Approvals { get; set; }
-//        public DbSet<ClaimDetails> ClaimDetails { get; set; }
-//        public DbSet<ClaimType> ClaimTypes { get; set; }
-//        public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
-
-//        public DbSet<PayrollBatch> PayrollBatches { get; set; }
-//        public DbSet<PayrollRecord> PayrollRecords { get; set; }
-//        public DbSet<PayrollComponent> PayrollComponents { get; set; }
-//        public DbSet<StatutoryRate> StatutoryRates { get; set; }
-
-//        public DbSet<LeaveModel> Leaves { get; set; }
-//        public DbSet<LeaveTypeModel> LeaveTypes { get; set; }
-
-
-//        // Configure the table structures and relationships
-//        protected override void OnModelCreating(ModelBuilder modelBuilder)
-//        {
-//            // Employee table configuration
-//            modelBuilder.Entity<Employee>(entity =>
-//            {
-//                entity.HasKey(e => e.EmployeeID); // Primary key
-//                entity.Property(e => e.Username).IsRequired().HasMaxLength(50);
-//                entity.Property(e => e.Password).IsRequired().HasMaxLength(255);
-//                entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
-//                entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
-//                entity.Property(e => e.IC).IsRequired().HasMaxLength(20);
-//                entity.Property(e => e.Nationality).IsRequired().HasMaxLength(50);
-//                entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
-//                entity.Property(e => e.TelephoneNumber).IsRequired().HasMaxLength(20);
-//                entity.Property(e => e.Position).IsRequired().HasMaxLength(100);
-//                entity.Property(e => e.ConfirmationStatus).HasMaxLength(20).HasDefaultValue("Pending");
-
-//                // Foreign key relationships
-//                entity.HasOne(e => e.BankInformation)
-//                    .WithMany(b => b.Employees)
-//                    .HasForeignKey(e => e.BankID)
-//                    .OnDelete(DeleteBehavior.Restrict); // Prevent delete cascade
-
-//                entity.HasOne(e => e.EmergencyContact)
-//                    .WithMany(ec => ec.Employees)
-//                    .HasForeignKey(e => e.EmergencyID)
-//                    .OnDelete(DeleteBehavior.Restrict);
-
-//                entity.HasOne(e => e.Role)
-//                    .WithMany(r => r.Employees)
-//                    .HasForeignKey(e => e.RoleID)
-//                    .OnDelete(DeleteBehavior.Restrict);
-//            });
-
-//            // Claim table configuration - SIMPLIFIED (no navigation properties)
-//            modelBuilder.Entity<Claim>(entity =>
-//            {
-//                entity.HasKey(c => c.Id); // Primary key
-//                entity.Property(c => c.ClaimType).IsRequired().HasMaxLength(50);
-//                entity.Property(c => c.ClaimAmount).HasPrecision(18, 2).IsRequired();
-//                entity.Property(c => c.Status).HasMaxLength(20).HasDefaultValue("Pending");
-//                entity.Property(c => c.CreatedDate).IsRequired();
-//                entity.Property(c => c.SupportingDocumentPath).HasMaxLength(500);
-//                entity.Property(c => c.SupportingDocumentName).HasMaxLength(255);
-//                entity.Property(c => c.EmployeeID).IsRequired().HasMaxLength(255);
-//                entity.Property(c => c.TotalAmount).HasPrecision(18, 2);
-
-//                // No relationship configurations since navigation properties are removed
-//            });
-
-//            // BankInformation table configuration
-//            modelBuilder.Entity<BankInformation>(entity =>
-//            {
-//                entity.HasKey(b => b.BankID); // Primary key
-//            });
-
-//            // EmergencyContact table configuration
-//            modelBuilder.Entity<EmergencyContact>(entity =>
-//            {
-//                entity.HasKey(e => e.EmergencyID); // Primary key
-//            });
-
-//            // Role table configuration
-//            modelBuilder.Entity<Role>(entity =>
-//            {
-//                entity.HasKey(r => r.RoleID); // Primary key
-//            });
-
-//            // Salary table configuration
-//            modelBuilder.Entity<Salary>(entity =>
-//            {
-//                entity.HasKey(s => s.SalaryID); // Primary key
-
-//                // Relationship to employee
-//                entity.HasOne<Employee>()
-//                    .WithMany(e => e.Salaries)
-//                    .HasForeignKey(s => s.EmployeeID)
-//                    .OnDelete(DeleteBehavior.Cascade);
-//            });
-
-//            // Approval table configuration
-//            modelBuilder.Entity<Approval>(entity =>
-//            {
-//                entity.HasKey(a => a.ApprovalID); // Primary key
-
-//                // Relationship to employee (approver)
-//                entity.HasOne<Employee>()
-//                    .WithMany(e => e.Approvals)
-//                    .HasForeignKey(a => a.EmployeeID)
-//                    .OnDelete(DeleteBehavior.Cascade);
-//            });
-
-//            // ClaimDetails table configuration - MODIFIED to work without Claim navigation property
-//            modelBuilder.Entity<ClaimDetails>(entity =>
-//            {
-//                entity.HasKey(cd => new { cd.ClaimID, cd.ClaimTypeID }); // Composite primary key
-
-//                entity.Property(cd => cd.Comment).IsRequired().HasMaxLength(500);
-//                entity.Property(cd => cd.DocumentPath).IsRequired().HasMaxLength(255);
-
-//                // Remove relationship to claim since Claim doesn't have ClaimDetails navigation property
-//                // You can still have a foreign key constraint at the database level if needed
-
-//                // Relationship to claim type (if ClaimType has navigation properties)
-//                entity.HasOne(cd => cd.ClaimType)
-//                    .WithMany()
-//                    .HasForeignKey(cd => cd.ClaimTypeID)
-//                    .OnDelete(DeleteBehavior.Restrict); // Prevent deletion if claim type is in use
-//            });
-
-//            // ClaimType table configuration
-//            modelBuilder.Entity<ClaimType>(entity =>
-//            {
-//                entity.HasKey(ct => ct.ClaimTypeID); // Primary key
-//            });
-
-//            // EmployeeDocument table configuration
-//            modelBuilder.Entity<EmployeeDocument>(entity =>
-//            {
-//                entity.HasKey(ed => ed.DocumentID); // Primary key
-
-//                // Relationship to employee
-//                entity.HasOne(ed => ed.Employee)
-//                    .WithMany(e => e.EmployeeDocuments)
-//                    .HasForeignKey(ed => ed.EmployeeID)
-//                    .OnDelete(DeleteBehavior.Cascade);
-//            });
-
-//            // PayrollBatch configuration
-//            modelBuilder.Entity<PayrollBatch>(entity =>
-//            {
-//                entity.HasKey(pb => pb.PayrollBatchId);
-//                entity.Property(pb => pb.Status).HasMaxLength(20).HasDefaultValue("Draft");
-//                entity.HasMany(pb => pb.PayrollRecords)
-//                      .WithOne(pr => pr.PayrollBatch)
-//                      .HasForeignKey(pr => pr.PayrollBatchId)
-//                      .OnDelete(DeleteBehavior.Cascade);
-//            });
-
-//            // PayrollRecord configuration
-//            modelBuilder.Entity<PayrollRecord>(entity =>
-//            {
-//                entity.HasKey(pr => pr.PayrollRecordId);
-//                entity.Property(pr => pr.Status).HasMaxLength(20).HasDefaultValue("Draft");
-//                entity.HasMany(pr => pr.Components)
-//                      .WithOne(pc => pc.PayrollRecord)
-//                      .HasForeignKey(pc => pc.PayrollRecordId)
-//                      .OnDelete(DeleteBehavior.Cascade);
-//                entity.HasOne(pr => pr.Employee)
-//                      .WithMany()
-//                      .HasForeignKey(pr => pr.EmployeeID)
-//                      .OnDelete(DeleteBehavior.Restrict);
-//            });
-
-//            // PayrollComponent configuration
-//            modelBuilder.Entity<PayrollComponent>(entity =>
-//            {
-//                entity.HasKey(pc => pc.PayrollComponentId);
-//                entity.Property(pc => pc.Type).HasMaxLength(20);
-//                entity.Property(pc => pc.Name).HasMaxLength(100);
-//            });
-
-//            // StatutoryRate configuration
-//            modelBuilder.Entity<StatutoryRate>(entity =>
-//            {
-//                entity.HasKey(sr => sr.StatutoryRateId);
-//                entity.Property(sr => sr.Name).HasMaxLength(50);
-//                entity.Property(sr => sr.Description).HasMaxLength(255);
-//            });
-
-//            // LeaveModel configuration
-//            modelBuilder.Entity<LeaveModel>(entity =>
-//            {
-//                entity.HasKey(l => l.LeaveID); // Primary key
-
-//                // Relationships
-//                entity.HasOne(l => l.Employee)
-//                    .WithMany()
-//                    .HasForeignKey(l => l.EmployeeID)
-//                    .OnDelete(DeleteBehavior.Cascade);
-
-//                entity.HasOne(l => l.LeaveType)
-//                    .WithMany(lt => lt.Leaves)
-//                    .HasForeignKey(l => l.LeaveTypeID)
-//                    .OnDelete(DeleteBehavior.Restrict);
-//            });
-
-//            // LeaveTypeModel configuration
-//            modelBuilder.Entity<LeaveTypeModel>(entity =>
-//            {
-//                entity.HasKey(lt => lt.LeaveTypeID); // Primary key
-//            });
-
-//            // Call the base method
-//            base.OnModelCreating(modelBuilder);
-//        }
-//    }
-//}
-
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using FinserveNew.Models;
 
 namespace FinserveNew.Data
 {
-    public class AppDbContext : IdentityDbContext<ApplicationUser>  // Inherit from IdentityDbContext<ApplicationUser> for ASP.NET Identity
+    public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -266,15 +30,23 @@ namespace FinserveNew.Data
         public DbSet<LeaveModel> Leaves { get; set; }
         public DbSet<LeaveTypeModel> LeaveTypes { get; set; }
 
-        // Configure the table structures and relationships
+        // Add the missing Invoice DbSet
+        public DbSet<Invoice> Invoices { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(modelBuilder); // Ensure this is called to set up Identity tables properly
+            base.OnModelCreating(modelBuilder);
 
-            // Configure Employee table (as per your existing Employee model)
+            // IGNORE UNUSED IDENTITY TABLES 
+            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserClaim<string>>();
+            modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserLogin<string>>();
+            modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>();
+            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>>();
+
+            // Configure Employee table
             modelBuilder.Entity<Employee>(entity =>
             {
-                entity.HasKey(e => e.EmployeeID); // Primary key
+                entity.HasKey(e => e.EmployeeID);
                 entity.Property(e => e.Username).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Password).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
@@ -286,11 +58,10 @@ namespace FinserveNew.Data
                 entity.Property(e => e.Position).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ConfirmationStatus).HasMaxLength(20).HasDefaultValue("Pending");
 
-                // Foreign key relationships to Employee's Bank Information, Emergency Contact, and Role
                 entity.HasOne(e => e.BankInformation)
                     .WithMany(b => b.Employees)
                     .HasForeignKey(e => e.BankID)
-                    .OnDelete(DeleteBehavior.Restrict);  // Prevent delete cascade
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.EmergencyContact)
                     .WithMany(ec => ec.Employees)
@@ -303,16 +74,16 @@ namespace FinserveNew.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configure the relationship between ApplicationUser and Employee (one-to-one)
+            // Configure the relationship between ApplicationUser and Employee
             modelBuilder.Entity<Employee>()
                 .HasOne(e => e.ApplicationUser)
                 .WithOne()
-                .HasForeignKey<Employee>(e => e.ApplicationUserId);  // FK to ApplicationUser
+                .HasForeignKey<Employee>(e => e.ApplicationUserId);
 
             // Configure the Claim table
             modelBuilder.Entity<Claim>(entity =>
             {
-                entity.HasKey(c => c.Id); // Primary key
+                entity.HasKey(c => c.Id);
                 entity.Property(c => c.ClaimType).IsRequired().HasMaxLength(50);
                 entity.Property(c => c.ClaimAmount).HasPrecision(18, 2).IsRequired();
                 entity.Property(c => c.Status).HasMaxLength(20).HasDefaultValue("Pending");
@@ -323,10 +94,30 @@ namespace FinserveNew.Data
                 entity.Property(c => c.TotalAmount).HasPrecision(18, 2);
             });
 
-            modelBuilder.Entity<ClaimDetails>()
-            .HasKey(cd => new { cd.ClaimID, cd.ClaimTypeID });
+            // Configure the Invoice table
+            modelBuilder.Entity<Invoice>(entity =>
+            {
+                entity.HasKey(i => i.InvoiceID);
+                entity.Property(i => i.InvoiceNumber).IsRequired().HasMaxLength(50);
+                entity.Property(i => i.IssueDate).IsRequired();
+                entity.Property(i => i.DueDate).IsRequired();
+                entity.Property(i => i.TotalAmount).HasPrecision(18, 2).IsRequired();
+                entity.Property(i => i.Currency).HasMaxLength(3).HasDefaultValue("MYR");
+                entity.Property(i => i.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+                entity.Property(i => i.Remark).HasMaxLength(500);
+                entity.Property(i => i.FilePath).HasMaxLength(255);
+                entity.Property(i => i.EmployeeID).IsRequired();
 
-            // Configure the remaining tables (BankInformation, EmergencyContact, Salary, etc.)
+                entity.HasOne(i => i.Employee)
+                    .WithMany()
+                    .HasForeignKey(i => i.EmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ClaimDetails>()
+                .HasKey(cd => new { cd.ClaimID, cd.ClaimTypeID });
+
+            // Configure remaining tables
             modelBuilder.Entity<BankInformation>(entity =>
             {
                 entity.HasKey(b => b.BankID);
@@ -342,7 +133,6 @@ namespace FinserveNew.Data
                 entity.HasKey(r => r.RoleID);
             });
 
-            // Configure Salary, Approval, ClaimDetails, EmployeeDocument tables similarly
             modelBuilder.Entity<Salary>(entity =>
             {
                 entity.HasKey(s => s.SalaryID);
@@ -352,14 +142,12 @@ namespace FinserveNew.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Payroll configuration
             modelBuilder.Entity<PayrollBatch>(entity =>
             {
                 entity.HasKey(pb => pb.PayrollBatchId);
                 entity.Property(pb => pb.Status).HasMaxLength(20).HasDefaultValue("Draft");
             });
 
-            // LeaveModel configuration
             modelBuilder.Entity<LeaveModel>(entity =>
             {
                 entity.HasKey(l => l.LeaveID);
@@ -372,10 +160,6 @@ namespace FinserveNew.Data
                     .HasForeignKey(l => l.LeaveTypeID)
                     .OnDelete(DeleteBehavior.Restrict);
             });
-
-            // Call base method for Identity tables and relationships
-            base.OnModelCreating(modelBuilder);
         }
     }
 }
-

@@ -34,6 +34,9 @@ namespace FinserveNew.Controllers
 
             ViewBag.LeaveBalances = leaveBalances;
 
+            // NEW: Populate individual ViewBag properties for the view
+            PopulateLeaveBalanceViewBag(leaveBalances);
+
             return View("~/Views/Employee/Leaves/LeaveRecords.cshtml", leaves);
         }
 
@@ -71,6 +74,9 @@ namespace FinserveNew.Controllers
             var leaveBalances = await CalculateLeaveBalancesAsync(currentEmployeeId);
 
             ViewBag.LeaveBalances = leaveBalances;
+
+            // NEW: Populate individual ViewBag properties for the view
+            PopulateLeaveBalanceViewBag(leaveBalances);
 
             _logger.LogInformation("✅ Create Leave form loaded successfully");
             return View("~/Views/Employee/Leaves/Create.cshtml");
@@ -156,7 +162,10 @@ namespace FinserveNew.Controllers
             var leaveBalances = await CalculateLeaveBalancesAsync(currentEmployeeId);
             ViewBag.LeaveBalances = leaveBalances;
 
-            return View(leave);
+            // NEW: Populate individual ViewBag properties for the view
+            PopulateLeaveBalanceViewBag(leaveBalances);
+
+            return View("~/Views/Employee/Leaves/Create.cshtml", leave);
         }
 
         // ================== SHOW EDIT LEAVE FORM ==================
@@ -175,6 +184,9 @@ namespace FinserveNew.Controllers
             var currentEmployeeId = "E001";
             var leaveBalances = await CalculateLeaveBalancesAsync(currentEmployeeId);
             ViewBag.LeaveBalances = leaveBalances;
+
+            // NEW: Populate individual ViewBag properties for the view
+            PopulateLeaveBalanceViewBag(leaveBalances);
 
             return View("~/Views/Employee/Leaves/Edit.cshtml", leave);
         }
@@ -227,6 +239,9 @@ namespace FinserveNew.Controllers
             var leaveBalances = await CalculateLeaveBalancesAsync(currentEmployeeId);
             ViewBag.LeaveBalances = leaveBalances;
 
+            // NEW: Populate individual ViewBag properties for the view
+            PopulateLeaveBalanceViewBag(leaveBalances);
+
             return View(leave);
         }
 
@@ -263,6 +278,63 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(LeaveRecords));
         }
 
+        // ================== NEW: POPULATE INDIVIDUAL VIEWBAG PROPERTIES ==================
+        private void PopulateLeaveBalanceViewBag(Dictionary<string, object> leaveBalances)
+        {
+            _logger.LogInformation("🔧 Populating individual ViewBag properties for leave balances");
+
+            try
+            {
+                // Extract individual balance values for ViewBag
+                if (leaveBalances.ContainsKey("Annual Leave"))
+                {
+                    var annualLeave = leaveBalances["Annual Leave"] as dynamic;
+                    ViewBag.AnnualLeaveBalance = annualLeave?.RemainingDays ?? 14;
+                    _logger.LogInformation($"📊 Annual Leave Balance: {ViewBag.AnnualLeaveBalance}");
+                }
+                else
+                {
+                    ViewBag.AnnualLeaveBalance = 14; // Default fallback
+                    _logger.LogWarning("⚠️ Annual Leave not found in balances, using default: 14");
+                }
+
+                if (leaveBalances.ContainsKey("Medical Leave"))
+                {
+                    var medicalLeave = leaveBalances["Medical Leave"] as dynamic;
+                    ViewBag.MedicalLeaveBalance = medicalLeave?.RemainingDays ?? 10;
+                    _logger.LogInformation($"📊 Medical Leave Balance: {ViewBag.MedicalLeaveBalance}");
+                }
+                else
+                {
+                    ViewBag.MedicalLeaveBalance = 10; // Default fallback
+                    _logger.LogWarning("⚠️ Medical Leave not found in balances, using default: 10");
+                }
+
+                if (leaveBalances.ContainsKey("Hospitalization Leave"))
+                {
+                    var hospitalizationLeave = leaveBalances["Hospitalization Leave"] as dynamic;
+                    ViewBag.HospitalizationLeaveBalance = hospitalizationLeave?.RemainingDays ?? 16;
+                    _logger.LogInformation($"📊 Hospitalization Leave Balance: {ViewBag.HospitalizationLeaveBalance}");
+                }
+                else
+                {
+                    ViewBag.HospitalizationLeaveBalance = 16; // Default fallback
+                    _logger.LogWarning("⚠️ Hospitalization Leave not found in balances, using default: 16");
+                }
+
+                _logger.LogInformation("✅ Individual ViewBag properties populated successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error populating individual ViewBag properties");
+
+                // Set fallback values in case of error
+                ViewBag.AnnualLeaveBalance = 14;
+                ViewBag.MedicalLeaveBalance = 10;
+                ViewBag.HospitalizationLeaveBalance = 16;
+            }
+        }
+
         // ================== CALCULATE DYNAMIC LEAVE BALANCES ==================
         private async Task<Dictionary<string, object>> CalculateLeaveBalancesAsync(string employeeId, int year = 0)
         {
@@ -280,14 +352,25 @@ namespace FinserveNew.Controllers
 
                 foreach (var leaveType in leaveTypes)
                 {
-                    // FIXED: Calculate total approved/pending leave days for this employee, leave type, and year
-                    // Using DateOnly.DayNumber for proper calculation
-                    var usedDays = await _context.Leaves
+                    // FIXED: Get all leaves for this employee, leave type, and year
+                    var leaves = await _context.Leaves
                         .Where(l => l.EmployeeID == employeeId
                                 && l.LeaveTypeID == leaveType.LeaveTypeID
                                 && l.StartDate.Year == year
                                 && (l.Status == "Approved" || l.Status == "Pending"))
-                        .SumAsync(l => l.EndDate.DayNumber - l.StartDate.DayNumber + 1);
+                        .ToListAsync();
+
+                    // Calculate total used days correctly using the LeaveDays property
+                    var usedDays = 0;
+                    foreach (var leave in leaves)
+                    {
+                        // Use the calculated LeaveDays property from the model
+                        var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
+                                          (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
+                        usedDays += leaveDuration;
+
+                        _logger.LogInformation($"🗓️ Leave from {leave.StartDate} to {leave.EndDate}: {leaveDuration} days (Status: {leave.Status})");
+                    }
 
                     var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
 
@@ -324,13 +407,21 @@ namespace FinserveNew.Controllers
             var leaveType = await _context.LeaveTypes.FindAsync(leaveTypeId);
             if (leaveType == null) return false;
 
-            // FIXED: Use DateOnly.DayNumber for proper calculation
-            var usedDays = await _context.Leaves
+            // FIXED: Get all leaves and calculate properly
+            var leaves = await _context.Leaves
                 .Where(l => l.EmployeeID == employeeId
                         && l.LeaveTypeID == leaveTypeId
                         && l.StartDate.Year == year
                         && (l.Status == "Approved" || l.Status == "Pending"))
-                .SumAsync(l => l.EndDate.DayNumber - l.StartDate.DayNumber + 1);
+                .ToListAsync();
+
+            var usedDays = 0;
+            foreach (var leave in leaves)
+            {
+                var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
+                                  (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
+                usedDays += leaveDuration;
+            }
 
             var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
 
@@ -345,13 +436,21 @@ namespace FinserveNew.Controllers
             var leaveType = await _context.LeaveTypes.FindAsync(leaveTypeId);
             if (leaveType == null) return 0;
 
-            // FIXED: Use DateOnly.DayNumber for proper calculation
-            var usedDays = await _context.Leaves
+            // FIXED: Get all leaves and calculate properly
+            var leaves = await _context.Leaves
                 .Where(l => l.EmployeeID == employeeId
                         && l.LeaveTypeID == leaveTypeId
                         && l.StartDate.Year == year
                         && (l.Status == "Approved" || l.Status == "Pending"))
-                .SumAsync(l => l.EndDate.DayNumber - l.StartDate.DayNumber + 1);
+                .ToListAsync();
+
+            var usedDays = 0;
+            foreach (var leave in leaves)
+            {
+                var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
+                                  (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
+                usedDays += leaveDuration;
+            }
 
             return Math.Max(0, leaveType.DefaultDaysPerYear - usedDays);
         }

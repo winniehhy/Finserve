@@ -107,14 +107,14 @@ namespace FinserveNew.Controllers
                 _logger.LogError(ex, "Database error while saving claim");
                 ModelState.AddModelError("", "An error occurred while saving the claim. Please try again.");
                 await PopulateViewBagData();
-                return View(claim);
+                return View("~/Views/Employee/Claim/Create.cshtml",claim);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while creating claim");
                 ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
                 await PopulateViewBagData();
-                return View(claim);
+                return View("~/Views/Employee/Claim/Create.cshtml",claim);
             }
         }
 
