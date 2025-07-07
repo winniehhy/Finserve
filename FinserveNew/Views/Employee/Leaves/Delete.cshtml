@@ -1,0 +1,276 @@
+﻿@model FinserveNew.Models.LeaveModel
+
+@{
+    ViewData["Title"] = "Cancel Leave Application";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Cancel Leave Application</h2>
+    <a href="/Leaves/LeaveRecords" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>
+        Back to My Leaves
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Confirm Leave Cancellation
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Warning:</strong> Are you sure you want to cancel this leave application? This action cannot be undone.
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary">
+                                    <i class="fas fa-info-circle me-2"></i>Application Details
+                                </h6>
+                                <div class="mb-2">
+                                    <strong>Application ID:</strong> #@Model.LeaveID
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Leave Type:</strong>
+                                    <span class="badge bg-primary">@Model.LeaveType?.TypeName</span>
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Employee:</strong> @Model.Employee?.Username
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Status:</strong>
+                                    @if (Model.Status == "Pending")
+                                    {
+                                        <span class="badge bg-warning">@Model.Status</span>
+                                    }
+                                    else if (Model.Status == "Approved")
+                                    {
+                                        <span class="badge bg-success">@Model.Status</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">@Model.Status</span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(Model.ApprovedBy))
+                                {
+                                    <div class="mb-0">
+                                        <strong>Approved By:</strong> @Model.ApprovedBy
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary">
+                                    <i class="fas fa-calendar-alt me-2"></i>Leave Duration
+                                </h6>
+                                <div class="mb-2">
+                                    <strong>Start Date:</strong> @Model.StartDate.ToString("dd MMM yyyy")
+                                </div>
+                                <div class="mb-2">
+                                    <strong>End Date:</strong> @Model.EndDate.ToString("dd MMM yyyy")
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Total Days:</strong>
+                                    <span class="badge bg-info">@((Model.EndDate.DayNumber - Model.StartDate.DayNumber) + 1) day(s)</span>
+                                </div>
+                                <div class="mb-0">
+                                    <strong>Days Until Start:</strong>
+                                    @{
+                                        var daysUntilStart = (Model.StartDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                                    }
+                                    @if (daysUntilStart > 0)
+                                    {
+                                        <span class="badge bg-secondary">@daysUntilStart day(s)</span>
+                                    }
+                                    else if (daysUntilStart == 0)
+                                    {
+                                        <span class="badge bg-warning">Today</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Started @Math.Abs(daysUntilStart) day(s) ago</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">
+                                <i class="fas fa-comment-alt me-2"></i>Reason for Leave
+                            </h6>
+                            <p class="mb-0">@Model.Reason</p>
+                        </div>
+                    </div>
+                </div>
+
+                @if (Model.Status == "Approved")
+                {
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> This leave application has already been approved. Canceling it may require additional approval from your supervisor.
+                    </div>
+                }
+
+                <form asp-action="Delete" method="post" class="d-flex justify-content-end gap-2">
+                    <input type="hidden" asp-for="LeaveID" />
+
+                    <a asp-action="LeaveRecords" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Go Back
+                    </a>
+
+                    <button type="submit" class="btn btn-danger" id="confirmDeleteBtn">
+                        <i class="fas fa-trash-alt me-2"></i>
+                        Yes, Cancel This Leave
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Information Card -->
+<div class="row justify-content-center mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    What happens when you cancel?
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-success">
+                            <i class="fas fa-check me-2"></i>Benefits
+                        </h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-plus-circle text-success me-2"></i>
+                                <small>Your leave balance will be restored</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-plus-circle text-success me-2"></i>
+                                <small>You can apply for new leave dates</small>
+                            </li>
+                            <li class="mb-0">
+                                <i class="fas fa-plus-circle text-success me-2"></i>
+                                <small>No impact on your leave record</small>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Important Notes
+                        </h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-info-circle text-warning me-2"></i>
+                                <small>This action cannot be undone</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-info-circle text-warning me-2"></i>
+                                <small>You'll need to reapply for new dates</small>
+                            </li>
+                            <li class="mb-0">
+                                <i class="fas fa-info-circle text-warning me-2"></i>
+                                <small>Approved leaves may require manager notification</small>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            console.log("🚀 Delete leave application script loaded");
+
+            // Add confirmation dialog for delete action
+            $('#confirmDeleteBtn').on('click', function(e) {
+                e.preventDefault();
+
+                const leaveId = @Model.LeaveID;
+                const leaveType = '@Model.LeaveType?.TypeName';
+                const startDate = '@Model.StartDate.ToString("dd MMM yyyy")';
+                const endDate = '@Model.EndDate.ToString("dd MMM yyyy")';
+                const status = '@Model.Status';
+
+                let confirmMessage = `Are you sure you want to cancel this leave application?\n\n`;
+                confirmMessage += `Leave Type: ${leaveType}\n`;
+                confirmMessage += `Duration: ${startDate} to ${endDate}\n`;
+                confirmMessage += `Status: ${status}\n\n`;
+
+                if (status === 'Approved') {
+                    confirmMessage += `⚠️ This leave has already been approved. Canceling it may require additional coordination with your supervisor.\n\n`;
+                }
+
+                confirmMessage += `This action cannot be undone. Do you want to proceed?`;
+
+                if (confirm(confirmMessage)) {
+                    console.log(`✅ User confirmed cancellation of leave #${leaveId}`);
+
+                    // Show loading state
+                    $(this)
+                        .prop('disabled', true)
+                        .html('<i class="fas fa-spinner fa-spin me-2"></i>Canceling...');
+
+                    // Submit the form
+                    $(this).closest('form').submit();
+                } else {
+                    console.log(`❌ User cancelled the deletion of leave #${leaveId}`);
+                }
+            });
+
+            // Add visual feedback for user interaction
+            $('#confirmDeleteBtn').hover(
+                function() {
+                    $(this).addClass('btn-outline-danger').removeClass('btn-danger');
+                },
+                function() {
+                    $(this).addClass('btn-danger').removeClass('btn-outline-danger');
+                }
+            );
+
+            // Prevent accidental form submission
+            $('form').on('submit', function(e) {
+                const submitBtn = $(this).find('#confirmDeleteBtn');
+
+                // If the button is not disabled, it means the user hasn't clicked the confirmation
+                if (!submitBtn.prop('disabled')) {
+                    e.preventDefault();
+                    submitBtn.click();
+                    return false;
+                }
+
+                console.log("🚀 Form submission proceeding after confirmation");
+                return true;
+            });
+
+            // Auto-focus on the go back button for better UX
+            setTimeout(function() {
+                $('a[href*="LeaveRecords"]').first().focus();
+            }, 100);
+        });
+    </script>
+}

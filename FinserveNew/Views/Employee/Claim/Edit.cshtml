@@ -1,0 +1,67 @@
+﻿@model FinserveNew.Models.Claim
+@{
+    ViewData["Title"] = "Edit Claim";
+}
+<h2>Edit Claim</h2>
+
+<form asp-action="Edit" method="post" enctype="multipart/form-data">
+    @* Hidden ID field *@
+    <input type="hidden" asp-for="Id" />
+
+    @* Hidden EmployeeId field *@
+    <input type="hidden" asp-for="EmployeeID" />
+
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="ClaimType" class="form-label"></label>
+        <select asp-for="ClaimType" class="form-select">
+            <option value="">Select claim type...</option>
+            <option value="Travel">Travel</option>
+            <option value="Medical">Medical</option>
+            <option value="Equipment">Equipment</option>
+            <option value="Training">Training</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Other">Other</option>
+        </select>
+        <span asp-validation-for="ClaimType" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ClaimAmount" class="form-label"></label>
+        <div class="input-group">
+            <span class="input-group-text">RM</span>
+            <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" />
+        </div>
+        <span asp-validation-for="ClaimAmount" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+
+    @* File upload (optional replace) *@
+    <div class="mb-3">
+        <label class="form-label">Replace Supporting Document (optional)</label>
+        <input type="file" name="supportingDocument" class="form-control" />
+        @if (!string.IsNullOrEmpty(Model.SupportingDocumentPath))
+        {
+            <div class="mt-2">
+                <a href="@Model.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
+                    View Current Document
+                </a>
+            </div>
+        }
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

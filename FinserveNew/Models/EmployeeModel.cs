@@ -7,7 +7,6 @@ namespace FinserveNew.Models
     public class Employee
     {
         [Key]
-        //public string EmployeeID { get; set; } = "E001"; // Default value for EmployeeID
         public string EmployeeID { get; set; } = null!;
 
         [Required(ErrorMessage = "Username is required")]
@@ -76,7 +75,7 @@ namespace FinserveNew.Models
         [MaxLength(100)]
         public string Position { get; set; } = string.Empty;
 
-        // Foreign Keys
+        // Foreign Keys for Bank, Emergency Contact, Role
         [Required(ErrorMessage = "Bank is required")]
         [Display(Name = "Bank")]
         public int BankID { get; set; }
@@ -89,7 +88,7 @@ namespace FinserveNew.Models
         [Display(Name = "Role")]
         public int RoleID { get; set; }
 
-        // Navigation Properties
+        // Navigation Properties for Foreign Keys
         [ForeignKey("BankID")]
         public virtual BankInformation? BankInformation { get; set; }
 
@@ -110,5 +109,12 @@ namespace FinserveNew.Models
 
         // One Employee can have many Documents
         public virtual ICollection<EmployeeDocument> EmployeeDocuments { get; set; } = new List<EmployeeDocument>();
+
+        // Link to ApplicationUser (Identity)
+        //[Required(ErrorMessage = "Application User is required")]
+        //[ForeignKey("ApplicationUserId")]
+        public string? ApplicationUserId { get; set; } // FK to AspNetUsers table
+
+        public virtual ApplicationUser ApplicationUser { get; set; }  // Navigation property
     }
 }

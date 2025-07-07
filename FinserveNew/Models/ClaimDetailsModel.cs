@@ -1,15 +1,12 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Security.Claims;
 
 namespace FinserveNew.Models
 {
     public class ClaimDetails
     {
-        [Key]
         public int ClaimID { get; set; }
 
-        [Key]
         public int ClaimTypeID { get; set; }
 
         [Required(ErrorMessage = "Comment is required")]

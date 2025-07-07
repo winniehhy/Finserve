@@ -1,0 +1,788 @@
+﻿@{
+    ViewData["Title"] = "Employee Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- Dashboard Content -->
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-tachometer-alt me-2"></i>
+                    Employee Dashboard
+                </h1>
+                <p class="page-subtitle">Welcome back, @User.Identity.Name</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary" onclick="exportReport()">
+                    <i class="fas fa-download me-2"></i>Export Report
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-plus me-2"></i>Quick Action
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="@Url.Action("Create", "Claim")">Submit New Claim</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("Create", "Leaves")">Apply for Leave</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="fas fa-file-medical"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.TotalClaims</div>
+                    <div class="stat-label">Total Claims</div>
+                    <div class="stat-change @(ViewBag.ApprovalRate > 70 ? "positive" : ViewBag.ApprovalRate > 50 ? "neutral" : "negative")">
+                        <i class="fas fa-@(ViewBag.ApprovalRate > 70 ? "arrow-up" : ViewBag.ApprovalRate > 50 ? "minus" : "arrow-down")"></i>
+                        @ViewBag.ApprovalRate% approval rate
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.ApprovedClaims</div>
+                    <div class="stat-label">Approved Claims</div>
+                    <div class="stat-change positive">
+                        <i class="fas fa-dollar-sign"></i> $@ViewBag.TotalClaimAmount.ToString("N2")
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.TotalLeaveDaysUsed</div>
+                    <div class="stat-label">Leave Days Used</div>
+                    <div class="stat-change @(ViewBag.TotalRemainingLeave > 10 ? "positive" : ViewBag.TotalRemainingLeave > 5 ? "neutral" : "negative")">
+                        <i class="fas fa-calendar-check"></i> @ViewBag.TotalRemainingLeave days remaining
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="fas fa-hourglass-half"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@(ViewBag.PendingClaims + ViewBag.PendingLeaves)</div>
+                    <div class="stat-label">Pending Requests</div>
+                    <div class="stat-change @(ViewBag.PendingClaims + ViewBag.PendingLeaves > 3 ? "negative" : "neutral")">
+                        <i class="fas fa-@(ViewBag.PendingClaims + ViewBag.PendingLeaves > 3 ? "exclamation-triangle" : "clock")"></i>
+                        @(ViewBag.PendingClaims + ViewBag.PendingLeaves > 3 ? "Needs attention" : "Under review")
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Create", "Claim")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-primary">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Submit New Claim</h6>
+                                    <p>Create a new medical claim</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Create", "Leaves")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-success">
+                                    <i class="fas fa-calendar-plus"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Apply for Leave</h6>
+                                    <p>Submit a leave request</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("Index", "Claim")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-info">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>View All Claims</h6>
+                                    <p>Check claim history</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Claims -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-medical me-2"></i>Recent Claims
+                    </h5>
+                    <a href="@Url.Action("Index", "Claim")" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.RecentClaims != null && ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Claim ID</th>
+                                        <th>Type</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaims)
+                                    {
+                                        <tr>
+                                            <td>#CLM-@claim.Id.ToString("D3")</td>
+                                            <td>@claim.ClaimType</td>
+                                            <td>$@claim.ClaimAmount.ToString("N2")</td>
+                                            <td>
+                                                <span class="badge bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : claim.Status == "Processing" ? "info" : "danger")">
+                                                    @claim.Status
+                                                </span>
+                                            </td>
+                                            <td>@claim.CreatedDate.ToString("MMM dd, yyyy")</td>
+                                            <td>
+                                                <a href="@Url.Action("Details", "Claim", new { id = claim.Id })" class="btn btn-sm btn-outline-primary">View</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No claims submitted yet</p>
+                            <a href="@Url.Action("Create", "Claim")" class="btn btn-primary">Submit Your First Claim</a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Recent Leave Applications -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Recent Leave Applications
+                    </h5>
+                    <a href="@Url.Action("LeaveRecords", "Leaves")" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.RecentLeaves != null && ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Leave Type</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Days</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves)
+                                    {
+                                        <tr>
+                                            <td>@(leave.LeaveType?.TypeName ?? "N/A")</td>
+                                            <td>@leave.StartDate.ToString("MMM dd, yyyy")</td>
+                                            <td>@leave.EndDate.ToString("MMM dd, yyyy")</td>
+                                            <td>@leave.LeaveDays days</td>
+                                            <td>
+                                                <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
+                                                    @leave.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="@Url.Action("Details", "Leaves", new { id = leave.LeaveID })" class="btn btn-sm btn-outline-primary">View</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No leave applications yet</p>
+                            <a href="@Url.Action("Create", "Leaves")" class="btn btn-success">Apply for Leave</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Leave Balance -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-check me-2"></i>Leave Balance (@ViewBag.CurrentYear)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.LeaveBalances != null && ((Dictionary<string, object>)ViewBag.LeaveBalances).Any())
+                    {
+                        @foreach (var balance in (Dictionary<string, object>)ViewBag.LeaveBalances)
+                        {
+                            var leaveBalance = balance.Value as dynamic;
+                            var percentage = leaveBalance.DefaultDays > 0 ? (leaveBalance.RemainingDays * 100.0 / leaveBalance.DefaultDays) : 0;
+                            var progressColor = percentage > 70 ? "success" : percentage > 30 ? "warning" : "danger";
+
+                            <div class="leave-balance-item">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>@balance.Key</span>
+                                    <span class="fw-bold">@leaveBalance.RemainingDays / @leaveBalance.DefaultDays days</span>
+                                </div>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar bg-@progressColor" style="width: @percentage%"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No leave balance data available</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bell me-2"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.RecentClaims != null && ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Any())
+                    {
+                        @foreach (var claim in ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Take(3))
+                        {
+                            <div class="notification-item">
+                                <div class="notification-icon bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : "info")">
+                                    <i class="fas fa-@(claim.Status == "Approved" ? "check" : claim.Status == "Pending" ? "clock" : "info")"></i>
+                                </div>
+                                <div class="notification-content">
+                                    <h6>Claim @claim.Status</h6>
+                                    <p>Your @claim.ClaimType claim for $@claim.ClaimAmount.ToString("N2") is @claim.Status.ToLower().</p>
+                                    <small class="text-muted">@((DateTime.Now - claim.CreatedDate).Days) days ago</small>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @if (ViewBag.RecentLeaves != null && ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Any())
+                    {
+                        @foreach (var leave in ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Take(2))
+                        {
+                            <div class="notification-item">
+                                <div class="notification-icon bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "info")">
+                                    <i class="fas fa-calendar-@(leave.Status == "Approved" ? "check" : "clock")"></i>
+                                </div>
+                                <div class="notification-content">
+                                    <h6>Leave @leave.Status</h6>
+                                    <p>Your @(leave.LeaveType?.TypeName ?? "leave") request is @leave.Status.ToLower().</p>
+                                    <small class="text-muted">@leave.StartDate.ToString("MMM dd") - @leave.EndDate.ToString("MMM dd")</small>
+                                </div>
+                            </div>
+                        }
+                    }
+
+                    @if ((ViewBag.RecentClaims == null || !((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Any()) &&
+                                        (ViewBag.RecentLeaves == null || !((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Any()))
+                    {
+                        <div class="text-center py-3">
+                            <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                            <p class="text-muted">No recent activity</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Calendar Widget -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar me-2"></i>@ViewBag.CurrentMonth
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="calendar-widget" id="calendarWidget">
+                        <!-- Calendar will be generated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Dashboard functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            generateCalendar();
+        });
+
+        // Export report functionality
+        function exportReport() {
+            alert('Export functionality will be implemented soon!');
+        }
+
+        // Generate calendar with leave dates
+        function generateCalendar() {
+            const calendarWidget = document.getElementById('calendarWidget');
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            const today = now.getDate();
+
+            // Get approved leave dates from server
+            const approvedLeaveDates = @Html.Raw(Json.Serialize(ViewBag.ApprovedLeaveDates ?? new List<DateOnly>()));
+
+            // Convert to Set for faster lookup
+            const leaveDatesSet = new Set(approvedLeaveDates.map(date => {
+                const dateObj = new Date(date);
+                return dateObj.getDate();
+            }));
+
+            // Get first day of month and number of days
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            const firstDayWeek = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+
+            // Month names
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+
+            let calendarHTML = `
+                <div class="calendar-header">
+                    <h6>${monthNames[currentMonth]} ${currentYear}</h6>
+                </div>
+                <div class="calendar-grid">
+                    <div class="calendar-day-header">S</div>
+                    <div class="calendar-day-header">M</div>
+                    <div class="calendar-day-header">T</div>
+                    <div class="calendar-day-header">W</div>
+                    <div class="calendar-day-header">T</div>
+                    <div class="calendar-day-header">F</div>
+                    <div class="calendar-day-header">S</div>
+            `;
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDayWeek; i++) {
+                calendarHTML += '<div class="calendar-day"></div>';
+            }
+
+            // Add days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                let classes = 'calendar-day';
+                if (day === today) {
+                    classes += ' today';
+                }
+                if (leaveDatesSet.has(day)) {
+                    classes += ' leave-day';
+                }
+
+                calendarHTML += `<div class="${classes}">${day}</div>`;
+            }
+
+            calendarHTML += `
+                </div>
+                <div class="calendar-legend">
+                    <div class="legend-item">
+                        <div class="legend-color today"></div>
+                        <span>Today</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color leave-day"></div>
+                        <span>Approved Leave</span>
+                    </div>
+                </div>
+            `;
+
+            calendarWidget.innerHTML = calendarHTML;
+        }
+    </script>
+}
+
+<style>
+    /* Dashboard Styles */
+    .dashboard-container {
+        padding: 20px;
+    }
+
+    .page-header {
+        margin-bottom: 30px;
+    }
+
+    .page-title {
+        color: #2c3e50;
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .page-subtitle {
+        color: #7f8c8d;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: transform 0.2s ease;
+        height: 100%;
+    }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        line-height: 1;
+    }
+
+    .stat-label {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin-bottom: 5px;
+    }
+
+    .stat-change {
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+        .stat-change.positive {
+            color: #27ae60;
+        }
+
+        .stat-change.negative {
+            color: #e74c3c;
+        }
+
+        .stat-change.neutral {
+            color: #f39c12;
+        }
+
+    /* Quick Actions */
+    .quick-action-btn {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 20px;
+        background: white;
+        border: 2px solid #ecf0f1;
+        border-radius: 12px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+        .quick-action-btn:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.2);
+            color: inherit;
+            text-decoration: none;
+        }
+
+    .quick-action-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        color: white;
+    }
+
+    .quick-action-content h6 {
+        margin-bottom: 5px;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .quick-action-content p {
+        margin-bottom: 0;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+
+    /* Cards */
+    .card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        background: white;
+        border-bottom: 1px solid #ecf0f1;
+        border-radius: 15px 15px 0 0 !important;
+        padding: 20px;
+    }
+
+    .card-title {
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    /* Leave Balance */
+    .leave-balance-item {
+        margin-bottom: 20px;
+    }
+
+        .leave-balance-item:last-child {
+            margin-bottom: 0;
+        }
+
+    .progress {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #ecf0f1;
+    }
+
+    .progress-bar {
+        border-radius: 4px;
+    }
+
+    /* Notifications */
+    .notification-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        padding: 15px 0;
+        border-bottom: 1px solid #ecf0f1;
+    }
+
+        .notification-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .notification-content h6 {
+        margin-bottom: 5px;
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .notification-content p {
+        margin-bottom: 5px;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+        line-height: 1.4;
+    }
+
+    /* Calendar Widget */
+    .calendar-widget {
+        text-align: center;
+    }
+
+    .calendar-header {
+        margin-bottom: 15px;
+    }
+
+        .calendar-header h6 {
+            color: #2c3e50;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        margin-bottom: 15px;
+    }
+
+    .calendar-day-header {
+        padding: 8px;
+        font-weight: 600;
+        color: #7f8c8d;
+        font-size: 0.8rem;
+    }
+
+    .calendar-day {
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: #2c3e50;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .calendar-day:hover {
+            background-color: #ecf0f1;
+        }
+
+        .calendar-day.today {
+            background-color: #3498db;
+            color: white;
+            font-weight: 600;
+        }
+
+        .calendar-day.leave-day {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .calendar-day.today.leave-day {
+            background: linear-gradient(45deg, #3498db 50%, #e74c3c 50%);
+        }
+
+    .calendar-legend {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.8rem;
+        color: #7f8c8d;
+    }
+
+    .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+    }
+
+        .legend-color.today {
+            background-color: #3498db;
+        }
+
+        .legend-color.leave-day {
+            background-color: #e74c3c;
+        }
+
+    /* Table Styles */
+    .table th {
+        border-top: none;
+        border-bottom: 2px solid #ecf0f1;
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 15px 10px;
+    }
+
+    .table td {
+        border-top: 1px solid #ecf0f1;
+        padding: 15px 10px;
+        font-size: 0.9rem;
+        color: #2c3e50;
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* Badges */
+    .badge {
+        font-size: 0.75rem;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    /* Empty State */
+    .text-center i.fa-3x {
+        opacity: 0.3;
+    }
+</style>

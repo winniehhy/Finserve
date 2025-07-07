@@ -1,0 +1,428 @@
+﻿@model FinserveNew.Models.LeaveModel
+
+@{
+    ViewData["Title"] = "Apply for Leave";
+
+    // Create leave types list if not provided by controller
+    var leaveTypes = ViewData["LeaveTypeID"] as IEnumerable<SelectListItem> ?? new List<SelectListItem>
+    {
+        new SelectListItem { Value = "1", Text = "Annual Leave" },
+        new SelectListItem { Value = "2", Text = "Medical Leave" },
+        new SelectListItem { Value = "3", Text = "Hospitalization Leave" }
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Apply for Leave</h2>
+    <a href="/Leaves/LeaveRecords" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>
+        Back to My Leaves
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Leave Application Form</h4>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="LeaveTypeID" class="form-label">Leave Type <span class="text-danger">*</span></label>
+                            <select asp-for="LeaveTypeID" asp-items="leaveTypes" class="form-select" id="LeaveTypeID" required>
+                                <option value="">-- Select Leave Type --</option>
+                            </select>
+                            <span asp-validation-for="LeaveTypeID" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Available Days</label>
+                            <div id="availableDays" class="form-control bg-light text-muted">
+                                Select a leave type to see available days
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="StartDate" class="form-label">Start Date <span class="text-danger">*</span></label>
+                            <input asp-for="StartDate" type="date" class="form-control" id="StartDate" required />
+                            <span asp-validation-for="StartDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="EndDate" class="form-label">End Date <span class="text-danger">*</span></label>
+                            <input asp-for="EndDate" type="date" class="form-control" id="EndDate" required />
+                            <span asp-validation-for="EndDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="alert alert-info" id="durationInfo" style="display: none;">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Duration:</strong> <span id="calculatedDuration">0</span> day(s)
+                            <div id="balanceWarning" style="display: none;" class="mt-2">
+                                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                <span class="text-warning">Warning: This exceeds your available balance!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Reason" class="form-label">Reason <span class="text-danger">*</span></label>
+                        <textarea asp-for="Reason" class="form-control" id="Reason" rows="4"
+                                  placeholder="Please provide a detailed reason for your leave application" required></textarea>
+                        <span asp-validation-for="Reason" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="LeaveRecords" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Application
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Leave Balance Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>Annual Leave:</strong>
+                        <span class="badge bg-primary">@(ViewBag.AnnualLeaveBalance ?? 0) / 14</span>
+                    </div>
+                    <div class="progress mt-1" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar"
+                             style="width: @(((ViewBag.AnnualLeaveBalance != null ? (double)ViewBag.AnnualLeaveBalance : 0) / 14) * 100)%"></div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>Medical Leave:</strong>
+                        <span class="badge bg-info">@(ViewBag.MedicalLeaveBalance ?? 0) / 10</span>
+                    </div>
+                    <div class="progress mt-1" style="height: 8px;">
+                        <div class="progress-bar bg-info" role="progressbar"
+                             style="width: @(((ViewBag.MedicalLeaveBalance != null ? (double)ViewBag.MedicalLeaveBalance : 0) / 10) * 100)%"></div>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>Hospitalization Leave:</strong>
+                        <span class="badge bg-success">@(ViewBag.HospitalizationLeaveBalance ?? 0) / 16</span>
+                    </div>
+                    <div class="progress mt-1" style="height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar"
+                             style="width: @(((ViewBag.HospitalizationLeaveBalance != null ? (double)ViewBag.HospitalizationLeaveBalance : 0) / 16) * 100)%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Tips
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Plan your leave in advance</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Medical leave requires documentation</small>
+                    </li>
+                    <li class="mb-0">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Annual leave expires at year-end</small>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            console.log("🚀 Leave application script loaded");
+
+            // FIXED: Use dynamic leave balance data from ViewBag
+            const leaveBalances = {
+                '1': {
+                    maxDays: 14,
+                    remaining: @(ViewBag.AnnualLeaveBalance ?? 14)
+                },
+                '2': {
+                    maxDays: 10,
+                    remaining: @(ViewBag.MedicalLeaveBalance ?? 10)
+                },
+                '3': {
+                    maxDays: 16,
+                    remaining: @(ViewBag.HospitalizationLeaveBalance ?? 16)
+                }
+            };
+
+            const leaveNames = {
+                '1': 'Annual Leave',
+                '2': 'Medical Leave',
+                '3': 'Hospitalization Leave'
+            };
+
+            console.log("📊 Leave balances loaded:", leaveBalances);
+
+            // DEBUGGING: Log the actual ViewBag values
+            console.log("🔍 ViewBag values:");
+            console.log("- AnnualLeaveBalance:", @(ViewBag.AnnualLeaveBalance ?? 14));
+            console.log("- MedicalLeaveBalance:", @(ViewBag.MedicalLeaveBalance ?? 10));
+            console.log("- HospitalizationLeaveBalance:", @(ViewBag.HospitalizationLeaveBalance ?? 16));
+
+            // Validate leave type selection
+            function isValidLeaveType(leaveTypeId) {
+                return ['1', '2', '3'].includes(leaveTypeId);
+            }
+
+            // Handle leave type selection
+            $('#LeaveTypeID').on('change', function() {
+                const leaveTypeId = $(this).val();
+                console.log("🔄 Leave type changed to:", leaveTypeId);
+
+                const availableDaysDiv = $('#availableDays');
+
+                if (!leaveTypeId) {
+                    availableDaysDiv.text('Select a leave type to see available days');
+                    availableDaysDiv.removeClass('text-danger text-success text-warning').addClass('text-muted');
+                    console.log("⚠️ No leave type selected");
+                    return;
+                }
+
+                // Validate leave type
+                if (!isValidLeaveType(leaveTypeId)) {
+                    console.log("❌ Invalid leave type selected:", leaveTypeId);
+                    availableDaysDiv.text('Invalid leave type selected');
+                    availableDaysDiv.removeClass('text-muted text-success text-warning').addClass('text-danger');
+                    return;
+                }
+
+                const balance = leaveBalances[leaveTypeId];
+                const remainingDays = balance.remaining;
+                const maxDays = balance.maxDays;
+                const leaveName = leaveNames[leaveTypeId];
+
+                console.log(`✅ Selected ${leaveName}: ${remainingDays}/${maxDays} days`);
+
+                availableDaysDiv.html(`<strong>${remainingDays}</strong> of ${maxDays} days remaining`);
+
+                // Color coding based on remaining balance
+                availableDaysDiv.removeClass('text-muted text-danger text-success text-warning');
+                if (remainingDays === 0) {
+                    availableDaysDiv.addClass('text-danger');
+                } else if (remainingDays < 3) {
+                    availableDaysDiv.addClass('text-warning');
+                } else {
+                    availableDaysDiv.addClass('text-success');
+                }
+
+                calculateDuration();
+            });
+
+            // Handle date changes
+            $('#StartDate, #EndDate').on('change', function() {
+                console.log("📅 Date changed:", $(this).attr('id'), "=", $(this).val());
+                calculateDuration();
+            });
+
+            // Calculate duration function
+            function calculateDuration() {
+                const startDate = $('#StartDate').val();
+                const endDate = $('#EndDate').val();
+                const leaveTypeId = $('#LeaveTypeID').val();
+
+                console.log("🧮 Calculating duration - Start:", startDate, "End:", endDate, "Type:", leaveTypeId);
+
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+
+                    console.log("📅 Parsed dates - Start:", start, "End:", end);
+
+                    if (end >= start) {
+                        const timeDiff = end.getTime() - start.getTime();
+                        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                        console.log("⏱️ Duration calculated:", daysDiff, "days");
+
+                        $('#calculatedDuration').text(daysDiff);
+                        $('#durationInfo').show();
+
+                        // Check if duration exceeds available balance
+                        if (isValidLeaveType(leaveTypeId) && leaveBalances[leaveTypeId] !== undefined) {
+                            const availableBalance = leaveBalances[leaveTypeId].remaining;
+                            console.log("💰 Balance check - Requested:", daysDiff, "Available:", availableBalance);
+
+                            if (daysDiff > availableBalance) {
+                                console.log("⚠️ WARNING: Duration exceeds available balance");
+                                $('#balanceWarning').show();
+                                $('#durationInfo').removeClass('alert-info').addClass('alert-warning');
+                            } else {
+                                console.log("✅ Duration within available balance");
+                                $('#balanceWarning').hide();
+                                $('#durationInfo').removeClass('alert-warning').addClass('alert-info');
+                            }
+                        }
+                    } else {
+                        console.log("❌ End date is before start date");
+                        $('#durationInfo').hide();
+                    }
+                } else {
+                    console.log("⚠️ Missing date(s) for calculation");
+                    $('#durationInfo').hide();
+                }
+            }
+
+            // Set minimum date to today
+            const today = new Date().toISOString().split('T')[0];
+            $('#StartDate').attr('min', today);
+            console.log("📅 Set minimum date to:", today);
+
+            // Update end date minimum when start date changes
+            $('#StartDate').on('change', function() {
+                $('#EndDate').attr('min', $(this).val());
+                if ($('#EndDate').val() && $('#EndDate').val() < $(this).val()) {
+                    $('#EndDate').val($(this).val());
+                }
+                calculateDuration();
+            });
+
+            // Form validation before submission
+            $('form').on('submit', function(e) {
+                console.log("🚀 FORM SUBMISSION STARTED");
+
+                const leaveTypeId = $('#LeaveTypeID').val();
+                const startDate = $('#StartDate').val();
+                const endDate = $('#EndDate').val();
+                const reason = $('#Reason').val().trim();
+
+                console.log("📝 Form data collected:");
+                console.log("- Leave Type ID:", leaveTypeId);
+                console.log("- Start Date:", startDate);
+                console.log("- End Date:", endDate);
+                console.log("- Reason length:", reason.length);
+
+                // Check if form is valid according to HTML5 validation
+                const form = this;
+                console.log("✅ Form validity check:", form.checkValidity());
+
+                if (!form.checkValidity()) {
+                    console.log("❌ Form HTML5 validation failed");
+                    return true;
+                }
+
+                // Validate leave type
+                if (!isValidLeaveType(leaveTypeId)) {
+                    console.log("❌ VALIDATION FAILED: Invalid leave type");
+                    e.preventDefault();
+                    alert('Please select a valid leave type (Annual Leave, Medical Leave, or Hospitalization Leave).');
+                    $('#LeaveTypeID').focus();
+                    return false;
+                }
+
+                if (!startDate || !endDate) {
+                    console.log("❌ VALIDATION FAILED: Missing dates");
+                    e.preventDefault();
+                    alert('Please select both start and end dates.');
+                    if (!startDate) $('#StartDate').focus();
+                    else $('#EndDate').focus();
+                    return false;
+                }
+
+                if (!reason) {
+                    console.log("❌ VALIDATION FAILED: No reason provided");
+                    e.preventDefault();
+                    alert('Please provide a reason for your leave.');
+                    $('#Reason').focus();
+                    return false;
+                }
+
+                // Date validation
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+
+                if (end < start) {
+                    console.log("❌ VALIDATION FAILED: End date before start date");
+                    e.preventDefault();
+                    alert('End date must be after or equal to start date.');
+                    $('#EndDate').focus();
+                    return false;
+                }
+
+                // Balance validation
+                const timeDiff = end.getTime() - start.getTime();
+                const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                const availableBalance = leaveBalances[leaveTypeId].remaining;
+
+                console.log("💰 Final balance validation:");
+                console.log("- Days requested:", daysDiff);
+                console.log("- Available balance:", availableBalance);
+
+                if (daysDiff > availableBalance) {
+                    console.log("⚠️ WARNING: Exceeding balance, showing confirmation");
+                    e.preventDefault();
+                    const leaveName = leaveNames[leaveTypeId];
+                    const confirmMsg = `You are requesting ${daysDiff} days but only have ${availableBalance} days remaining for ${leaveName}.\n\nDo you want to proceed anyway?`;
+
+                    if (!confirm(confirmMsg)) {
+                        console.log("❌ User cancelled submission due to balance warning");
+                        return false;
+                    } else {
+                        console.log("✅ User confirmed to proceed despite balance warning");
+                        // Re-submit the form programmatically
+                        setTimeout(() => {
+                            console.log("🔄 Re-submitting form after confirmation");
+                            $(this).off('submit').submit();
+                        }, 100);
+                        return false;
+                    }
+                }
+
+                console.log("✅ ALL VALIDATIONS PASSED");
+
+                // Show loading state
+                const submitBtn = $(this).find('button[type="submit"]');
+                submitBtn
+                    .prop('disabled', true)
+                    .html('<i class="fas fa-spinner fa-spin me-2"></i>Submitting...');
+
+                console.log("✅ FORM SUBMISSION PROCEEDING");
+                return true;
+            });
+
+            // Auto-resize textarea
+            $('#Reason').on('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+
+            // Initialize the form - trigger change event on page load if Annual Leave is pre-selected
+            if ($('#LeaveTypeID').val()) {
+                $('#LeaveTypeID').trigger('change');
+            }
+        });
+    </script>
+}

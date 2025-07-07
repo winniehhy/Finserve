@@ -56,7 +56,7 @@ namespace FinserveNew.Controllers
             ViewBag.PageSizes = new[] { 10, 25, 50, 100 };
             ViewBag.Search = search;
 
-            return View(employees);
+            return View("~/Views/HR/Accounts/AllAccounts.cshtml", employees); // winnie changed path here -- remove it once u saw haha
         }
 
         // GET: Accounts/ViewDetails/5
@@ -108,7 +108,7 @@ namespace FinserveNew.Controllers
                 BankTypes = new[] { "Savings", "Current" }
             };
 
-            return View(viewModel);
+            return View("~/Views/HR/Accounts/ViewDetails.cshtml", viewModel); // winnie changed path here -- remove it once u saw haha
         }
 
         // GET: Accounts/Add
@@ -121,7 +121,7 @@ namespace FinserveNew.Controllers
                 BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
                 BankTypes = new[] { "Savings", "Current" }
             };
-            return View(vm);
+            return View("~/Views/HR/Accounts/Add.cshtml", vm);
         }
 
         // POST: Accounts/Add
@@ -142,7 +142,7 @@ namespace FinserveNew.Controllers
                 vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
                 vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
                 vm.BankTypes = new[] { "Savings", "Current" };
-                return View(vm);
+                return View("~/Views/HR/Accounts/Add.cshtml",vm);
             }
 
             // Generate EmployeeID
