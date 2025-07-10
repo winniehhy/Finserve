@@ -150,7 +150,8 @@ namespace FinserveNew.Controllers
                 Employees = employees,
                 StatutoryRates = statutoryRates
             };
-            return View(vm);
+            return View("~/Views/HR/Payroll/Process.cshtml", vm);
+
         }
 
         [HttpPost]

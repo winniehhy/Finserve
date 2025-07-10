@@ -134,8 +134,8 @@ namespace FinserveNew.Controllers
                 ModelState.AddModelError("IC", "IC already exists.");
             if (await _context.Employees.AnyAsync(e => e.Email == vm.Email))
                 ModelState.AddModelError("Email", "Email already exists.");
-            if (await _context.Employees.AnyAsync(e => e.Username == vm.Username))
-                ModelState.AddModelError("Username", "Username already exists.");
+            //if (await _context.Employees.AnyAsync(e => e.Username == vm.Username))
+            //    ModelState.AddModelError("Username", "Username already exists.");
 
             if (!ModelState.IsValid)
             {
@@ -156,6 +156,9 @@ namespace FinserveNew.Controllers
                 var lastNumber = int.Parse(lastEmployee.EmployeeID.Substring(2));
                 newEmployeeId = $"EM{(lastNumber + 1):D3}";
             }
+
+            string username = newEmployeeId;
+            string rawPassword = $"{vm.FirstName.Trim().ToLower()}#1234";
 
             //// Generate BankID
             //var lastBank = await _context.BankInformations
@@ -209,8 +212,8 @@ namespace FinserveNew.Controllers
             var employee = new Employee
             {
                 EmployeeID = newEmployeeId,
-                Username = vm.Username,
-                Password = HashPassword(vm.Password),
+                Username = username,
+                Password = HashPassword(rawPassword),
                 FirstName = vm.FirstName,
                 LastName = vm.LastName,
                 IC = vm.IC,
@@ -219,7 +222,7 @@ namespace FinserveNew.Controllers
                 TelephoneNumber = vm.TelephoneNumber,
                 DateOfBirth = vm.DateOfBirth,
                 JoinDate = vm.JoinDate,
-                ResignationDate = vm.ResignationDate,
+                //ResignationDate = vm.ResignationDate,
                 ConfirmationStatus = vm.ConfirmationStatus,
                 Position = vm.Position,
                 BankID = bankInfo.BankID,
