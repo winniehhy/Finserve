@@ -144,7 +144,7 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "Employee ID is required")]
         [Display(Name = "Employee ID")]
         [MaxLength(255)]
-        public string EmployeeID { get; set; } = "E001";
+        public string EmployeeID { get; set; } = "EM001";
 
         // Optional total amount field (e.g. for grouped claims)
         [Display(Name = "Total Amount")]

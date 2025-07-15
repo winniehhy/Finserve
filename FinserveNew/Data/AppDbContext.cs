@@ -16,22 +16,27 @@ namespace FinserveNew.Data
         public DbSet<BankInformation> BankInformations { get; set; }
         public DbSet<EmergencyContact> EmergencyContacts { get; set; }
         public DbSet<Role> Roles { get; set; }
-        public DbSet<Salary> Salaries { get; set; }
+        public DbSet<Payroll> Payrolls { get; set; }
         public DbSet<Approval> Approvals { get; set; }
         public DbSet<ClaimDetails> ClaimDetails { get; set; }
         public DbSet<ClaimType> ClaimTypes { get; set; }
         public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
 
-        public DbSet<PayrollBatch> PayrollBatches { get; set; }
-        public DbSet<PayrollRecord> PayrollRecords { get; set; }
-        public DbSet<PayrollComponent> PayrollComponents { get; set; }
-        public DbSet<StatutoryRate> StatutoryRates { get; set; }
+        //public DbSet<PayrollBatch> PayrollBatches { get; set; }
+        //public DbSet<PayrollRecord> PayrollRecords { get; set; }
+        //public DbSet<PayrollComponent> PayrollComponents { get; set; }
+        //public DbSet<StatutoryRate> StatutoryRates { get; set; }
 
         public DbSet<LeaveModel> Leaves { get; set; }
         public DbSet<LeaveTypeModel> LeaveTypes { get; set; }
 
         // Add the missing Invoice DbSet
         public DbSet<Invoice> Invoices { get; set; }
+
+
+
+        // for testing new payroll
+        //public DbSet<NewPayrollRecord> NewPayrollRecords { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -133,20 +138,20 @@ namespace FinserveNew.Data
                 entity.HasKey(r => r.RoleID);
             });
 
-            modelBuilder.Entity<Salary>(entity =>
+            modelBuilder.Entity<Payroll>(entity =>
             {
-                entity.HasKey(s => s.SalaryID);
+                entity.HasKey(s => s.PayrollID);
                 entity.HasOne<Employee>()
-                    .WithMany(e => e.Salaries)
+                    .WithMany(e => e.Payrolls)
                     .HasForeignKey(s => s.EmployeeID)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<PayrollBatch>(entity =>
-            {
-                entity.HasKey(pb => pb.PayrollBatchId);
-                entity.Property(pb => pb.Status).HasMaxLength(20).HasDefaultValue("Draft");
-            });
+            //modelBuilder.Entity<PayrollBatch>(entity =>
+            //{
+            //    entity.HasKey(pb => pb.PayrollBatchId);
+            //    entity.Property(pb => pb.Status).HasMaxLength(20).HasDefaultValue("Draft");
+            //});
 
             modelBuilder.Entity<LeaveModel>(entity =>
             {

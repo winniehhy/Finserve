@@ -29,7 +29,7 @@ namespace FinserveNew.Controllers
                 .ToListAsync();
 
             // Calculate dynamic leave balances
-            var currentEmployeeId = "E001"; // TODO: Get from authentication
+            var currentEmployeeId = "EM001"; // TODO: Get from authentication
             var leaveBalances = await CalculateLeaveBalancesAsync(currentEmployeeId);
 
             ViewBag.LeaveBalances = leaveBalances;

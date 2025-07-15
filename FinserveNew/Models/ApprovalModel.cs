@@ -34,6 +34,6 @@ namespace FinserveNew.Models
 
     
         public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
-        public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();
+        //public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();
     }
 }

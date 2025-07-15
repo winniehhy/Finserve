@@ -64,7 +64,7 @@ namespace FinserveNew.Controllers
             ViewData["UserRole"] = "Employee";
 
             // Get current employee ID (TODO: Replace with actual authentication)
-            var currentEmployeeId = "E001";
+            var currentEmployeeId = "EM001";
             var currentYear = DateTime.Now.Year;
 
             try

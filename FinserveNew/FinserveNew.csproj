@@ -11,12 +11,21 @@
     <Compile Remove="Efmigrationshistory.cs" />
     <Compile Remove="Employee.cs" />
     <Compile Remove="FinserveNewDbContext.cs" />
+    <Compile Remove="Models\NewPayrollRecord.cs" />
+    <Compile Remove="Models\PayrollBatch.cs" />
+    <Compile Remove="Models\PayrollComponent.cs" />
+    <Compile Remove="Models\PayrollRecord.cs" />
+    <Compile Remove="Models\SalaryModel.cs" />
+    <Compile Remove="Models\StatutoryRate.cs" />
+    <Compile Remove="Models\ViewModels\NewPayrollViewModel.cs" />
     <Compile Remove="Views\Accounts\Create.cshtml.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Remove="Views\Accounts\Component.razor" />
     <Content Remove="Views\Accounts\Create.cshtml" />
+    <Content Remove="Views\HR\Payroll\Dashboard.cshtml" />
+    <Content Remove="Views\HR\Payroll\NewProcess.cshtml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,7 +47,6 @@
 
   <ItemGroup>
     <Folder Include="Models\ViewModels\" />
-    <Folder Include="Views\HR\" />
   </ItemGroup>
 
   <ItemGroup>
