@@ -138,14 +138,14 @@ namespace FinserveNew.Data
                 entity.HasKey(r => r.RoleID);
             });
 
-            modelBuilder.Entity<Payroll>(entity =>
-            {
-                entity.HasKey(s => s.PayrollID);
-                entity.HasOne<Employee>()
-                    .WithMany(e => e.Payrolls)
-                    .HasForeignKey(s => s.EmployeeID)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
+            //modelBuilder.Entity<Payroll>(entity =>
+            //{
+            //    entity.HasKey(s => s.PayrollID);
+            //    entity.HasOne<Employee>()
+            //        .WithMany(e => e.Payrolls)
+            //        .HasForeignKey(s => s.EmployeeID)
+            //        .OnDelete(DeleteBehavior.Cascade);
+            //});
 
             //modelBuilder.Entity<PayrollBatch>(entity =>
             //{

@@ -26,28 +26,75 @@ namespace FinserveNew.Controllers
         }
 
         // GET: /Payroll/Process
-        public async Task<IActionResult> Process()
+        public async Task<IActionResult> Process(int month = 0, int year = 0, string employeeId = null)
         {
-            var now = DateTime.Now;
+            if (month == 0) month = DateTime.Now.Month;
+            if (year == 0) year = DateTime.Now.Year;
 
             var viewModel = new PayrollProcessViewModel
             {
-                Month = now.Month,
-                Year = now.Year,
+                Month = month,
+                Year = year,
                 Employees = await _context.Employees
                     .OrderBy(e => e.FirstName)
                     .ThenBy(e => e.LastName)
                     .ToListAsync()
             };
 
-            // Load past payroll entries for this month/year
-            viewModel.Payrolls = await _context.Payrolls
-                .Include(p => p.Employee)
-                .Where(p => p.Month == viewModel.Month && p.Year == viewModel.Year)
-                .ToListAsync();
+            // If employeeId is provided, load that employee's payroll data
+            if (!string.IsNullOrEmpty(employeeId))
+            {
+                viewModel.EmployeeID = employeeId;
+
+                // Try to find existing record for this employee in the selected month/year
+                var existingPayroll = await _context.Payrolls
+                    .FirstOrDefaultAsync(p => p.EmployeeID == employeeId &&
+                                            p.Month == month &&
+                                            p.Year == year);
+
+                // If found, populate the form with existing values
+                if (existingPayroll != null)
+                {
+                    viewModel.ProjectName = existingPayroll.ProjectName;
+                    viewModel.BasicSalary = existingPayroll.BasicSalary;
+                    viewModel.EmployerEpf = existingPayroll.EmployerEpf;
+                    viewModel.EmployerSocso = existingPayroll.EmployerSocso;
+                    viewModel.EmployerEis = existingPayroll.EmployerEis;
+                    viewModel.EmployerTax = existingPayroll.EmployerTax;
+                    viewModel.EmployerOtherContributions = existingPayroll.EmployerOtherContributions;
+                    viewModel.EmployeeEpf = existingPayroll.EmployeeEpf;
+                    viewModel.EmployeeSocso = existingPayroll.EmployeeSocso;
+                    viewModel.EmployeeEis = existingPayroll.EmployeeEis;
+                    viewModel.EmployeeTax = existingPayroll.EmployeeTax;
+                }
+            }
 
             return View("~/Views/HR/Payroll/Process.cshtml", viewModel);
         }
+
+        // GET: /Payroll/Summary
+        public async Task<IActionResult> Summary(int month = 0, int year = 0)
+        {
+            if (month == 0) month = DateTime.Now.Month;
+            if (year == 0) year = DateTime.Now.Year;
+
+            var payrolls = await _context.Payrolls
+                .Include(p => p.Employee)
+                .Where(p => p.Month == month && p.Year == year)
+                .ToListAsync();
+
+            var viewModel = new PayrollProcessViewModel
+            {
+                Month = month,
+                Year = year,
+                Payrolls = payrolls,
+                //TotalEmployerCost = payrolls.Sum(p => p.TotalEmployerCost),
+                //TotalWages = payrolls.Sum(p => p.TotalWages)
+            };
+
+            return View("~/Views/HR/Payroll/Summary.cshtml", viewModel);
+        }
+
 
         // POST: /Payroll/Process
         [HttpPost]
@@ -120,7 +167,10 @@ namespace FinserveNew.Controllers
             await _context.SaveChangesAsync();
             TempData["Success"] = "Payroll data processed successfully!";
 
-            return RedirectToAction(nameof(Process));
+            //return RedirectToAction(nameof(Process));
+            // Redirect to Summary instead of Process
+            return RedirectToAction(nameof(Summary), new { month = model.Month, year = model.Year });
+
         }
 
         // GET: /Payroll/GetPreviousMonthData

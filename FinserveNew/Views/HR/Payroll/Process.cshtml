@@ -10,252 +10,189 @@
             <p class="text-muted">Manage employee salary and compensation details</p>
         </div>
         <div class="col-md-4 text-end">
+            <a asp-action="Summary" asp-route-month="@Model.Month" asp-route-year="@Model.Year" class="btn btn-primary me-2">
+                <i class="fas fa-table me-2"></i>View Summary
+            </a>
             <a asp-action="HistoryByMonth" class="btn btn-outline-primary">
                 <i class="fas fa-history me-2"></i>Payroll History
             </a>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Payroll Entry Form -->
-        <div class="col-md-5 mb-4">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h4 class="card-title mb-0">Enter Salary Details</h4>
-                </div>
-                <div class="card-body">
-                    <form method="post" asp-action="Process" id="payrollForm">
-                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-                        <div class="mb-3">
-                            <label asp-for="EmployeeID" class="form-label">Select Employee</label>
-                            <select asp-for="EmployeeID" class="form-select" required>
-                                <option value="">-- Select Employee --</option>
-                                @foreach (var emp in Model.Employees)
-                                {
-                                    <option value="@emp.EmployeeID">@emp.EmployeeID - @emp.FirstName @emp.LastName</option>
-                                }
-                            </select>
-                            <span asp-validation-for="EmployeeID" class="text-danger"></span>
-                        </div>
-
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <label asp-for="Month" class="form-label">Month</label>
-                                <select asp-for="Month" class="form-select" required id="payrollMonth">
-                                    @for (int m = 1; m <= 12; m++)
-                                    {
-                                        <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
-                                    }
-                                </select>
-                                <span asp-validation-for="Month" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-4">
-                                <label asp-for="Year" class="form-label">Year</label>
-                                <select asp-for="Year" class="form-select" required id="payrollYear">
-                                    @for (int y = DateTime.Now.Year - 3; y <= DateTime.Now.Year + 3; y++)
-                                    {
-                                        <option value="@y">@y</option>
-                                    }
-                                </select>
-                                <span asp-validation-for="Year" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-4 d-flex align-items-end">
-                                <div class="form-check">
-                                    <input asp-for="SameAsPreviousMonth" class="form-check-input" id="sameAsPrevious" />
-                                    <label asp-for="SameAsPreviousMonth" class="form-check-label">Copy previous month</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="ProjectName" class="form-label">Project Name</label>
-                            <input asp-for="ProjectName" class="form-control" required />
-                            <span asp-validation-for="ProjectName" class="text-danger"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label asp-for="BasicSalary" class="form-label">Basic Salary</label>
-                            <div class="input-group">
-                                <span class="input-group-text">RM</span>
-                                <input asp-for="BasicSalary" class="form-control calculation-input" required />
-                            </div>
-                            <span asp-validation-for="BasicSalary" class="text-danger"></span>
-                        </div>
-
-                        <h5 class="mt-4 text-primary">Employer Contributions</h5>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label asp-for="EmployerEpf" class="form-label">Employer EPF (13%)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployerEpf" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployerEpf" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="EmployerSocso" class="form-label">Employer SOCSO</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployerSocso" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployerSocso" class="text-danger"></span>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label asp-for="EmployerEis" class="form-label">Employer EIS</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployerEis" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployerEis" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="EmployerTax" class="form-label">Employer Tax</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployerTax" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployerTax" class="text-danger"></span>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label asp-for="EmployerOtherContributions" class="form-label">Other Contributions</label>
-                            <div class="input-group">
-                                <span class="input-group-text">RM</span>
-                                <input asp-for="EmployerOtherContributions" class="form-control calculation-input" />
-                            </div>
-                            <span asp-validation-for="EmployerOtherContributions" class="text-danger"></span>
-                        </div>
-
-                        <h5 class="mt-4 text-primary">Employee Deductions</h5>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label asp-for="EmployeeEpf" class="form-label">Employee EPF (11%)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployeeEpf" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployeeEpf" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="EmployeeSocso" class="form-label">Employee SOCSO</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployeeSocso" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployeeSocso" class="text-danger"></span>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label asp-for="EmployeeEis" class="form-label">Employee EIS</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployeeEis" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployeeEis" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-6">
-                                <label asp-for="EmployeeTax" class="form-label">Employee Tax</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">RM</span>
-                                    <input asp-for="EmployeeTax" class="form-control calculation-input" />
-                                </div>
-                                <span asp-validation-for="EmployeeTax" class="text-danger"></span>
-                            </div>
-                        </div>
-
-                        <h5 class="mt-4 text-primary">Salary Breakdown</h5>
-                        <div class="table-responsive mb-3">
-                            <table class="table table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Total Wages</th>
-                                        <th>Total Employer Cost</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td><strong id="totalWages">RM 0.00</strong></td>
-                                        <td><strong id="totalEmployerCost">RM 0.00</strong></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Save Payroll Entry</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+    <div class="card">
+        <div class="card-header bg-light">
+            <h4 class="card-title mb-0">Enter Salary Details</h4>
         </div>
+        <div class="card-body">
+            <form method="post" asp-action="Process" id="payrollForm">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-        <!-- Payroll Summary Table -->
-        <div class="col-md-7">
-            <div class="card">
-                <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">Payroll Summary - @Model.MonthName @Model.Year</h4>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label asp-for="Month" class="form-label">Month</label>
+                        <select asp-for="Month" class="form-select" required id="payrollMonth">
+                            @for (int m = 1; m <= 12; m++)
+                            {
+                                <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Month" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Year" class="form-label">Year</label>
+                        <select asp-for="Year" class="form-select" required id="payrollYear">
+                            @for (int y = DateTime.Now.Year - 3; y <= DateTime.Now.Year + 3; y++)
+                            {
+                                <option value="@y">@y</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Year" class="text-danger"></span>
+                    </div>
                 </div>
-                <div class="card-body">
-                    @if (Model.Payrolls.Any())
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Employee</th>
-                                        <th>Basic Salary</th>
-                                        <th>Total Wages</th>
-                                        <th>Total Cost</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var entry in Model.Payrolls)
-                                    {
-                                        <tr>
-                                            <td>@entry.Employee.FirstName @entry.Employee.LastName</td>
-                                            <td>RM @entry.BasicSalary.ToString("N2")</td>
-                                            <td>RM @entry.TotalWages.ToString("N2")</td>
-                                            <td>RM @entry.TotalEmployerCost.ToString("N2")</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-outline-info"
-                                                        onclick="editPayrollEntry('@entry.EmployeeID',
-                                                                                  '@entry.ProjectName',
-                                                                                  @entry.BasicSalary.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployerEpf.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployerSocso.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployerEis.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployerTax.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployerOtherContributions.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployeeEpf.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployeeSocso.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployeeEis.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                                                                  @entry.EmployeeTax.ToString(System.Globalization.CultureInfo.InvariantCulture))">
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-3">
-                            <p><strong>Total Payroll Cost: </strong>RM @Model.Payrolls.Sum(e => e.TotalEmployerCost).ToString("N2")</p>
-                            <p><strong>Total Net Wages: </strong>RM @Model.Payrolls.Sum(e => e.TotalWages).ToString("N2")</p>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="alert alert-info">
-                            <p class="mb-0">No payroll entries for @Model.MonthName @Model.Year yet. Add an entry using the form.</p>
-                        </div>
-                    }
+
+                <div class="mb-4">
+                    <label asp-for="EmployeeID" class="form-label">Select Employee</label>
+                    <select asp-for="EmployeeID" class="form-select" required id="employeeSelect">
+                        <option value="">-- Select Employee --</option>
+                        @foreach (var emp in Model.Employees)
+                        {
+                            <option value="@emp.EmployeeID">@emp.EmployeeID - @emp.FirstName @emp.LastName</option>
+                        }
+                    </select>
+                    <span asp-validation-for="EmployeeID" class="text-danger"></span>
                 </div>
-            </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input asp-for="SameAsPreviousMonth" class="form-check-input" id="sameAsPrevious" />
+                        <label asp-for="SameAsPreviousMonth" class="form-check-label">Copy previous month data</label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ProjectName" class="form-label">Project Name</label>
+                    <input asp-for="ProjectName" class="form-control" required />
+                    <span asp-validation-for="ProjectName" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="BasicSalary" class="form-label">Basic Salary</label>
+                    <div class="input-group">
+                        <span class="input-group-text">RM</span>
+                        <input asp-for="BasicSalary" class="form-control calculation-input" required />
+                    </div>
+                    <span asp-validation-for="BasicSalary" class="text-danger"></span>
+                </div>
+
+                <h5 class="mt-4 text-primary">Employer Contributions</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployerEpf" class="form-label">Employer EPF (13%)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerEpf" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerEpf" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployerSocso" class="form-label">Employer SOCSO</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerSocso" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerSocso" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployerEis" class="form-label">Employer EIS</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerEis" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerEis" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployerTax" class="form-label">Employer Tax</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerTax" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerTax" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="EmployerOtherContributions" class="form-label">Other Contributions</label>
+                    <div class="input-group">
+                        <span class="input-group-text">RM</span>
+                        <input asp-for="EmployerOtherContributions" class="form-control calculation-input" />
+                    </div>
+                    <span asp-validation-for="EmployerOtherContributions" class="text-danger"></span>
+                </div>
+
+                <h5 class="mt-4 text-primary">Employee Deductions</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeEpf" class="form-label">Employee EPF (11%)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeEpf" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeEpf" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeSocso" class="form-label">Employee SOCSO</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeSocso" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeSocso" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeEis" class="form-label">Employee EIS</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeEis" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeEis" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeTax" class="form-label">Employee Tax</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeTax" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeTax" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <h5 class="mt-4 text-primary">Salary Breakdown</h5>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Total Wages</th>
+                                <th>Total Employer Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong id="totalWages">RM 0.00</strong></td>
+                                <td><strong id="totalEmployerCost">RM 0.00</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-action="Summary" asp-route-month="@Model.Month" asp-route-year="@Model.Year" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">Save Payroll Entry</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -272,17 +209,41 @@
                 calculateStatutoryAmounts();
             });
 
-            // Update display when month/year changes
-            $('#payrollMonth, #payrollYear').on('change', function() {
-                let month = $('#payrollMonth').val();
-                let year = $('#payrollYear').val();
-                window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year;
+            $('#payrollMonth').on('change', function() {
+                let employeeId = $('#employeeSelect').val();
+                if (employeeId) {
+                    let month = $('#payrollMonth').val();
+                    let year = $('#payrollYear').val();
+                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
+                }
+            });
+
+            $('#payrollYear').on('change', function() {
+                let employeeId = $('#employeeSelect').val();
+                if (employeeId) {
+                    let month = $('#payrollMonth').val();
+                    let year = $('#payrollYear').val();
+                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
+                }
+            });
+
+            // Handle employee selection change
+            $('#employeeSelect').on('change', function() {
+                let employeeId = $(this).val();
+                if (employeeId) {
+                    let month = $('#payrollMonth').val();
+                    let year = $('#payrollYear').val();
+                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
+                }
+                else {
+                    window.location.href = '@Url.Action("Process")';
+                }
             });
 
             // Handle "Same as Previous Month" checkbox
             $('#sameAsPrevious').on('change', function() {
                 if ($(this).is(':checked')) {
-                    let employeeId = $('#EmployeeID').val();
+                    let employeeId = $('#employeeSelect').val();
                     let month = parseInt($('#payrollMonth').val());
                     let year = parseInt($('#payrollYear').val());
 
@@ -292,15 +253,6 @@
                         alert("Please select an employee first");
                         $(this).prop('checked', false);
                     }
-                }
-            });
-
-            // Handle employee selection change
-            $('#EmployeeID').on('change', function() {
-                // Clear form if previously had "Same as Previous Month" checked
-                if ($('#sameAsPrevious').is(':checked')) {
-                    $('#sameAsPrevious').prop('checked', false);
-                    // Optionally clear form fields here
                 }
             });
 
@@ -394,34 +346,6 @@
             // Display totals
             $('#totalWages').text('RM ' + totalWages.toFixed(2));
             $('#totalEmployerCost').text('RM ' + totalEmployerCost.toFixed(2));
-        }
-
-        function editPayrollEntry(employeeId, projectName, basicSalary, employerEpf, employerSocso, employerEis,
-                                 employerTax, employerOtherContributions, employeeEpf, employeeSocso,
-                                 employeeEis, employeeTax) {
-            // Set the employee in the dropdown
-            $('#EmployeeID').val(employeeId);
-
-            // Fill in the form fields
-            $('#ProjectName').val(projectName);
-            $('#BasicSalary').val(basicSalary);
-            $('#EmployerEpf').val(employerEpf);
-            $('#EmployerSocso').val(employerSocso);
-            $('#EmployerEis').val(employerEis);
-            $('#EmployerTax').val(employerTax);
-            $('#EmployerOtherContributions').val(employerOtherContributions);
-            $('#EmployeeEpf').val(employeeEpf);
-            $('#EmployeeSocso').val(employeeSocso);
-            $('#EmployeeEis').val(employeeEis);
-            $('#EmployeeTax').val(employeeTax);
-
-            // Update calculations
-            calculateTotals();
-
-            // Scroll to form
-            $('html, body').animate({
-                scrollTop: $("#payrollForm").offset().top - 100
-            }, 500);
         }
     </script>
 }
