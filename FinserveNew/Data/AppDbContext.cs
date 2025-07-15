@@ -17,7 +17,7 @@ namespace FinserveNew.Data
         public DbSet<EmergencyContact> EmergencyContacts { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Salary> Salaries { get; set; }
-        public DbSet<Approval> Approvals { get; set; }
+        // REMOVED: public DbSet<Approval> Approvals { get; set; }
         public DbSet<ClaimDetails> ClaimDetails { get; set; }
         public DbSet<ClaimType> ClaimTypes { get; set; }
         public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
@@ -80,7 +80,7 @@ namespace FinserveNew.Data
                 .WithOne()
                 .HasForeignKey<Employee>(e => e.ApplicationUserId);
 
-            // Configure the Claim table
+            // Configure the Claim table (updated for RBAC approach)
             modelBuilder.Entity<Claim>(entity =>
             {
                 entity.HasKey(c => c.Id);
@@ -92,6 +92,10 @@ namespace FinserveNew.Data
                 entity.Property(c => c.SupportingDocumentName).HasMaxLength(255);
                 entity.Property(c => c.EmployeeID).IsRequired().HasMaxLength(255);
                 entity.Property(c => c.TotalAmount).HasPrecision(18, 2);
+
+                // Add configuration for new approval fields
+                entity.Property(c => c.ApprovedBy).HasMaxLength(255);
+                entity.Property(c => c.ApprovalRemarks).HasMaxLength(1000);
             });
 
             // Configure the Invoice table

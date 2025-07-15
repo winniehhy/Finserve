@@ -71,15 +71,15 @@ namespace FinserveNew.Models
         [Display(Name = "Employee")]
         public string? EmployeeID { get; set; }
 
-        [Required(ErrorMessage = "Approval is required")]
-        [Display(Name = "Approval")]
-        public int ApprovalID { get; set; }
+        //[Required(ErrorMessage = "Approval is required")]
+        //[Display(Name = "Approval")]
+        //public int ApprovalID { get; set; }
 
         // Navigation Properties
         [ForeignKey("EmployeeID")]
         public virtual Employee Employee { get; set; } = null!;
 
-        [ForeignKey("ApprovalID")]
-        public virtual Approval Approval { get; set; } = null!;
+    //    [ForeignKey("ApprovalID")]
+    //    public virtual Approval Approval { get; set; } = null!;
     }
 }

@@ -102,38 +102,6 @@ namespace FinserveNew.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
-                {
-                    b.Property<int>("ApprovalID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ApprovalID"));
-
-                    b.Property<DateTime>("ApprovalDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ApprovedBy")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("EmployeeID")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Purpose")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.HasKey("ApprovalID");
-
-                    b.HasIndex("EmployeeID");
-
-                    b.ToTable("Approvals");
-                });
-
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
                 {
                     b.Property<int>("BankID")
@@ -173,8 +141,13 @@ namespace FinserveNew.Migrations
                     b.Property<DateTime?>("ApprovalDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int?>("ApprovalID")
-                        .HasColumnType("int");
+                    b.Property<string>("ApprovalRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<decimal>("ClaimAmount")
                         .HasPrecision(18, 2)
@@ -220,8 +193,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ApprovalID");
 
                     b.HasIndex("EmployeeID");
 
@@ -695,9 +666,6 @@ namespace FinserveNew.Migrations
                     b.Property<decimal>("Allowance")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("ApprovalID")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("BasicSalary")
                         .HasColumnType("decimal(18,2)");
 
@@ -745,8 +713,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("SalaryID");
-
-                    b.HasIndex("ApprovalID");
 
                     b.HasIndex("EmployeeID");
 
@@ -882,23 +848,8 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employee");
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
-                {
-                    b.HasOne("FinserveNew.Models.Employee", "Employee")
-                        .WithMany("Approvals")
-                        .HasForeignKey("EmployeeID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
                 {
-                    b.HasOne("FinserveNew.Models.Approval", null)
-                        .WithMany("Claims")
-                        .HasForeignKey("ApprovalID");
-
                     b.HasOne("FinserveNew.Models.Employee", null)
                         .WithMany("Claims")
                         .HasForeignKey("EmployeeID")
@@ -1031,12 +982,6 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Salary", b =>
                 {
-                    b.HasOne("FinserveNew.Models.Approval", "Approval")
-                        .WithMany("Salaries")
-                        .HasForeignKey("ApprovalID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("FinserveNew.Models.Employee", null)
                         .WithMany("Salaries")
                         .HasForeignKey("EmployeeID")
@@ -1048,8 +993,6 @@ namespace FinserveNew.Migrations
                         .HasForeignKey("EmployeeID1")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Approval");
 
                     b.Navigation("Employee");
                 });
@@ -1087,13 +1030,6 @@ namespace FinserveNew.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
-                {
-                    b.Navigation("Claims");
-
-                    b.Navigation("Salaries");
-                });
-
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
                 {
                     b.Navigation("Employees");
@@ -1111,8 +1047,6 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Employee", b =>
                 {
-                    b.Navigation("Approvals");
-
                     b.Navigation("Claims");
 
                     b.Navigation("EmployeeDocuments");

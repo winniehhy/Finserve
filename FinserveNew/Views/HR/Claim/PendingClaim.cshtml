@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="page-title mb-0">Pending Claims</h2>
     <div class="btn-group" role="group">
-        <a asp-action="AdminIndex" class="btn btn-outline-primary">
+        <a asp-action="HRIndex" class="btn btn-outline-primary">
             <i class="fas fa-list me-2"></i>All Claims
         </a>
         <a asp-action="PendingClaims" class="btn btn-warning">
@@ -100,7 +100,7 @@
                                 <a asp-action="ProcessClaim" asp-route-id="@claim.Id" class="btn btn-sm btn-primary" title="Process Claim">
                                     <i class="fas fa-clipboard-check"></i>
                                 </a>
-                                <a asp-action="AdminDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 @if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
@@ -122,7 +122,7 @@
             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
             <h5 class="text-success">Great! No pending claims</h5>
             <p class="text-muted">All claims have been processed.</p>
-            <a asp-action="AdminIndex" class="btn btn-primary">
+            <a asp-action="HRIndex" class="btn btn-primary">
                 <i class="fas fa-list me-2"></i>View All Claims
             </a>
         </div>

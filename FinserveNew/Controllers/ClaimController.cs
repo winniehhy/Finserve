@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using FinserveNew.Data;
 using FinserveNew.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 
 namespace FinserveNew.Controllers
 {
@@ -11,12 +12,39 @@ namespace FinserveNew.Controllers
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly ILogger<ClaimController> _logger;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public ClaimController(AppDbContext context, IWebHostEnvironment environment, ILogger<ClaimController> logger)
+        public ClaimController(AppDbContext context, IWebHostEnvironment environment, ILogger<ClaimController> logger, UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _environment = environment;
             _logger = logger;
+            _userManager = userManager;
+        }
+
+        // ================== HELPER METHOD TO GET EMPLOYEE ID ==================
+        private async Task<string> GetCurrentEmployeeId()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+
+            _logger.LogInformation($"Current user: {currentUser.UserName}, Email: {currentUser.Email}");
+
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Username == currentUser.UserName || e.Email == currentUser.Email);
+
+            if (employee == null)
+            {
+                _logger.LogWarning($"No employee found for username: {currentUser.UserName} or email: {currentUser.Email}");
+
+                // Log all employees to see what's in the database
+                var allEmployees = await _context.Employees.ToListAsync();
+                foreach (var emp in allEmployees)
+                {
+                    _logger.LogInformation($"Employee: {emp.EmployeeID}, Username: {emp.Username}, Email: {emp.Email}");
+                }
+            }
+
+            return employee?.EmployeeID;
         }
 
         // ================== EMPLOYEE ACTIONS ==================
@@ -24,7 +52,17 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Index()
         {
+            // Get current employee ID
+            var employeeId = await GetCurrentEmployeeId();
+
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                TempData["Error"] = "Employee record not found.";
+                return View("~/Views/Employee/Claim/Index.cshtml", new List<Claim>());
+            }
+
             var claims = await _context.Claims
+                .Where(c => c.EmployeeID == employeeId)
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
 
@@ -39,8 +77,14 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                return NotFound();
+            }
+
             var claim = await _context.Claims
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeID == employeeId);
 
             if (claim == null)
             {
@@ -64,6 +108,16 @@ namespace FinserveNew.Controllers
         {
             try
             {
+                // Get current employee ID
+                var employeeId = await GetCurrentEmployeeId();
+
+                if (string.IsNullOrEmpty(employeeId))
+                {
+                    ModelState.AddModelError("", "Employee record not found. Please contact administrator.");
+                    await PopulateViewBagData();
+                    return View("~/Views/Employee/Claim/Create.cshtml", claim);
+                }
+
                 // Upload document if provided
                 if (supportingDocument != null && supportingDocument.Length > 0)
                 {
@@ -82,13 +136,15 @@ namespace FinserveNew.Controllers
                     claim.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
                 }
 
-                // Set default claim values
+                // Set default claim values with correct employee ID
+                claim.EmployeeID = employeeId; // This will be "E001"
                 claim.CreatedDate = DateTime.Now;
                 claim.SubmissionDate = DateTime.Now;
                 claim.Status = "Pending";
                 claim.TotalAmount = claim.ClaimAmount;
-                claim.ApprovalID = null;
                 claim.ApprovalDate = null;
+                claim.ApprovedBy = null;
+                claim.ApprovalRemarks = null;
 
                 _context.Claims.Add(claim);
                 await _context.SaveChangesAsync();
@@ -118,8 +174,13 @@ namespace FinserveNew.Controllers
             if (id == null)
                 return NotFound();
 
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+                return NotFound();
+
             var claim = await _context.Claims.FindAsync(id);
-            if (claim == null)
+
+            if (claim == null || claim.EmployeeID != employeeId)
                 return NotFound();
 
             // Only allow editing if status is Pending
@@ -138,8 +199,13 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Edit(int id, IFormFile? supportingDocument)
         {
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+                return NotFound();
+
             var claimToUpdate = await _context.Claims.FindAsync(id);
-            if (claimToUpdate == null)
+
+            if (claimToUpdate == null || claimToUpdate.EmployeeID != employeeId)
                 return NotFound();
 
             // Only allow editing if status is Pending
@@ -180,6 +246,7 @@ namespace FinserveNew.Controllers
                         claimToUpdate.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
                     }
 
+                    claimToUpdate.TotalAmount = claimToUpdate.ClaimAmount;
                     await _context.SaveChangesAsync();
                     TempData["Success"] = "Claim updated successfully!";
                     return RedirectToAction(nameof(Index));
@@ -201,8 +268,12 @@ namespace FinserveNew.Controllers
             if (id == null)
                 return NotFound();
 
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+                return NotFound();
+
             var claim = await _context.Claims
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeID == employeeId);
 
             if (claim == null)
                 return NotFound();
@@ -222,8 +293,13 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+                return RedirectToAction(nameof(Index));
+
             var claim = await _context.Claims.FindAsync(id);
-            if (claim != null)
+
+            if (claim != null && claim.EmployeeID == employeeId)
             {
                 // Only allow deletion if status is Pending
                 if (claim.Status != "Pending")
@@ -252,17 +328,17 @@ namespace FinserveNew.Controllers
         // ================== HR ACTIONS ==================
 
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> AdminIndex()
+        public async Task<IActionResult> HRIndex()
         {
             var claims = await _context.Claims
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
 
-            return View("~/Views/HR/Claim/AdminIndex.cshtml", claims);
+            return View("~/Views/HR/Claim/HRIndex.cshtml", claims);
         }
 
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> AdminDetails(int? id)
+        public async Task<IActionResult> HRDetails(int? id)
         {
             if (id == null)
             {
@@ -300,7 +376,7 @@ namespace FinserveNew.Controllers
             if (claim.Status != "Pending")
             {
                 TempData["Error"] = "This claim has already been processed.";
-                return RedirectToAction(nameof(AdminIndex));
+                return RedirectToAction(nameof(HRIndex));
             }
 
             return View("~/Views/HR/Claim/ProcessClaim.cshtml", claim);
@@ -309,7 +385,7 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> ProcessClaim(int id, string action, string? comments)
+        public async Task<IActionResult> ProcessClaim(int id, string action, string? remarks)
         {
             var claim = await _context.Claims.FindAsync(id);
             if (claim == null)
@@ -321,24 +397,29 @@ namespace FinserveNew.Controllers
             if (claim.Status != "Pending")
             {
                 TempData["Error"] = "This claim has already been processed.";
-                return RedirectToAction(nameof(AdminIndex));
+                return RedirectToAction(nameof(HRIndex));
             }
 
             try
             {
+                // For HR actions, we can still use the current user's ID for ApprovedBy
+                var currentUser = await _userManager.GetUserAsync(User);
+
                 // Update claim based on action
                 if (action == "approve")
                 {
                     claim.Status = "Approved";
                     claim.ApprovalDate = DateTime.Now;
-                    claim.ApprovalID = 1; // You can set this to the current HR user's ID
+                    claim.ApprovedBy = currentUser.Id; // HR user ID for approval tracking
+                    claim.ApprovalRemarks = remarks;
                     TempData["Success"] = "Claim approved successfully!";
                 }
                 else if (action == "reject")
                 {
                     claim.Status = "Rejected";
                     claim.ApprovalDate = DateTime.Now;
-                    claim.ApprovalID = 1; // You can set this to the current HR user's ID
+                    claim.ApprovedBy = currentUser.Id; // HR user ID for approval tracking
+                    claim.ApprovalRemarks = remarks;
                     TempData["Success"] = "Claim rejected successfully!";
                 }
                 else
@@ -347,15 +428,12 @@ namespace FinserveNew.Controllers
                     return RedirectToAction(nameof(ProcessClaim), new { id = id });
                 }
 
-                // You can add a comments field to your model if needed
-                // claim.Comments = comments;
-
                 await _context.SaveChangesAsync();
 
                 // TODO: Send email notification to employee
                 // await SendEmailNotification(claim);
 
-                return RedirectToAction(nameof(AdminIndex));
+                return RedirectToAction(nameof(HRIndex));
             }
             catch (DbUpdateException ex)
             {
@@ -382,7 +460,7 @@ namespace FinserveNew.Controllers
             return View("~/Views/HR/Claim/PendingClaim.cshtml", pendingClaims);
         }
 
-        //[Authorize(Roles = "HR")]
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> ApprovedClaims()
         {
             var approvedClaims = await _context.Claims
