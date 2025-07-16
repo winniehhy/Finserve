@@ -15,7 +15,7 @@ namespace FinserveNew.Data
         public DbSet<Claim> Claims { get; set; }
         public DbSet<BankInformation> BankInformations { get; set; }
         public DbSet<EmergencyContact> EmergencyContacts { get; set; }
-        public DbSet<Role> Roles { get; set; }
+        public DbSet<JobRole> Roles { get; set; }
         public DbSet<Salary> Salaries { get; set; }
         // REMOVED: public DbSet<Approval> Approvals { get; set; }
         public DbSet<ClaimDetails> ClaimDetails { get; set; }
@@ -132,7 +132,7 @@ namespace FinserveNew.Data
                 entity.HasKey(e => e.EmergencyID);
             });
 
-            modelBuilder.Entity<Role>(entity =>
+            modelBuilder.Entity<JobRole>(entity =>
             {
                 entity.HasKey(r => r.RoleID);
             });

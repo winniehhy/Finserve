@@ -2,7 +2,7 @@
 
 namespace FinserveNew.Models
 {
-    public class Role
+    public class JobRole
     {
         [Key]
         public int RoleID { get; set; }

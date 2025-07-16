@@ -1,0 +1,130 @@
+﻿@model IEnumerable<FinserveNew.Models.LeaveModel>
+
+@{
+    ViewData["Title"] = "Approved Leaves";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-check-circle"></i> Approved Leave Applications
+                    </h3>
+                    <div class="card-tools">
+                        <span class="badge badge-success">@Model.Count() approved applications</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (Model.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Leave Type</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Days</th>
+                                        <th>Approved Date</th>
+                                        <th>Status</th>
+                                        <th>Remarks</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var leave in Model)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@leave.Employee.Username</strong><br>
+                                                <small class="text-muted">@leave.Employee.EmployeeID</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-info">@leave.LeaveType.TypeName</span>
+                                            </td>
+                                            <td>@leave.StartDate.ToString("dd/MM/yyyy")</td>
+                                            <td>@leave.EndDate.ToString("dd/MM/yyyy")</td>
+                                            <td>
+                                                <span class="badge badge-secondary">@leave.LeaveDays days</span>
+                                            </td>
+                                            <td>
+                                                @if (leave.ApprovalDate.HasValue)
+                                                {
+                                                    @leave.ApprovalDate.Value.ToString("dd/MM/yyyy")
+                                                    <br>
+                                        
+                                                    <small class="text-muted">@leave.ApprovalDate.Value.ToString("HH:mm")</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-success">@leave.Status</span>
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(leave.ApprovalRemarks))
+                                                {
+                                                    <small>@leave.ApprovalRemarks</small>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">-</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a asp-action="HRDetails" asp-route-id="@leave.LeaveID"
+                                                       class="btn btn-info" title="View Details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>No approved leave applications found.</strong>
+                        </div>
+                    }
+                </div>
+                <div class="card-footer">
+                    <a asp-action="LeaveIndex" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to All Leaves
+                    </a>
+                    <a asp-action="PendingLeaves" class="btn btn-warning">
+                        <i class="fas fa-clock"></i> View Pending Leaves
+                    </a>
+                    <a asp-action="RejectedLeaves" class="btn btn-danger">
+                        <i class="fas fa-times"></i> View Rejected Leaves
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTable for better functionality
+            if ($('table').length > 0) {
+                $('table').DataTable({
+                    "order": [[ 5, "desc" ]], // Sort by approval date
+                    "pageLength": 25,
+                    "responsive": true,
+                    "columnDefs": [
+                        { "orderable": false, "targets": 8 } // Actions column
+                    ]
+                });
+            }
+        });
+    </script>
+}

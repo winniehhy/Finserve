@@ -1,0 +1,128 @@
+﻿@model FinserveNew.Models.LeaveModel
+
+@{
+    ViewData["Title"] = "Process Leave";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Process Leave Application</h3>
+                </div>
+                <div class="card-body">
+                    <!-- Leave Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Employee:</strong></label>
+                                <p>@Model.Employee.Username (@Model.Employee.EmployeeID)</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Leave Type:</strong></label>
+                                <p>@Model.LeaveType.TypeName</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><strong>Start Date:</strong></label>
+                                <p>@Model.StartDate.ToString("dd/MM/yyyy")</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><strong>End Date:</strong></label>
+                                <p>@Model.EndDate.ToString("dd/MM/yyyy")</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><strong>Leave Days:</strong></label>
+                                <p>@Model.LeaveDays days</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Status:</strong></label>
+                                <p><span class="badge badge-warning">@Model.Status</span></p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Submission Date:</strong></label>
+                                <p>@Model.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.Description))
+                    {
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label><strong>Description:</strong></label>
+                                    <p>@Model.Description</p>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Process Form -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <form asp-action="ProcessLeave" asp-route-id="@Model.LeaveID" method="post">
+                                        @Html.AntiForgeryToken()
+
+                                        <div class="form-group">
+                                            <label for="remarks"><strong>Remarks (Optional):</strong></label>
+                                            <textarea class="form-control" id="remarks" name="remarks" rows="3"
+                                                      placeholder="Add any remarks for the employee..."></textarea>
+                                        </div>
+
+                                        <div class="form-group text-center">
+                                            <button type="submit" name="action" value="approve"
+                                                    class="btn btn-success btn-lg mr-3"
+                                                    onclick="return confirm('Are you sure you want to approve this leave application?')">
+                                                <i class="fas fa-check"></i> Approve
+                                            </button>
+
+                                            <button type="submit" name="action" value="reject"
+                                                    class="btn btn-danger btn-lg"
+                                                    onclick="return confirm('Are you sure you want to reject this leave application?')">
+                                                <i class="fas fa-times"></i> Reject
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <a asp-action="LeaveIndex" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Leave List
+                            </a>
+                            <a asp-action="HRDetails" asp-route-id="@Model.LeaveID" class="btn btn-info">
+                                <i class="fas fa-eye"></i> View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

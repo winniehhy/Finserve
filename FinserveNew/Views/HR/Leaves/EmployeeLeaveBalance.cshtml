@@ -1,0 +1,207 @@
+﻿@model IEnumerable<FinserveNew.Models.LeaveModel>
+
+@{
+    ViewData["Title"] = "Employee Leave Balance";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-calendar-check"></i>
+                        Employee Leave Balance
+                    </h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.SelectedEmployee != null)
+                    {
+                        <!-- Show specific employee's balance -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <h5><i class="fas fa-user"></i> Employee: @ViewBag.SelectedEmployee.Username</h5>
+                                    <p class="mb-0">Employee ID: @ViewBag.SelectedEmployee.EmployeeID</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            @if (ViewBag.LeaveBalances != null)
+                            {
+                                var leaveBalances = ViewBag.LeaveBalances as Dictionary<string, object>;
+                                @foreach (var balance in leaveBalances)
+                                {
+                                    var balanceInfo = balance.Value as dynamic;
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card @(balanceInfo.RemainingDays <= 5 ? "border-warning" : "border-success")">
+                                            <div class="card-header @(balanceInfo.RemainingDays <= 5 ? "bg-warning" : "bg-success")">
+                                                <h5 class="card-title mb-0">@balance.Key</h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-6">
+                                                        <p class="mb-1"><strong>Default Days:</strong></p>
+                                                        <h4 class="text-primary">@balanceInfo.DefaultDays</h4>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <p class="mb-1"><strong>Used Days:</strong></p>
+                                                        <h4 class="text-danger">@balanceInfo.UsedDays</h4>
+                                                    </div>
+                                                </div>
+                                                <hr>
+                                                <div class="text-center">
+                                                    <p class="mb-1"><strong>Remaining Days:</strong></p>
+                                                    <h3 class="@(balanceInfo.RemainingDays <= 5 ? "text-warning" : "text-success")">
+                                                        @balanceInfo.RemainingDays
+                                                    </h3>
+                                                </div>
+                                                
+                                                <!-- Progress bar -->
+                                                @{
+                                                    var usagePercentage = balanceInfo.DefaultDays > 0 ? (balanceInfo.UsedDays * 100 / balanceInfo.DefaultDays) : 0;
+                                                    var progressClass = usagePercentage >= 80 ? "bg-danger" : usagePercentage >= 60 ? "bg-warning" : "bg-success";
+                                                }
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar @progressClass" role="progressbar" 
+                                                         style="width: @usagePercentage%" 
+                                                         aria-valuenow="@usagePercentage" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        @usagePercentage.ToString("F1")%
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <a href="@Url.Action("EmployeeLeaveBalance", "Leaves")" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> View All Employees
+                                </a>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Show all employees' balances -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <h5><i class="fas fa-users"></i> All Employees Leave Balance Overview</h5>
+                                    <p class="mb-0">Click on an employee to view detailed balance information.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (ViewBag.Employees != null && ViewBag.AllEmployeeBalances != null)
+                        {
+                            var employees = ViewBag.Employees as IEnumerable<dynamic>;
+                            var allBalances = ViewBag.AllEmployeeBalances as Dictionary<string, Dictionary<string, object>>;
+
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Employee ID</th>
+                                            <th>Employee Name</th>
+                                            <th>Annual Leave</th>
+                                            <th>Medical Leave</th>
+                                            <th>Hospitalization Leave</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var employee in employees)
+                                        {
+                                            var employeeBalances = allBalances.ContainsKey(employee.EmployeeID) ? allBalances[employee.EmployeeID] : null;
+                                            <tr>
+                                                <td>@employee.EmployeeID</td>
+                                                <td>@employee.Username</td>
+                                                
+                                                @if (employeeBalances != null)
+                                                {
+                                                    @foreach (var leaveType in new[] { "Annual Leave", "Medical Leave", "Hospitalization Leave" })
+                                                    {
+                                                        if (employeeBalances.ContainsKey(leaveType))
+                                                        {
+                                                            var balance = employeeBalances[leaveType] as dynamic;
+                                                            <td>
+                                                                <span class="badge @(balance.RemainingDays <= 5 ? "badge-warning" : "badge-success")">
+                                                                    @balance.RemainingDays/@balance.DefaultDays
+                                                                </span>
+                                                            </td>
+                                                        }
+                                                        else
+                                                        {
+                                                            <td><span class="badge badge-secondary">N/A</span></td>
+                                                        }
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <td><span class="badge badge-secondary">N/A</span></td>
+                                                    <td><span class="badge badge-secondary">N/A</span></td>
+                                                    <td><span class="badge badge-secondary">N/A</span></td>
+                                                }
+                                                
+                                                <td>
+                                                    <a href="@Url.Action("EmployeeLeaveBalance", "Leaves", new { employeeId = employee.EmployeeID })" 
+                                                       class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-eye"></i> View Details
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No employee data found.
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTable for better table functionality
+            if ($('table').length > 0) {
+                $('table').DataTable({
+                    "responsive": true,
+                    "lengthChange": false,
+                    "autoWidth": false,
+                    "ordering": true,
+                    "info": true,
+                    "paging": true,
+                    "searching": true,
+                    "pageLength": 10,
+                    "order": [[0, "asc"]]
+                });
+            }
+
+            // Add tooltips to badges
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+    </script>
+}
