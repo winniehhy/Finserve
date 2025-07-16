@@ -5,6 +5,59 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
+@section Styles {
+    <style>
+        /* Fix for badge visibility issues */
+        .badge-info {
+            background-color: #17a2b8 !important;
+            color: #ffffff !important;
+        }
+        
+        .badge-success {
+            background-color: #28a745 !important;
+            color: #ffffff !important;
+        }
+        
+        .badge-secondary {
+            background-color: #6c757d !important;
+            color: #ffffff !important;
+        }
+        
+        /* Ensure text is visible in all themes */
+        .table td, .table th {
+            color: inherit !important;
+        }
+        
+        /* Alternative styling for badges */
+        .leave-type-badge {
+            background-color: #007bff;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .status-badge {
+            background-color: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .days-badge {
+            background-color: #6c757d;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+    </style>
+}
+
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-12">
@@ -44,12 +97,12 @@
                                                 <small class="text-muted">@leave.Employee.EmployeeID</small>
                                             </td>
                                             <td>
-                                                <span class="badge badge-info">@leave.LeaveType.TypeName</span>
+                                                @leave.LeaveType.TypeName
                                             </td>
                                             <td>@leave.StartDate.ToString("dd/MM/yyyy")</td>
                                             <td>@leave.EndDate.ToString("dd/MM/yyyy")</td>
                                             <td>
-                                                <span class="badge badge-secondary">@leave.LeaveDays days</span>
+                                                @leave.LeaveDays days
                                             </td>
                                             <td>
                                                 @if (leave.ApprovalDate.HasValue)
@@ -61,7 +114,7 @@
                                                 }
                                             </td>
                                             <td>
-                                                <span class="badge badge-success">@leave.Status</span>
+                                                @leave.Status
                                             </td>
                                             <td>
                                                 @if (!string.IsNullOrEmpty(leave.ApprovalRemarks))
@@ -75,7 +128,7 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group btn-group-sm" role="group">
-                                                    <a asp-action="HRDetails" asp-route-id="@leave.LeaveID"
+                                                    <a asp-action="LeaveDetails" asp-route-id="@leave.LeaveID"
                                                        class="btn btn-info" title="View Details">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
@@ -99,12 +152,7 @@
                     <a asp-action="LeaveIndex" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> Back to All Leaves
                     </a>
-                    <a asp-action="PendingLeaves" class="btn btn-warning">
-                        <i class="fas fa-clock"></i> View Pending Leaves
-                    </a>
-                    <a asp-action="RejectedLeaves" class="btn btn-danger">
-                        <i class="fas fa-times"></i> View Rejected Leaves
-                    </a>
+                    
                 </div>
             </div>
         </div>

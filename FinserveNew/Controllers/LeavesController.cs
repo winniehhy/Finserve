@@ -393,6 +393,81 @@ namespace FinserveNew.Controllers
 
             return RedirectToAction(nameof(LeaveRecords));
         }
+
+        // Add this method to your LeavesController class
+
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> Dashboard()
+        {
+            try
+            {
+                // Get current employee ID
+                var employeeId = await GetCurrentEmployeeId();
+
+                if (string.IsNullOrEmpty(employeeId))
+                {
+                    TempData["Error"] = "Employee record not found.";
+                    return View("~/Views/Employee/Dashboard.cshtml");
+                }
+
+                var currentYear = DateTime.Now.Year;
+
+                // Calculate leave balances
+                var leaveBalances = await CalculateLeaveBalancesAsync(employeeId, currentYear);
+
+                // Calculate total days used and remaining
+                var totalDaysUsed = 0;
+                var totalRemainingDays = 0;
+                var totalDefaultDays = 0;
+
+                foreach (var balance in leaveBalances)
+                {
+                    var leaveBalance = balance.Value as dynamic;
+                    if (leaveBalance != null)
+                    {
+                        totalDaysUsed += leaveBalance.UsedDays;
+                        totalRemainingDays += leaveBalance.RemainingDays;
+                        totalDefaultDays += leaveBalance.DefaultDays;
+                    }
+                }
+
+                // Get recent leave applications
+                var recentLeaves = await _context.Leaves
+                    .Include(l => l.Employee)
+                    .Include(l => l.LeaveType)
+                    .Where(l => l.EmployeeID == employeeId)
+                    .OrderByDescending(l => l.CreatedDate)
+                    .Take(5)
+                    .ToListAsync();
+
+                // Get pending requests count
+                var pendingRequestsCount = await _context.Leaves
+                    .Where(l => l.EmployeeID == employeeId && l.Status == "Pending")
+                    .CountAsync();
+
+                // Set ViewBag properties
+                ViewBag.LeaveBalances = leaveBalances;
+                ViewBag.TotalLeaveDaysUsed = totalDaysUsed;
+                ViewBag.TotalRemainingLeave = totalRemainingDays;
+                ViewBag.TotalDefaultDays = totalDefaultDays;
+                ViewBag.CurrentYear = currentYear;
+                ViewBag.RecentLeaves = recentLeaves;
+                ViewBag.PendingRequestsCount = pendingRequestsCount;
+
+                // Populate individual ViewBag properties for specific leave types
+                PopulateLeaveBalanceViewBag(leaveBalances);
+
+                _logger.LogInformation($"✅ Dashboard loaded successfully for employee {employeeId}");
+
+                return View("~/Views/Employee/Dashboard.cshtml");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "💥 Error loading dashboard");
+                TempData["Error"] = "An error occurred while loading the dashboard.";
+                return View("~/Views/Employee/Dashboard.cshtml");
+            }
+        }
         // ================== HR ACTIONS ==================
 
         [Authorize(Roles = "HR")]
@@ -408,7 +483,7 @@ namespace FinserveNew.Controllers
         }
 
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> HRDetails(int? id)
+        public async Task<IActionResult> LeaveDetails(int? id)
         {
             if (id == null)
             {
@@ -566,41 +641,56 @@ namespace FinserveNew.Controllers
         }
 
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> EmployeeLeaveBalance(string? employeeId)
+        public async Task<IActionResult> EmployeeLeaveBalance(string employeeId = null)
         {
-            if (string.IsNullOrEmpty(employeeId))
+            if (!string.IsNullOrEmpty(employeeId))
             {
-                // Show all employees' balances
-                var allEmployees = await _context.Employees.ToListAsync();
-                var allBalances = new Dictionary<string, Dictionary<string, object>>();
+                // Get specific employee details
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.EmployeeID == employeeId);
 
-                foreach (var employee in allEmployees)
-                {
-                    var balances = await CalculateLeaveBalancesAsync(employee.EmployeeID);
-                    allBalances[employee.EmployeeID] = balances;
-                }
-
-                ViewBag.AllEmployeeBalances = allBalances;
-                ViewBag.Employees = allEmployees;
-
-                return View("~/Views/HR/Leaves/EmployeeLeaveBalance.cshtml");
-            }
-            else
-            {
-                // Show specific employee's balance
-                var employee = await _context.Employees.FindAsync(employeeId);
                 if (employee == null)
                 {
                     return NotFound();
                 }
 
-                var balances = await CalculateLeaveBalancesAsync(employeeId);
+                // Get employee's leave balance
+                var leaveBalances = await GetEmployeeLeaveBalance(employeeId);
+
+                // Get all leave applications for this employee
+                var employeeLeaveApplications = await _context.Leaves
+                    .Include(l => l.LeaveType)
+                    .Include(l => l.Employee)
+                    .Where(l => l.EmployeeID == employeeId)
+                    .OrderByDescending(l => l.SubmissionDate)
+                    .ToListAsync();
+
                 ViewBag.SelectedEmployee = employee;
-                ViewBag.LeaveBalances = balances;
+                ViewBag.LeaveBalances = leaveBalances;
+                ViewBag.EmployeeLeaveApplications = employeeLeaveApplications;
+
+                return View("~/Views/HR/Leaves/EmployeeLeaveBalance.cshtml");
+            }
+            else
+            {
+                // Show all employees - existing code
+                var employees = await _context.Employees.ToListAsync();
+                var allEmployeeBalances = new Dictionary<string, Dictionary<string, object>>();
+
+                foreach (var emp in employees)
+                {
+                    var balances = await GetEmployeeLeaveBalance(emp.EmployeeID);
+                    allEmployeeBalances[emp.EmployeeID] = balances;
+                }
+
+                ViewBag.Employees = employees;
+                ViewBag.AllEmployeeBalances = allEmployeeBalances;
 
                 return View("~/Views/HR/Leaves/EmployeeLeaveBalance.cshtml");
             }
         }
+
+         
 
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> LeaveReports()
@@ -715,19 +805,36 @@ namespace FinserveNew.Controllers
 
                 foreach (var leaveType in leaveTypes)
                 {
-                    var leaves = await _context.Leaves
+                    // Only count APPROVED leaves for actual balance calculation
+                    var approvedLeaves = await _context.Leaves
                         .Where(l => l.EmployeeID == employeeId
                                 && l.LeaveTypeID == leaveType.LeaveTypeID
                                 && l.StartDate.Year == year
-                                && (l.Status == "Approved" || l.Status == "Pending"))
+                                && l.Status == "Approved") // Only approved leaves
+                        .ToListAsync();
+
+                    // For balance checking (when creating/editing), include pending leaves
+                    var pendingLeaves = await _context.Leaves
+                        .Where(l => l.EmployeeID == employeeId
+                                && l.LeaveTypeID == leaveType.LeaveTypeID
+                                && l.StartDate.Year == year
+                                && l.Status == "Pending")
                         .ToListAsync();
 
                     var usedDays = 0;
-                    foreach (var leave in leaves)
+                    foreach (var leave in approvedLeaves)
                     {
                         var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
                                           (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
                         usedDays += leaveDuration;
+                    }
+
+                    var pendingDays = 0;
+                    foreach (var leave in pendingLeaves)
+                    {
+                        var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
+                                          (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
+                        pendingDays += leaveDuration;
                     }
 
                     var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
@@ -737,7 +844,8 @@ namespace FinserveNew.Controllers
                         LeaveTypeID = leaveType.LeaveTypeID,
                         TypeName = leaveType.TypeName,
                         DefaultDays = leaveType.DefaultDaysPerYear,
-                        UsedDays = usedDays,
+                        UsedDays = usedDays, // Only approved leaves
+                        PendingDays = pendingDays, // Pending leaves separately
                         RemainingDays = Math.Max(0, remainingDays)
                     };
                 }
@@ -816,6 +924,53 @@ namespace FinserveNew.Controllers
             var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
 
             return Math.Max(0, remainingDays);
+        }
+
+        private async Task<Dictionary<string, object>> GetEmployeeLeaveBalance(string employeeId)
+        {
+            var leaveTypes = await _context.LeaveTypes.ToListAsync();
+            var leaveBalances = new Dictionary<string, object>();
+
+            foreach (var leaveType in leaveTypes)
+            {
+                // Get default days for this leave type
+                var defaultDays = leaveType.DefaultDaysPerYear;
+
+                // Calculate used days - ONLY APPROVED leaves
+                var usedDays = await _context.Leaves
+                    .Where(l => l.EmployeeID == employeeId &&
+                               l.LeaveTypeID == leaveType.LeaveTypeID &&
+                               l.Status == "Approved" &&
+                               l.StartDate.Year == DateTime.Now.Year) // Add year filter
+                    .SumAsync(l => l.LeaveDays);
+
+                var remainingDays = defaultDays - usedDays;
+
+                leaveBalances[leaveType.TypeName] = new
+                {
+                    DefaultDays = defaultDays,
+                    UsedDays = usedDays,
+                    RemainingDays = Math.Max(0, remainingDays)
+                };
+            }
+
+            return leaveBalances;
+        }
+
+
+        private int GetDefaultLeaveDays(string leaveType)
+        {
+            switch (leaveType)
+            {
+                case "Annual Leave":
+                    return 14; 
+                case "Medical Leave":
+                    return 10; 
+                case "Hospitalization Leave":
+                    return 16; 
+                default:
+                    return 0;
+            }
         }
 
         private async Task<bool> IsValidLeaveTypeAsync(int leaveTypeId)

@@ -116,7 +116,7 @@
                 </div>
             </div>
 
-            <!-- Recent Claims -->
+
             <!-- Recent Claims -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -188,10 +188,10 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Days</th>
                                         <th>Leave Type</th>
                                         <th>From</th>
                                         <th>To</th>
+                                        <th>Days</th>
                                         <th>Status</th>
                                         <th>Action</th>
                                     </tr>
@@ -199,11 +199,12 @@
                                 <tbody>
                                     @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves)
                                     {
+                                        var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                                         <tr>
                                             <td>@(leave.LeaveType?.TypeName ?? "N/A")</td>
                                             <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
                                             <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
-                                            <td>@leave.LeaveDays days</td>
+                                            <td>@duration days</td>
                                             <td>
                                                 <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
                                                     @leave.Status
@@ -229,6 +230,7 @@
                 </div>
             </div>
         </div>
+       
 
         <!-- Right Column -->
         <div class="col-lg-4">

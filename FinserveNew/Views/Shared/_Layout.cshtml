@@ -107,7 +107,7 @@
                 @if (User.IsInRole("HR"))
                 {
                     <li class="menu-section">
-                        <div class="menu-section-title">MANAGEMENT</div>
+                        <div class="menu-section-title">HR MANAGEMENT</div>
                     </li>
                     <li class="menu-item">
                         <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
@@ -123,14 +123,14 @@
                     </li>
                     <li class="menu-item">
                         <a href="@Url.Action("HRIndex", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
-                            <i class="fas fa-money-bill-wave menu-icon"></i>
-                            Claim Management
+                            <i class="fa-solid fa-file menu-icon"></i>
+                             Claim Management
                         </a>
                     </li>
                     <li class="menu-item">
                         <a href="@Url.Action("LeaveIndex", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
-                            <i class="fas fa-money-bill-wave menu-icon"></i>
-                            Leave Management
+                            <i class="fa-solid fa-calendar-xmark menu-icon"></i>
+                             Leave Management
                         </a>
                     </li>
                 }
@@ -160,16 +160,7 @@
                         </a>
                     </li>
 
-                    <!-- Invoice Section - Employee Only (for their own invoices) -->
-                    @* <li class="menu-section">
-                        <div class="menu-section-title">INVOICES</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("Index", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
-                            <i class="fas fa-file-invoice menu-icon"></i>
-                            My Invoices
-                        </a>
-                    </li> *@
+
                 }
 
                 <!-- General Section - All authenticated users -->

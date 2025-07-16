@@ -7,7 +7,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="page-title mb-0">Claim Details #@Model.Id</h2>
     <div class="btn-group" role="group">
-        <a asp-action="AdminClaimIndex" class="btn btn-outline-primary">
+        <a asp-action="HRIndex" class="btn btn-outline-primary">
             <i class="fas fa-arrow-left me-2"></i>Back to Claims
         </a>
         @if (Model.Status == "Pending")
@@ -55,17 +55,21 @@
                     <div class="row mb-3">
                         <div class="col-sm-4"><strong>Status:</strong></div>
                         <div class="col-sm-8">
-                            @if (Model.Status == "Pending")
+                            @if (string.IsNullOrEmpty(Model.Status))
                             {
-                                <span class="badge bg-warning fs-6">@Model.Status</span>
+                                <span class="badge bg-secondary fs-6">No Status</span>
                             }
-                            else if (Model.Status == "Approved")
+                            else if (Model.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
                             {
-                                <span class="badge bg-success fs-6">@Model.Status</span>
+                                <span class="badge badge-pending fs-6">@Model.Status</span>
                             }
-                            else if (Model.Status == "Rejected")
+                            else if (Model.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                             {
-                                <span class="badge bg-danger fs-6">@Model.Status</span>
+                                <span class="badge badge-approved fs-6">@Model.Status</span>
+                            }
+                            else if (Model.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge badge-rejected fs-6">@Model.Status</span>
                             }
                             else
                             {
@@ -197,7 +201,7 @@
             </div>
             <div class="card-body">
                 <div class="d-flex gap-2">
-                    <a asp-action="ProcessClaim" asp-route-id="@Model.Id" class="btn btn-success">
+                    <a asp-action="ProcessClaim" asp-route-id="@Model.Id" class="btn btn-custom-approved">
                         <i class="fas fa-check me-2"></i>Process Claim
                     </a>
                     <a asp-action="EditClaim" asp-route-id="@Model.Id" class="btn btn-warning">
@@ -208,3 +212,7 @@
         </div>
     }
 </div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/status.css">
+}

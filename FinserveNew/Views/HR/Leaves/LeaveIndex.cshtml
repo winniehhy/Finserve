@@ -7,76 +7,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="page-title mb-0">Leave Management</h2>
     <div>
-        <a href="/Leaves/LeaveReports" class="btn btn-info me-2">
-            <i class="fas fa-chart-bar me-2"></i>Reports
-        </a>
         <a href="/Leaves/EmployeeLeaveBalance" class="btn btn-secondary">
             <i class="fas fa-balance-scale me-2"></i>Employee Balances
         </a>
-    </div>
-</div>
-
-<!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="card-title">@Model.Count(l => l.Status == "Pending")</h4>
-                        <p class="card-text">Pending Applications</p>
-                    </div>
-                    <div>
-                        <i class="fas fa-clock fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="card-title">@Model.Count(l => l.Status == "Approved")</h4>
-                        <p class="card-text">Approved Applications</p>
-                    </div>
-                    <div>
-                        <i class="fas fa-check-circle fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-danger text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="card-title">@Model.Count(l => l.Status == "Rejected")</h4>
-                        <p class="card-text">Rejected Applications</p>
-                    </div>
-                    <div>
-                        <i class="fas fa-times-circle fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="card-title">@Model.Count()</h4>
-                        <p class="card-text">Total Applications</p>
-                    </div>
-                    <div>
-                        <i class="fas fa-file-alt fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -90,22 +23,22 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3">
-                        <a href="/Leaves/PendingLeaves" class="btn btn-warning btn-block w-100">
+                        <a href="/Leaves/PendingLeaves" class="btn btn-custom-pending btn-block w-100">
                             <i class="fas fa-clock me-2"></i>Pending Leaves
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="/Leaves/ApprovedLeaves" class="btn btn-success btn-block w-100">
+                        <a href="/Leaves/ApprovedLeaves" class="btn btn-custom-approved btn-block w-100">
                             <i class="fas fa-check-circle me-2"></i>Approved Leaves
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="/Leaves/RejectedLeaves" class="btn btn-danger btn-block w-100">
+                        <a href="/Leaves/RejectedLeaves" class="btn btn-custom-rejected btn-block w-100">
                             <i class="fas fa-times-circle me-2"></i>Rejected Leaves
                         </a>
                     </div>
                     <div class="col-md-3">
-                        <a href="/Leaves/LeaveReports" class="btn btn-info btn-block w-100">
+                        <a href="/Leaves/LeaveReports" class="btn btn-custom-info btn-block w-100">
                             <i class="fas fa-chart-bar me-2"></i>Reports
                         </a>
                     </div>
@@ -151,21 +84,21 @@
                                 <td>
                                     @if (leave.Status == "Pending")
                                     {
-                                        <span class="badge bg-warning">@leave.Status</span>
+                                        <span class="badge badge-pending">@leave.Status</span>
                                     }
                                     else if (leave.Status == "Approved")
                                     {
-                                        <span class="badge bg-success">@leave.Status</span>
+                                        <span class="badge badge-approved">@leave.Status</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-danger">@leave.Status</span>
+                                        <span class="badge badge-rejected">@leave.Status</span>
                                     }
                                 </td>
                                 <td>@leave.SubmissionDate.ToString("dd/MM/yyyy")</td>
                                 <td>
                                     <div class="btn-group" role="group">
-                                        <a asp-action="HRDetails" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-info">
+                                        <a asp-action="LeaveDetails" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-info">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         @if (leave.Status == "Pending")
@@ -215,4 +148,23 @@
 
 @section Styles {
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="~/css/styles.css">
+    <link rel="stylesheet" href="~/css/status.css">
+    <style>
+        /* Custom info button style for Reports */
+        .btn-custom-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #b8daff;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+            .btn-custom-info:hover {
+                background-color: #b8daff;
+                color: #0c5460;
+                border-color: #9fcdff;
+                transform: translateY(-1px);
+            }
+    </style>
 }

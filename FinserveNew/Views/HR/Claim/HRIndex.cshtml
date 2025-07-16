@@ -9,13 +9,13 @@
         <a asp-action="HRIndex" class="btn btn-outline-primary">
             <i class="fas fa-list me-2"></i>All Claims
         </a>
-        <a asp-action="PendingClaims" class="btn btn-outline-warning">
+        <a asp-action="PendingClaims" class="btn btn-custom-pending">
             <i class="fas fa-clock me-2"></i>Pending (@Model.Count(c => c.Status == "Pending"))
         </a>
-        <a asp-action="ApprovedClaims" class="btn btn-outline-success">
+        <a asp-action="ApprovedClaims" class="btn btn-custom-approved">
             <i class="fas fa-check me-2"></i>Approved (@Model.Count(c => c.Status == "Approved"))
         </a>
-        <a asp-action="RejectedClaims" class="btn btn-outline-danger">
+        <a asp-action="RejectedClaims" class="btn btn-custom-rejected">
             <i class="fas fa-times me-2"></i>Rejected (@Model.Count(c => c.Status == "Rejected"))
         </a>
     </div>
@@ -37,61 +37,7 @@
     </div>
 }
 
-<!-- Statistics Cards -->
-@* <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-clipboard-list fa-2x me-3"></i>
-                    <div>
-                        <h5 class="card-title mb-0">Total Claims</h5>
-                        <h3 class="mb-0">@Model.Count()</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-white">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-clock fa-2x me-3"></i>
-                    <div>
-                        <h5 class="card-title mb-0">Pending</h5>
-                        <h3 class="mb-0">@Model.Count(c => c.Status == "Pending")</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-check fa-2x me-3"></i>
-                    <div>
-                        <h5 class="card-title mb-0">Approved</h5>
-                        <h3 class="mb-0">@Model.Count(c => c.Status == "Approved")</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-danger text-white">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-times fa-2x me-3"></i>
-                    <div>
-                        <h5 class="card-title mb-0">Rejected</h5>
-                        <h3 class="mb-0">@Model.Count(c => c.Status == "Rejected")</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div> *@
+
 
 <div class="form-container">
     @if (Model != null && Model.Any())
@@ -134,15 +80,15 @@
                             <td>
                                 @if (claim.Status == "Pending")
                                 {
-                                    <span class="badge bg-warning">@claim.Status</span>
+                                    <span class="badge badge-pending">@claim.Status</span>
                                 }
                                 else if (claim.Status == "Approved")
                                 {
-                                    <span class="badge bg-success">@claim.Status</span>
+                                    <span class="badge badge-approved">@claim.Status</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-danger">@claim.Status</span>
+                                    <span class="badge badge-rejected">@claim.Status</span>
                                 }
                             </td>
                             <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
@@ -178,3 +124,7 @@
         </div>
     }
 </div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/status.css">
+}
