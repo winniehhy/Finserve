@@ -23,14 +23,34 @@ namespace FinserveNew.Models
         [MaxLength(500)]
         public string Reason { get; set; } = string.Empty;
 
+        [Display(Name = "Description")]
+        [MaxLength(1000)]
+        public string? Description { get; set; }
+
         [Required(ErrorMessage = "Status is required")]
         [Display(Name = "Status")]
         [MaxLength(20)]
         public string Status { get; set; } = "Pending"; // Default to Pending
 
+        [Display(Name = "Leave Days")]
+        public int LeaveDays { get; set; }
+
+        [Display(Name = "Created Date")]
+        public DateTime CreatedDate { get; set; }
+
+        [Display(Name = "Submission Date")]
+        public DateTime SubmissionDate { get; set; }
+
+        [Display(Name = "Approval Date")]
+        public DateTime? ApprovalDate { get; set; }
+
         [Display(Name = "Approved By")]
-        [MaxLength(100)]
+        [MaxLength(450)] // Standard length for Identity UserId
         public string? ApprovedBy { get; set; }
+
+        [Display(Name = "Approval Remarks")]
+        [MaxLength(1000)]
+        public string? ApprovalRemarks { get; set; }
 
         // Foreign Keys
         [Required(ErrorMessage = "Employee is required")]
@@ -48,8 +68,11 @@ namespace FinserveNew.Models
         [ForeignKey("LeaveTypeID")]
         public virtual LeaveTypeModel? LeaveType { get; set; }
 
-        // Calculated property for leave duration
+        // Add navigation property for LeaveDetails
+        public virtual ICollection<LeaveDetailsModel>? LeaveDetails { get; set; }
+
+        // Calculated property for leave duration (as backup)
         [NotMapped]
-        public int LeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;
+        public int CalculatedLeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;
     }
 }

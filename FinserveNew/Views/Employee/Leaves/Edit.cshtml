@@ -28,7 +28,7 @@
                 <small class="text-muted">Leave ID: #@Model.LeaveID</small>
             </div>
             <div class="card-body">
-                <form asp-action="Edit" method="post">
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                     <!-- Hidden field to preserve the LeaveID -->
@@ -51,6 +51,67 @@
                                 Select a leave type to see available days
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Medical Certificate Section -->
+                    <div class="mb-3" id="medicalCertificateSection" style="display: none;">
+                      
+
+                        <!-- Current Medical Certificate Display -->
+                        <div id="currentMedicalCertificate" style="display: none;">
+                            <label class="form-label">Current Medical Certificate</label>
+                            <div class="border rounded p-3 bg-light mb-3">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-file-medical text-success me-2"></i>
+                                        <div>
+                                            <div class="fw-bold" id="currentFileName">Medical Certificate</div>
+                                            <small class="text-muted">Currently uploaded file</small>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="viewCurrentFile">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" id="removeCurrentFile">
+                                            <i class="fas fa-trash me-1"></i>Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- New Medical Certificate Upload -->
+                        <div id="newMedicalCertificateUpload">
+                            <label class="form-label">
+                                <span id="uploadLabel">Upload New Medical Certificate</span>
+                                <span class="text-danger" id="requiredIndicator" style="display: none;">*</span>
+                            </label>
+                            <input type="file" name="MedicalCertificate" id="MedicalCertificate"
+                                   class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max size: 5MB)
+                            </div>
+                            <span id="medicalCertificateError" class="text-danger" style="display: none;"></span>
+                        </div>
+
+                        <!-- New File Preview -->
+                        <div id="newFilePreview" class="mt-2" style="display: none;">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-alt me-2 text-primary"></i>
+                                    <span id="newFileName" class="me-auto"></span>
+                                    <span id="newFileSize" class="text-muted small me-2"></span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" id="removeNewFile">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden input to track MC removal -->
+                        <input type="hidden" id="removeMedicalCertificate" name="RemoveMedicalCertificate" value="false" />
                     </div>
 
                     <div class="row mb-3">
@@ -78,10 +139,10 @@
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="Reason" class="form-label">Reason <span class="text-danger">*</span></label>
-                        <textarea asp-for="Reason" class="form-control" id="Reason" rows="4"
-                                  placeholder="Please provide a detailed reason for your leave application" required></textarea>
-                        <span asp-validation-for="Reason" class="text-danger"></span>
+                        <label asp-for="Description" class="form-label">Description <span class="text-danger">*</span></label>
+                        <textarea asp-for="Description" class="form-control" id="Description" rows="4"
+                                  placeholder="Please provide a detailed description for your leave application" required></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
                     </div>
 
                     <div class="alert alert-warning">
@@ -131,7 +192,7 @@
                 </div>
                 <div class="mb-3">
                     <strong>Original Duration:</strong><br>
-                    <span class="text-muted">@((Model.EndDate.DayNumber - Model.StartDate.DayNumber) + 1) day(s)</span>
+                    <span class="text-muted">@Model.LeaveDays day(s)</span>
                 </div>
                 @if (!string.IsNullOrEmpty(Model.ApprovedBy))
                 {
@@ -199,6 +260,10 @@
                         <i class="fas fa-check text-success me-2"></i>
                         <small>Changes will reset approval status</small>
                     </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Medical leave requires valid certificate</small>
+                    </li>
                     <li class="mb-0">
                         <i class="fas fa-check text-success me-2"></i>
                         <small>Balance will be recalculated</small>
@@ -237,12 +302,146 @@
                 '3': 'Hospitalization Leave'
             };
 
+            // Medical certificate management
+            const medicalCertificateData = {
+                hasCurrentFile: @(ViewBag.HasMedicalCertificate?.ToString().ToLower() ?? "false"),
+                currentFileName: '@(ViewBag.MedicalCertificateFileName ?? "")',
+                currentFileUrl: '@(ViewBag.MedicalCertificateUrl ?? "")',
+                isRemoved: false,
+                hasNewFile: false
+            };
+
+            // File validation settings
+            const maxFileSize = 5 * 1024 * 1024; // 5MB
+            const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
+
             console.log("📊 Leave balances:", leaveBalances);
+            console.log("📋 Medical certificate data:", medicalCertificateData);
 
             // Validate leave type selection
             function isValidLeaveType(leaveTypeId) {
                 return ['1', '2', '3'].includes(leaveTypeId);
             }
+
+            // File validation function
+            function validateFile(file) {
+                if (!file) return { isValid: false, message: 'No file selected' };
+
+                const fileName = file.name.toLowerCase();
+                const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+
+                if (!allowedExtensions.includes(fileExtension)) {
+                    return {
+                        isValid: false,
+                        message: 'Invalid file type. Please select PDF, JPG, PNG, DOC, or DOCX files only.'
+                    };
+                }
+
+                if (file.size > maxFileSize) {
+                    return {
+                        isValid: false,
+                        message: 'File size exceeds 5MB limit. Please select a smaller file.'
+                    };
+                }
+
+                return { isValid: true, message: '' };
+            }
+
+            // Format file size
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Update medical certificate UI
+            function updateMedicalCertificateUI() {
+                const leaveTypeId = $('#LeaveTypeID').val();
+                const isMedicalLeave = leaveTypeId === '2';
+
+                if (isMedicalLeave) {
+                    $('#medicalCertificateSection').show();
+
+                    // Show current file if exists and not removed
+                    if (medicalCertificateData.hasCurrentFile && !medicalCertificateData.isRemoved) {
+                        $('#currentMedicalCertificate').show();
+                        $('#currentFileName').text(medicalCertificateData.currentFileName || 'Medical Certificate');
+                        $('#uploadLabel').text('Replace Medical Certificate');
+                        $('#requiredIndicator').hide();
+                    } else {
+                        $('#currentMedicalCertificate').hide();
+                        $('#uploadLabel').text('Upload Medical Certificate');
+                        $('#requiredIndicator').show();
+                    }
+                } else {
+                    $('#medicalCertificateSection').hide();
+                    // Reset medical certificate state when switching away from medical leave
+                    medicalCertificateData.isRemoved = false;
+                    medicalCertificateData.hasNewFile = false;
+                    $('#removeMedicalCertificate').val('false');
+                    $('#MedicalCertificate').val('');
+                    $('#newFilePreview').hide();
+                    $('#medicalCertificateError').hide();
+                }
+            }
+
+            // Handle new medical certificate file selection
+            $('#MedicalCertificate').on('change', function() {
+                const file = this.files[0];
+                const errorSpan = $('#medicalCertificateError');
+                const newFilePreview = $('#newFilePreview');
+
+                if (file) {
+                    const validation = validateFile(file);
+
+                    if (!validation.isValid) {
+                        errorSpan.text(validation.message).show();
+                        newFilePreview.hide();
+                        this.value = ''; // Clear the file input
+                        medicalCertificateData.hasNewFile = false;
+                        return;
+                    }
+
+                    // Hide error and show preview
+                    errorSpan.hide();
+                    $('#newFileName').text(file.name);
+                    $('#newFileSize').text(formatFileSize(file.size));
+                    newFilePreview.show();
+                    medicalCertificateData.hasNewFile = true;
+                } else {
+                    errorSpan.hide();
+                    newFilePreview.hide();
+                    medicalCertificateData.hasNewFile = false;
+                }
+            });
+
+            // Handle remove new file button
+            $('#removeNewFile').on('click', function() {
+                $('#MedicalCertificate').val('');
+                $('#newFilePreview').hide();
+                $('#medicalCertificateError').hide();
+                medicalCertificateData.hasNewFile = false;
+            });
+
+            // Handle view current file button
+            $('#viewCurrentFile').on('click', function() {
+                if (medicalCertificateData.currentFileUrl) {
+                    window.open(medicalCertificateData.currentFileUrl, '_blank');
+                } else {
+                    alert('File URL not available');
+                }
+            });
+
+            // Handle remove current file button
+            $('#removeCurrentFile').on('click', function() {
+                if (confirm('Are you sure you want to remove the current medical certificate? You will need to upload a new one.')) {
+                    medicalCertificateData.isRemoved = true;
+                    $('#removeMedicalCertificate').val('true');
+                    updateMedicalCertificateUI();
+                }
+            });
 
             // Handle leave type selection
             $('#LeaveTypeID').on('change', function() {
@@ -250,6 +449,8 @@
                 console.log("🔄 Leave type changed to:", leaveTypeId);
 
                 const availableDaysDiv = $('#availableDays');
+
+                updateMedicalCertificateUI();
 
                 if (!leaveTypeId) {
                     availableDaysDiv.text('Select a leave type to see available days');
@@ -343,7 +544,7 @@
                 const leaveTypeId = $('#LeaveTypeID').val();
                 const startDate = $('#StartDate').val();
                 const endDate = $('#EndDate').val();
-                const reason = $('#Reason').val().trim();
+                const description = $('#Description').val().trim();
 
                 // Check if form is valid according to HTML5 validation
                 if (!this.checkValidity()) {
@@ -358,16 +559,41 @@
                     return false;
                 }
 
+                // Medical leave specific validation
+                if (leaveTypeId === '2') {
+                    const hasCurrentFile = medicalCertificateData.hasCurrentFile && !medicalCertificateData.isRemoved;
+                    const hasNewFile = medicalCertificateData.hasNewFile;
+
+                    if (!hasCurrentFile && !hasNewFile) {
+                        e.preventDefault();
+                        alert('Medical leave requires a medical certificate. Please upload a medical certificate or keep the existing one.');
+                        $('#MedicalCertificate').focus();
+                        return false;
+                    }
+
+                    // Validate new file if uploaded
+                    if (hasNewFile) {
+                        const medicalCertFile = $('#MedicalCertificate')[0].files[0];
+                        const validation = validateFile(medicalCertFile);
+                        if (!validation.isValid) {
+                            e.preventDefault();
+                            alert('Medical certificate validation failed: ' + validation.message);
+                            $('#MedicalCertificate').focus();
+                            return false;
+                        }
+                    }
+                }
+
                 if (!startDate || !endDate) {
                     e.preventDefault();
                     alert('Please select both start and end dates.');
                     return false;
                 }
 
-                if (!reason) {
+                if (!description) {
                     e.preventDefault();
-                    alert('Please provide a reason for your leave.');
-                    $('#Reason').focus();
+                    alert('Please provide a description for your leave.');
+                    $('#Description').focus();
                     return false;
                 }
 
@@ -413,7 +639,7 @@
             });
 
             // Auto-resize textarea
-            $('#Reason').on('input', function() {
+            $('#Description').on('input', function() {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
             });

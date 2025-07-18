@@ -1,0 +1,186 @@
+﻿@model FinserveNew.Models.Claim
+
+@{
+    ViewData["Title"] = "Process Claim";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Process Claim #@Model.Id</h2>
+    <div class="btn-group" role="group">
+        <a asp-action="HRIndex" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Claims
+        </a>
+        <a asp-action="PendingClaims" class="btn btn-outline-warning">
+            <i class="fas fa-clock me-2"></i>Pending Claims
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="form-container">
+    <div class="row">
+        <!-- Claim Details -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Claim Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Claim ID:</strong></div>
+                        <div class="col-sm-8">#@Model.Id</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Employee ID:</strong></div>
+                        <div class="col-sm-8">
+                            <span class="badge bg-secondary">@Model.EmployeeID</span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Claim Type:</strong></div>
+                        <div class="col-sm-8">
+                            <span class="badge bg-info">@Model.ClaimType</span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Amount:</strong></div>
+                        <div class="col-sm-8">
+                            <strong class="text-primary">RM @Model.ClaimAmount.ToString("F2")</strong>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Status:</strong></div>
+                        <div class="col-sm-8">
+                            <span class="badge bg-warning">@Model.Status</span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Description:</strong></div>
+                        <div class="col-sm-8">@(Model.Description ?? "No description provided")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Date Information -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Created:</strong></div>
+                        <div class="col-sm-8">@Model.CreatedDate.ToString("dd MMM yyyy HH:mm")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Submitted:</strong></div>
+                        <div class="col-sm-8">@(Model.SubmissionDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Days Pending:</strong></div>
+                        <div class="col-sm-8">
+                            @{
+                                var daysPending = (DateTime.Now - Model.CreatedDate).Days;
+                            }
+                            @if (daysPending > 7)
+                            {
+                                <span class="badge bg-danger">@daysPending days</span>
+                            }
+                            else if (daysPending > 3)
+                            {
+                                <span class="badge bg-warning">@daysPending days</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">@daysPending days</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supporting Document -->
+    @if (!string.IsNullOrEmpty(Model.SupportingDocumentPath))
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-paperclip me-2"></i>Supporting Document
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-file-alt fa-2x text-muted me-3"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0">@Model.SupportingDocumentName</h6>
+                        <small class="text-muted">Click to view or download</small>
+                    </div>
+                    <div>
+                        <a href="@Model.SupportingDocumentPath" target="_blank" class="btn btn-outline-primary btn-sm me-2">
+                            <i class="fas fa-eye me-1"></i>View
+                        </a>
+                        <a href="@Model.SupportingDocumentPath" download class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download me-1"></i>Download
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Processing Form -->
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-clipboard-check me-2"></i>Process This Claim
+            </h5>
+        </div>
+        <div class="card-body">
+            <form asp-action="ProcessClaim" method="post">
+                <input type="hidden" asp-for="Id" />
+
+                <div class="mb-3">
+                    <label for="comments" class="form-label">Comments (Optional):</label>
+                    <textarea name="comments" id="comments" class="form-control" rows="3"
+                              placeholder="Add any comments for approval/rejection..."></textarea>
+                    <div class="form-text">These comments will be visible to the employee.</div>
+                </div>
+
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    <button type="submit" name="action" value="approve"
+                            class="btn btn-success btn-lg me-md-2"
+                            onclick="return confirm('Are you sure you want to approve this claim?')">
+                        <i class="fas fa-check me-2"></i>Approve Claim
+                    </button>
+                    <button type="submit" name="action" value="reject"
+                            class="btn btn-danger btn-lg"
+                            onclick="return confirm('Are you sure you want to reject this claim?')">
+                        <i class="fas fa-times me-2"></i>Reject Claim
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

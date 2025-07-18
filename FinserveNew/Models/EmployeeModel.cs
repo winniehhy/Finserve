@@ -96,7 +96,7 @@ namespace FinserveNew.Models
         public virtual EmergencyContact? EmergencyContact { get; set; }
 
         [ForeignKey("RoleID")]
-        public virtual Role? Role { get; set; }
+        public virtual JobRole? Role { get; set; }
 
         // One Employee can have many Claims
         public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
@@ -105,7 +105,7 @@ namespace FinserveNew.Models
         public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();
 
         // One Employee can have many Approvals
-        public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();
+        //public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();
 
         // One Employee can have many Documents
         public virtual ICollection<EmployeeDocument> EmployeeDocuments { get; set; } = new List<EmployeeDocument>();

@@ -1,15 +1,22 @@
 ﻿@model IEnumerable<FinserveNew.Models.Claim>
-
 @{
-    ViewData["Title"] = "My Claims";
+    ViewData["Title"] = "Claims Management";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="page-title mb-0">My Claims</h2>
-    <a href="/Claim/Create" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>
-        Create New Claim
-    </a>
+    <h2 class="page-title mb-0">Claims Management</h2>
+    <div class="btn-group" role="group">
+      
+        <a asp-action="PendingClaims" class="btn btn-custom-pending">
+            <i class="fas fa-clock me-2"></i>Pending (@Model.Count(c => c.Status == "Pending"))
+        </a>
+        <a asp-action="ApprovedClaims" class="btn btn-custom-approved">
+            <i class="fas fa-check me-2"></i>Approved (@Model.Count(c => c.Status == "Approved"))
+        </a>
+        <a asp-action="RejectedClaims" class="btn btn-custom-rejected">
+            <i class="fas fa-times me-2"></i>Rejected (@Model.Count(c => c.Status == "Rejected"))
+        </a>
+    </div>
 </div>
 
 @if (TempData["Success"] != null)
@@ -20,6 +27,16 @@
     </div>
 }
 
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+
+
 <div class="form-container">
     @if (Model != null && Model.Any())
     {
@@ -27,11 +44,13 @@
             <table class="table table-hover">
                 <thead class="table-light">
                     <tr>
-                        <th>Date</th>
+                        <th>Claim ID</th>
+                        <th>Employee ID</th>
                         <th>Claim Type</th>
                         <th>Amount</th>
                         <th>Description</th>
                         <th>Status</th>
+                        <th>Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -39,7 +58,12 @@
                     @foreach (var claim in Model)
                     {
                         <tr>
-                            <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                <strong>#@claim.Id</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">@claim.EmployeeID</span>
+                            </td>
                             <td>
                                 <span class="badge bg-info">@claim.ClaimType</span>
                             </td>
@@ -54,28 +78,32 @@
                             <td>
                                 @if (claim.Status == "Pending")
                                 {
-                                    <span class="badge bg-warning">@claim.Status</span>
+                                    <span class="badge badge-pending">@claim.Status</span>
                                 }
                                 else if (claim.Status == "Approved")
                                 {
-                                    <span class="badge bg-success">@claim.Status</span>
+                                    <span class="badge badge-approved">@claim.Status</span>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-danger">@claim.Status</span>
+                                    <span class="badge badge-rejected">@claim.Status</span>
                                 }
                             </td>
+                            <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
                             <td>
-                                <a asp-action="Details" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary" title="View Details">
+                                <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 @if (claim.Status == "Pending")
                                 {
-                                    <a asp-action="Edit" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-success" title="Edit">
-                                        <i class="fas fa-edit"></i>
+                                    <a asp-action="ProcessClaim" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary" title="Process Claim">
+                                        <i class="fas fa-clipboard-check"></i>
                                     </a>
-                                    <a asp-action="Delete" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-danger" title="Delete">
-                                        <i class="fas fa-trash"></i>
+                                }
+                                @if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
+                                {
+                                    <a href="@claim.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-secondary" title="View Document">
+                                        <i class="fas fa-paperclip"></i>
                                     </a>
                                 }
                             </td>
@@ -88,9 +116,13 @@
     else
     {
         <div class="text-center py-5">
-            <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No claims found</h5>
-            <p class="text-muted">You haven't submitted any claims yet.</p>
+            <p class="text-muted">No employee claims have been submitted yet.</p>
         </div>
     }
 </div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/status.css">
+}

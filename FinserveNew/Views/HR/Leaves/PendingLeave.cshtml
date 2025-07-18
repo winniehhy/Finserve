@@ -1,0 +1,238 @@
+﻿@model List<FinserveNew.Models.LeaveModel>
+
+@{
+    ViewData["Title"] = "Pending Leaves";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Pending Leaves</h2>
+    <div class="btn-group" role="group">
+        <a asp-action="LeaveIndex" class="btn btn-outline-primary">
+            <i class="fas fa-list me-2"></i>All Leaves
+        </a>
+        <a asp-action="PendingLeaves" class="btn btn-warning">
+            <i class="fas fa-clock me-2"></i>Pending (@Model.Count)
+        </a>
+        <a asp-action="ApprovedLeaves" class="btn btn-outline-success">
+            <i class="fas fa-check me-2"></i>Approved
+        </a>
+        <a asp-action="RejectedLeaves" class="btn btn-outline-danger">
+            <i class="fas fa-times me-2"></i>Rejected
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="form-container">
+    @if (Model != null && Model.Any())
+    {
+        <div class="alert alert-warning mb-4">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>@Model.Count pending leave@(Model.Count > 1 ? "s" : "")</strong> require@(Model.Count == 1 ? "s" : "") your attention.
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Leave ID</th>
+                        <th>Employee ID</th>
+                        <th>Leave Type</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Duration</th>
+                        <th>Submission Date</th>
+                        <th>Days Pending</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var leave in Model)
+                    {
+                        var daysPending = (DateTime.Now - leave.CreatedDate).Days;
+                        <tr class="@(daysPending > 7 ? "table-warning" : "")">
+                            <td>
+                                <strong>#@leave.LeaveID</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">@leave.EmployeeID</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">@leave.LeaveType.TypeName</span>
+                            </td>
+                            <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
+                            <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                 <strong>
+                                    @{
+                                        var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
+                                    }
+                                    @duration day@(duration != 1 ? "s" : "")
+                                </strong>
+                            </td>
+                            <td>@leave.SubmissionDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                @if (daysPending > 7)
+                                {
+                                    <span class="badge bg-danger">@daysPending day@(daysPending != 1 ? "s" : "")</span>
+                                }
+                                else if (daysPending > 3)
+                                {
+                                    <span class="badge bg-warning">@daysPending day@(daysPending != 1 ? "s" : "")</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">@daysPending day@(daysPending != 1 ? "s" : "")</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-action="ProcessLeave" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-primary" title="Process Leave">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </a>
+                                <a asp-action="LeaveDetails" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                @* Check if leave has medical certificate *@
+                                @{
+                                    var hasDocument = !string.IsNullOrEmpty(leave.LeaveType.TypeName) &&
+                                    leave.LeaveType.TypeName.ToLower().Contains("medical");
+                                }
+                                @if (hasDocument)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="Medical Certificate Available">
+                                        <i class="fas fa-file-medical"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            <h5 class="text-success">Great! No pending leaves</h5>
+            <p class="text-muted">All leave applications have been processed.</p>
+            <a asp-action="LeaveIndex" class="btn btn-primary">
+                <i class="fas fa-list me-2"></i>View All Leaves
+            </a>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/status.css">
+    <style>
+        /* Match the styling from the pending claims page */
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffecb5;
+            color: #664d03;
+        }
+
+        .table-light th {
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+            color: #212529;
+        }
+
+        .btn-group .btn {
+            margin-right: 2px;
+        }
+
+            .btn-group .btn:last-child {
+                margin-right: 0;
+            }
+
+        /* Badge styling to match claims */
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.35em 0.65em;
+        }
+
+            /* Days pending color coding */
+            .badge.bg-success {
+                background-color: #198754 !important;
+            }
+
+            .badge.bg-warning {
+                background-color: #ffc107 !important;
+                color: #000 !important;
+            }
+
+            .badge.bg-danger {
+                background-color: #dc3545 !important;
+            }
+
+        /* Button styling */
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        /* Table hover effect */
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.075);
+        }
+
+        /* Row highlighting for overdue items */
+        .table-warning {
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTable for better functionality
+            if ($('table').length > 0) {
+                $('table').DataTable({
+                    "order": [[ 6, "desc" ]], // Sort by submission date
+                    "pageLength": 25,
+                    "responsive": true,
+                    "columnDefs": [
+                        { "orderable": false, "targets": 8 } // Actions column
+                    ],
+                    "language": {
+                        "search": "Search leaves:",
+                        "lengthMenu": "Show _MENU_ leaves per page",
+                        "info": "Showing _START_ to _END_ of _TOTAL_ pending leaves",
+                        "infoEmpty": "No pending leaves found",
+                        "infoFiltered": "(filtered from _MAX_ total leaves)"
+                    }
+                });
+            }
+
+            // Add confirmation for process actions
+            $('a[title="Process Leave"]').on('click', function(e) {
+                if (!confirm('Are you sure you want to process this leave application?')) {
+                    e.preventDefault();
+                }
+            });
+
+            // Auto-hide success/error messages after 5 seconds
+            setTimeout(function() {
+                $('.alert-success, .alert-danger').fadeOut('slow');
+            }, 5000);
+        });
+    </script>
+}

@@ -34,38 +34,7 @@
 
     <!-- Quick Stats Cards -->
     <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card">
-                <div class="stat-icon bg-primary">
-                    <i class="fas fa-file-medical"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-number">@ViewBag.TotalClaims</div>
-                    <div class="stat-label">Total Claims</div>
-                    <div class="stat-change @(ViewBag.ApprovalRate > 70 ? "positive" : ViewBag.ApprovalRate > 50 ? "neutral" : "negative")">
-                        <i class="fas fa-@(ViewBag.ApprovalRate > 70 ? "arrow-up" : ViewBag.ApprovalRate > 50 ? "minus" : "arrow-down")"></i>
-                        @ViewBag.ApprovalRate% approval rate
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card">
-                <div class="stat-icon bg-success">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-number">@ViewBag.ApprovedClaims</div>
-                    <div class="stat-label">Approved Claims</div>
-                    <div class="stat-change positive">
-                        <i class="fas fa-dollar-sign"></i> $@ViewBag.TotalClaimAmount.ToString("N2")
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-6 col-md-6 mb-3">
             <div class="stat-card">
                 <div class="stat-icon bg-info">
                     <i class="fas fa-calendar-alt"></i>
@@ -80,7 +49,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-6 col-md-6 mb-3">
             <div class="stat-card">
                 <div class="stat-icon bg-warning">
                     <i class="fas fa-hourglass-half"></i>
@@ -147,6 +116,7 @@
                 </div>
             </div>
 
+
             <!-- Recent Claims -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -162,11 +132,11 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
+                                        <th>Date</th>
                                         <th>Claim ID</th>
                                         <th>Type</th>
                                         <th>Amount</th>
                                         <th>Status</th>
-                                        <th>Date</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -174,15 +144,15 @@
                                     @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaims)
                                     {
                                         <tr>
+                                            <td>@claim.CreatedDate.ToString("dd MMM, yyyy")</td>
                                             <td>#CLM-@claim.Id.ToString("D3")</td>
                                             <td>@claim.ClaimType</td>
-                                            <td>$@claim.ClaimAmount.ToString("N2")</td>
+                                            <td>RM @claim.ClaimAmount.ToString("N2")</td>
                                             <td>
                                                 <span class="badge bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : claim.Status == "Processing" ? "info" : "danger")">
                                                     @claim.Status
                                                 </span>
                                             </td>
-                                            <td>@claim.CreatedDate.ToString("MMM dd, yyyy")</td>
                                             <td>
                                                 <a href="@Url.Action("Details", "Claim", new { id = claim.Id })" class="btn btn-sm btn-outline-primary">View</a>
                                             </td>
@@ -229,11 +199,12 @@
                                 <tbody>
                                     @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves)
                                     {
+                                        var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                                         <tr>
                                             <td>@(leave.LeaveType?.TypeName ?? "N/A")</td>
-                                            <td>@leave.StartDate.ToString("MMM dd, yyyy")</td>
-                                            <td>@leave.EndDate.ToString("MMM dd, yyyy")</td>
-                                            <td>@leave.LeaveDays days</td>
+                                            <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
+                                            <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
+                                            <td>@duration days</td>
                                             <td>
                                                 <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
                                                     @leave.Status
@@ -259,6 +230,7 @@
                 </div>
             </div>
         </div>
+       
 
         <!-- Right Column -->
         <div class="col-lg-4">
@@ -298,50 +270,90 @@
 
             <!-- Notifications -->
             <div class="card mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-bell me-2"></i>Recent Activity
+                        <i class="fas fa-bell me-2"></i>Notifications
                     </h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="markAllAsRead()">
+                        Mark All Read
+                    </button>
                 </div>
-                <div class="card-body">
-                    @if (ViewBag.RecentClaims != null && ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Any())
+                <div class="card-body" id="notificationContainer">
+                    @{
+                        var hasNotifications = false;
+                        var currentMonth = DateTime.Now.Month;
+                        var currentYear = DateTime.Now.Year;
+                        var isDecember = currentMonth == 12;
+                    }
+
+                    @* Leave Reminder for December *@
+                    @if (isDecember && ViewBag.TotalRemainingLeave != null && ViewBag.TotalRemainingLeave > 10)
                     {
-                        @foreach (var claim in ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Take(3))
+                        hasNotifications = true;
+                        <div class="notification-item" data-type="leave-reminder" data-id="leave-reminder-@currentYear">
+                            <div class="notification-icon bg-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h6>Leave Balance Reminder</h6>
+                                <p>You have @ViewBag.TotalRemainingLeave days of leave remaining. Please plan to clear your leave before year-end.</p>
+                                <small class="text-muted">December @DateTime.Now.Year</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'leave-reminder', 'leave-reminder-@currentYear')">
+                                Mark as Read
+                            </button>
+                        </div>
+                    }
+
+                    @* Approved Claims *@
+                    @if (ViewBag.RecentClaims != null)
+                    {
+                        var approvedClaims = ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Where(c => c.Status == "Approved").Take(3);
+                        foreach (var claim in approvedClaims)
                         {
-                            <div class="notification-item">
-                                <div class="notification-icon bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : "info")">
-                                    <i class="fas fa-@(claim.Status == "Approved" ? "check" : claim.Status == "Pending" ? "clock" : "info")"></i>
+                            hasNotifications = true;
+                            <div class="notification-item" data-type="claim" data-id="@claim.Id">
+                                <div class="notification-icon bg-success">
+                                    <i class="fas fa-check"></i>
                                 </div>
                                 <div class="notification-content">
-                                    <h6>Claim @claim.Status</h6>
-                                    <p>Your @claim.ClaimType claim for $@claim.ClaimAmount.ToString("N2") is @claim.Status.ToLower().</p>
+                                    <h6>Claim Approved</h6>
+                                    <p>Your @claim.ClaimType claim for $@claim.ClaimAmount.ToString("N2") has been approved.</p>
                                     <small class="text-muted">@((DateTime.Now - claim.CreatedDate).Days) days ago</small>
                                 </div>
+                                <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'claim', '@claim.Id')">
+                                    Mark as Read
+                                </button>
                             </div>
                         }
                     }
 
-                    @if (ViewBag.RecentLeaves != null && ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Any())
+                    @* Approved Leaves *@
+                    @if (ViewBag.RecentLeaves != null)
                     {
-                        @foreach (var leave in ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Take(2))
+                        var approvedLeaves = ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Where(l => l.Status == "Approved").Take(2);
+                        foreach (var leave in approvedLeaves)
                         {
-                            <div class="notification-item">
-                                <div class="notification-icon bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "info")">
-                                    <i class="fas fa-calendar-@(leave.Status == "Approved" ? "check" : "clock")"></i>
+                            hasNotifications = true;
+                            <div class="notification-item" data-type="leave" data-id="@leave.LeaveID">
+                                <div class="notification-icon bg-success">
+                                    <i class="fas fa-calendar-check"></i>
                                 </div>
                                 <div class="notification-content">
-                                    <h6>Leave @leave.Status</h6>
-                                    <p>Your @(leave.LeaveType?.TypeName ?? "leave") request is @leave.Status.ToLower().</p>
+                                    <h6>Leave Approved</h6>
+                                    <p>Your @(leave.LeaveType?.TypeName ?? "leave") request has been approved.</p>
                                     <small class="text-muted">@leave.StartDate.ToString("MMM dd") - @leave.EndDate.ToString("MMM dd")</small>
                                 </div>
+                                <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'leave', '@leave.LeaveID')">
+                                    Mark as Read
+                                </button>
                             </div>
                         }
                     }
 
-                    @if ((ViewBag.RecentClaims == null || !((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Any()) &&
-                                        (ViewBag.RecentLeaves == null || !((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Any()))
+                    @if (!hasNotifications)
                     {
-                        <div class="text-center py-3">
+                        <div class="text-center py-3" id="noNotifications">
                             <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
                             <p class="text-muted">No recent activity</p>
                         </div>
@@ -353,107 +365,265 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-calendar me-2"></i>@ViewBag.CurrentMonth
+                        <i class="fas fa-calendar me-2"></i>Calendar
+                       
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="calendar-widget" id="calendarWidget">
-                        <!-- Calendar will be generated by JavaScript -->
+                        <!-- Calendar navigation -->
+                        <div class="calendar-navigation">
+                            <button class="btn btn-sm btn-outline-primary" id="prevMonth" onclick="changeMonth(-1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div class="calendar-month-year" id="calendarMonthYear">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" id="nextMonth" onclick="changeMonth(1)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <!-- Calendar grid -->
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+
+                        <!-- Calendar legend -->
+                        <div class="calendar-legend">
+                            <div class="legend-item">
+                                <div class="legend-color today"></div>
+                                <span>Today</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color leave-day"></div>
+                                <span>Approved Leave</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
+  </div>
 
 @section Scripts {
-    <script>
-        // Dashboard functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            generateCalendar();
-        });
+            <script>
+                // Calendar functionality - Enhanced with month navigation
+                document.addEventListener('DOMContentLoaded', function() {
+                    initializeCalendar();
+                    loadReadNotifications();
+                });
 
-        // Export report functionality
-        function exportReport() {
-            alert('Export functionality will be implemented soon!');
-        }
+                // Calendar state
+                let currentCalendarMonth = new Date().getMonth();
+                let currentCalendarYear = new Date().getFullYear();
+                const today = new Date();
 
-        // Generate calendar with leave dates
-        function generateCalendar() {
-            const calendarWidget = document.getElementById('calendarWidget');
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
-            const today = now.getDate();
+                // Get calendar data from server (passed from controller)
+                const calendarData = @Html.Raw(Json.Serialize(ViewBag.CalendarData ?? new Dictionary<string, List<int>>()));
 
-            // Get approved leave dates from server
-            const approvedLeaveDates = @Html.Raw(Json.Serialize(ViewBag.ApprovedLeaveDates ?? new List<DateOnly>()));
-
-            // Convert to Set for faster lookup
-            const leaveDatesSet = new Set(approvedLeaveDates.map(date => {
-                const dateObj = new Date(date);
-                return dateObj.getDate();
-            }));
-
-            // Get first day of month and number of days
-            const firstDay = new Date(currentYear, currentMonth, 1);
-            const lastDay = new Date(currentYear, currentMonth + 1, 0);
-            const firstDayWeek = firstDay.getDay();
-            const daysInMonth = lastDay.getDate();
-
-            // Month names
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'];
-
-            let calendarHTML = `
-                <div class="calendar-header">
-                    <h6>${monthNames[currentMonth]} ${currentYear}</h6>
-                </div>
-                <div class="calendar-grid">
-                    <div class="calendar-day-header">S</div>
-                    <div class="calendar-day-header">M</div>
-                    <div class="calendar-day-header">T</div>
-                    <div class="calendar-day-header">W</div>
-                    <div class="calendar-day-header">T</div>
-                    <div class="calendar-day-header">F</div>
-                    <div class="calendar-day-header">S</div>
-            `;
-
-            // Add empty cells for days before month starts
-            for (let i = 0; i < firstDayWeek; i++) {
-                calendarHTML += '<div class="calendar-day"></div>';
-            }
-
-            // Add days of the month
-            for (let day = 1; day <= daysInMonth; day++) {
-                let classes = 'calendar-day';
-                if (day === today) {
-                    classes += ' today';
-                }
-                if (leaveDatesSet.has(day)) {
-                    classes += ' leave-day';
+                // Initialize calendar
+                function initializeCalendar() {
+                    generateCalendar();
+                    updateCalendarTitle();
                 }
 
-                calendarHTML += `<div class="${classes}">${day}</div>`;
-            }
+                // Change month function
+                function changeMonth(direction) {
+                    currentCalendarMonth += direction;
 
-            calendarHTML += `
-                </div>
-                <div class="calendar-legend">
-                    <div class="legend-item">
-                        <div class="legend-color today"></div>
-                        <span>Today</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color leave-day"></div>
-                        <span>Approved Leave</span>
-                    </div>
-                </div>
-            `;
+                    // Handle year boundaries
+                    if (currentCalendarMonth > 11) {
+                        currentCalendarMonth = 0;
+                        currentCalendarYear++;
+                    } else if (currentCalendarMonth < 0) {
+                        currentCalendarMonth = 11;
+                        currentCalendarYear--;
+                    }
 
-            calendarWidget.innerHTML = calendarHTML;
-        }
-    </script>
+                    generateCalendar();
+                    updateCalendarTitle();
+                }
+
+                // Update calendar title
+                function updateCalendarTitle() {
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+
+                    const monthYearElement = document.getElementById('calendarMonthYear');
+                    const titleElement = document.getElementById('calendarTitle');
+
+                    const monthYearText = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
+
+                    if (monthYearElement) {
+                        monthYearElement.textContent = monthYearText;
+                    }
+                    if (titleElement) {
+                        titleElement.textContent = monthYearText;
+                    }
+                }
+
+                // Generate calendar with leave dates
+                function generateCalendar() {
+                    const calendarGrid = document.getElementById('calendarGrid');
+                    if (!calendarGrid) return;
+
+                    // Get first day of month and number of days
+                    const firstDay = new Date(currentCalendarYear, currentCalendarMonth, 1);
+                    const lastDay = new Date(currentCalendarYear, currentCalendarMonth + 1, 0);
+                    const firstDayWeek = firstDay.getDay();
+                    const daysInMonth = lastDay.getDate();
+
+                    // Get leave dates for current month
+                    const monthKey = `${currentCalendarYear}-${(currentCalendarMonth + 1).toString().padStart(2, '0')}`;
+                    const leaveDatesForMonth = calendarData[monthKey] || [];
+                    const leaveDatesSet = new Set(leaveDatesForMonth);
+
+                    // Build calendar HTML
+                    let calendarHTML = `
+                        <div class="calendar-day-header">S</div>
+                        <div class="calendar-day-header">M</div>
+                        <div class="calendar-day-header">T</div>
+                        <div class="calendar-day-header">W</div>
+                        <div class="calendar-day-header">T</div>
+                        <div class="calendar-day-header">F</div>
+                        <div class="calendar-day-header">S</div>
+                    `;
+
+                    // Add empty cells for days before month starts
+                    for (let i = 0; i < firstDayWeek; i++) {
+                        calendarHTML += '<div class="calendar-day"></div>';
+                    }
+
+                    // Add days of the month
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        let classes = 'calendar-day';
+
+                        // Check if it's today
+                        if (day === today.getDate() &&
+                            currentCalendarMonth === today.getMonth() &&
+                            currentCalendarYear === today.getFullYear()) {
+                            classes += ' today';
+                        }
+
+                        // Check if it's a leave day
+                        if (leaveDatesSet.has(day)) {
+                            classes += ' leave-day';
+                        }
+
+                        calendarHTML += `<div class="${classes}" onclick="selectDate(${day})">${day}</div>`;
+                    }
+
+                    calendarGrid.innerHTML = calendarHTML;
+                }
+
+                // Optional: Handle date selection
+                function selectDate(day) {
+                    const selectedDate = new Date(currentCalendarYear, currentCalendarMonth, day);
+                    const monthKey = `${currentCalendarYear}-${(currentCalendarMonth + 1).toString().padStart(2, '0')}`;
+                    const leaveDatesForMonth = calendarData[monthKey] || [];
+
+                    if (leaveDatesForMonth.includes(day)) {
+                        // Show tooltip or modal with leave details
+                        showLeaveDetails(selectedDate);
+                    }
+                }
+
+                // Optional: Show leave details
+                function showLeaveDetails(date) {
+                    const formattedDate = date.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+
+                    // You can enhance this to show actual leave details
+                    alert(`Leave scheduled for ${formattedDate}`);
+                }
+
+                // Export report functionality (existing)
+                function exportReport() {
+                    alert('Export functionality will be implemented soon!');
+                }
+
+                // Read notifications functions (existing - keeping your current implementation)
+                let readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '[]');
+
+                function loadReadNotifications() {
+                    readNotifications.forEach(function(notificationId) {
+                        const notification = document.querySelector(`[data-id="${notificationId}"]`);
+                        if (notification) {
+                            notification.style.display = 'none';
+                        }
+                    });
+                    checkForEmptyNotifications();
+                }
+
+                function markAsRead(button, type, id) {
+                    const notificationItem = button.closest('.notification-item');
+
+                    if (!readNotifications.includes(id)) {
+                        readNotifications.push(id);
+                        localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                    }
+
+                    notificationItem.style.transition = 'opacity 0.3s ease';
+                    notificationItem.style.opacity = '0';
+
+                    setTimeout(() => {
+                        notificationItem.style.display = 'none';
+                        checkForEmptyNotifications();
+                    }, 300);
+                }
+
+                function markAllAsRead() {
+                    const notifications = document.querySelectorAll('.notification-item');
+
+                    notifications.forEach(function(notification) {
+                        const id = notification.getAttribute('data-id');
+                        if (id && !readNotifications.includes(id)) {
+                            readNotifications.push(id);
+                        }
+
+                        notification.style.transition = 'opacity 0.3s ease';
+                        notification.style.opacity = '0';
+
+                        setTimeout(() => {
+                            notification.style.display = 'none';
+                        }, 300);
+                    });
+
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+
+                    setTimeout(() => {
+                        checkForEmptyNotifications();
+                    }, 300);
+                }
+
+                function checkForEmptyNotifications() {
+                    const visibleNotifications = document.querySelectorAll('.notification-item[style*="display: none"], .notification-item[style*="opacity: 0"]');
+                    const allNotifications = document.querySelectorAll('.notification-item');
+
+                    if (visibleNotifications.length === allNotifications.length || allNotifications.length === 0) {
+                        const container = document.getElementById('notificationContainer');
+                        let emptyState = document.getElementById('noNotifications');
+
+                        if (!emptyState) {
+                            emptyState = document.createElement('div');
+                            emptyState.id = 'noNotifications';
+                            emptyState.className = 'text-center py-3';
+                            emptyState.innerHTML = `
+                                <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                                <p class="text-muted">No recent activity</p>
+                            `;
+                            container.appendChild(emptyState);
+                        } else {
+                            emptyState.style.display = 'block';
+                        }
+                    }
+                }
+            </script>
+
 }
 
 <style>
@@ -632,6 +802,7 @@
         gap: 15px;
         padding: 15px 0;
         border-bottom: 1px solid #ecf0f1;
+        position: relative;
     }
 
         .notification-item:last-child {
@@ -651,138 +822,246 @@
         flex-shrink: 0;
     }
 
-    .notification-content h6 {
-        margin-bottom: 5px;
-        color: #2c3e50;
-        font-weight: 600;
-        font-size: 0.9rem;
+    .notification-content {
+        flex: 1;
     }
 
-    .notification-content p {
-        margin-bottom: 5px;
-        color: #7f8c8d;
-        font-size: 0.85rem;
-        line-height: 1.4;
+        .notification-content h6 {
+            margin-bottom: 5px;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .notification-content p {
+            margin-bottom: 5px;
+            color: #7f8c8d;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+    .notification-read-btn {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        white-space: nowrap;
+        margin-left: 10px;
+        align-self: flex-start;
+        margin-top: 5px;
     }
 
     /* Calendar Widget */
-    .calendar-widget {
-        text-align: center;
-    }
+            .calendar-widget {
+                padding: 15px;
+            }
 
-    .calendar-header {
-        margin-bottom: 15px;
-    }
+            .calendar-navigation {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding: 10px 0;
+            }
 
-        .calendar-header h6 {
-            color: #2c3e50;
-            font-weight: 600;
-            margin-bottom: 0;
-        }
+            .calendar-month-year {
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: #2c3e50;
+                text-align: center;
+                min-width: 150px;
+            }
 
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 2px;
-        margin-bottom: 15px;
-    }
+            .calendar-navigation .btn {
+                width: 35px;
+                height: 35px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                transition: all 0.2s ease;
+            }
 
-    .calendar-day-header {
-        padding: 8px;
-        font-weight: 600;
-        color: #7f8c8d;
-        font-size: 0.8rem;
-    }
+                .calendar-navigation .btn:hover {
+                    transform: scale(1.1);
+                    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+                }
 
-    .calendar-day {
-        padding: 8px;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        color: #2c3e50;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 3px;
+                margin-bottom: 20px;
+            }
 
-        .calendar-day:hover {
-            background-color: #ecf0f1;
-        }
+            .calendar-day-header {
+                padding: 10px 4px;
+                text-align: center;
+                font-weight: 600;
+                color: #7f8c8d;
+                font-size: 0.8rem;
+                background-color: #f8f9fa;
+                border-radius: 6px;
+                margin-bottom: 5px;
+            }
 
-        .calendar-day.today {
-            background-color: #3498db;
-            color: white;
-            font-weight: 600;
-        }
+            .calendar-day {
+                padding: 10px 4px;
+                text-align: center;
+                font-size: 0.9rem;
+                color: #2c3e50;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                min-height: 38px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                border: 1px solid transparent;
+            }
 
-        .calendar-day.leave-day {
-            background-color: #e74c3c;
-            color: white;
-        }
+                .calendar-day:hover {
+                    background-color: #e3f2fd;
+                    border-color: #90caf9;
+                    transform: scale(1.05);
+                }
 
-        .calendar-day.today.leave-day {
-            background: linear-gradient(45deg, #3498db 50%, #e74c3c 50%);
-        }
+                .calendar-day.today {
+                    background-color: #3498db;
+                    color: white;
+                    font-weight: 600;
+                    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+                }
 
-    .calendar-legend {
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-    }
+                .calendar-day.leave-day {
+                    background-color: #e8f5e8;
+                    color: #27ae60;
+                    font-weight: 600;
+                    border-color: #27ae60;
+                }
 
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 0.8rem;
-        color: #7f8c8d;
-    }
+                .calendar-day.today.leave-day {
+                    background-color: #27ae60;
+                    color: white;
+                    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);
+                }
 
-    .legend-color {
-        width: 12px;
-        height: 12px;
-        border-radius: 3px;
-    }
+                .calendar-day.leave-day:hover {
+                    background-color: #d4edda;
+                    border-color: #1e7e34;
+                }
 
-        .legend-color.today {
-            background-color: #3498db;
-        }
+                .calendar-day.today:hover {
+                    background-color: #2980b9;
+                    transform: scale(1.05);
+                }
 
-        .legend-color.leave-day {
-            background-color: #e74c3c;
-        }
+            .calendar-legend {
+                display: flex;
+                justify-content: space-around;
+                gap: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #ecf0f1;
+            }
+
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.8rem;
+                color: #7f8c8d;
+            }
+
+            .legend-color {
+                width: 14px;
+                height: 14px;
+                border-radius: 3px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            }
+
+                .legend-color.today {
+                    background-color: #3498db;
+                }
+
+                .legend-color.leave-day {
+                    background-color: #27ae60;
+                }
+
 
     /* Table Styles */
-    .table th {
-        border-top: none;
-        border-bottom: 2px solid #ecf0f1;
-        font-weight: 600;
-        color: #2c3e50;
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 15px 10px;
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
     }
 
-    .table td {
-        border-top: 1px solid #ecf0f1;
-        padding: 15px 10px;
-        font-size: 0.9rem;
-        color: #2c3e50;
+    .table {
+        margin-bottom: 0;
     }
+
+        .table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #ecf0f1;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 12px;
+        }
+
+        .table td {
+            padding: 12px;
+            vertical-align: middle;
+            border-top: 1px solid #ecf0f1;
+            font-size: 0.85rem;
+        }
 
     .table-hover tbody tr:hover {
         background-color: #f8f9fa;
     }
 
-    /* Badges */
+    /* Badge Styles */
     .badge {
         font-size: 0.75rem;
         padding: 5px 10px;
-        border-radius: 20px;
+        border-radius: 6px;
         font-weight: 500;
     }
 
-    /* Empty State */
+    /* Button Styles */
+    .btn {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 0.75rem;
+    }
+
+    .btn-outline-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+    }
+
+    .btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(39, 174, 96, 0.4);
+    }
+
+    /* Empty State Styles */
     .text-center i.fa-3x {
         opacity: 0.3;
     }
+
+    .text-center i.fa-2x {
+        opacity: 0.3;
+    }
+
+  
 </style>
