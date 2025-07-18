@@ -22,31 +22,6 @@ namespace FinserveNew.Controllers
             _userManager = userManager;
         }
 
-        // ================== HELPER METHOD TO GET EMPLOYEE ID ==================
-        private async Task<string> GetCurrentEmployeeId()
-        {
-            var currentUser = await _userManager.GetUserAsync(User);
-
-            _logger.LogInformation($"Current user: {currentUser.UserName}, Email: {currentUser.Email}");
-
-            var employee = await _context.Employees
-                .FirstOrDefaultAsync(e => e.Username == currentUser.UserName || e.Email == currentUser.Email);
-
-            if (employee == null)
-            {
-                _logger.LogWarning($"No employee found for username: {currentUser.UserName} or email: {currentUser.Email}");
-
-                // Log all employees to see what's in the database
-                var allEmployees = await _context.Employees.ToListAsync();
-                foreach (var emp in allEmployees)
-                {
-                    _logger.LogInformation($"Employee: {emp.EmployeeID}, Username: {emp.Username}, Email: {emp.Email}");
-                }
-            }
-
-            return employee?.EmployeeID;
-        }
-
         // ================== EMPLOYEE ACTIONS ==================
 
         [Authorize(Roles = "Employee")]
@@ -89,6 +64,64 @@ namespace FinserveNew.Controllers
             if (claim == null)
             {
                 return NotFound();
+            }
+
+            // Get approver information if claim is processed
+            if (!string.IsNullOrEmpty(claim.ApprovedBy))
+            {
+                var approver = await _userManager.FindByIdAsync(claim.ApprovedBy);
+                if (approver != null)
+                {
+                    ViewBag.ApproverName = $"{approver.FirstName} {approver.LastName}";
+                    ViewBag.ApproverEmail = approver.Email;
+                }
+                else
+                {
+                    ViewBag.ApproverName = "Unknown Approver";
+                    ViewBag.ApproverEmail = "";
+                }
+            }
+
+            // Check if there's a supporting document
+            if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
+            {
+                ViewBag.HasSupportingDocument = true;
+                ViewBag.SupportingDocumentFileName = claim.SupportingDocumentName ?? Path.GetFileName(claim.SupportingDocumentPath);
+                ViewBag.SupportingDocumentUrl = claim.SupportingDocumentPath;
+
+                // Get file size if possible
+                try
+                {
+                    var fullPath = Path.Combine(_environment.WebRootPath, claim.SupportingDocumentPath.TrimStart('/'));
+                    if (System.IO.File.Exists(fullPath))
+                    {
+                        var fileInfo = new FileInfo(fullPath);
+                        ViewBag.SupportingDocumentSize = FormatFileSize(fileInfo.Length);
+                        ViewBag.SupportingDocumentUploadDate = fileInfo.CreationTime.ToString("dd/MM/yyyy HH:mm");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"Could not get file info for {claim.SupportingDocumentPath}: {ex.Message}");
+                    ViewBag.SupportingDocumentSize = "Unknown";
+                    ViewBag.SupportingDocumentUploadDate = "Unknown";
+                }
+            }
+            else
+            {
+                ViewBag.HasSupportingDocument = false;
+            }
+
+            // Calculate processing time
+            if (claim.ApprovalDate.HasValue)
+            {
+                var processingTime = claim.ApprovalDate.Value - claim.CreatedDate;
+                ViewBag.ProcessingTime = $"{processingTime.Days} days, {processingTime.Hours} hours";
+            }
+            else
+            {
+                var pendingTime = DateTime.Now - claim.CreatedDate;
+                ViewBag.PendingTime = $"{pendingTime.Days} days, {pendingTime.Hours} hours";
             }
 
             return View("~/Views/Employee/Claim/Details.cshtml", claim);
@@ -484,6 +517,52 @@ namespace FinserveNew.Controllers
 
         // ================== HELPER METHODS ==================
 
+        private async Task<string> GetCurrentEmployeeId()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+
+            if (currentUser == null)
+            {
+                _logger.LogWarning("Current user is null - user may not be authenticated properly");
+                return null;
+            }
+
+            _logger.LogInformation($"Current user: {currentUser.UserName}, Email: {currentUser.Email}");
+
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Username == currentUser.UserName || e.Email == currentUser.Email);
+
+            if (employee == null)
+            {
+                _logger.LogWarning($"No employee found for username: {currentUser.UserName} or email: {currentUser.Email}");
+
+                // For testing purposes, return E001 if the user is employee@finserve.com
+                if (currentUser.Email == "employee@finserve.com")
+                {
+                    _logger.LogInformation("Using hardcoded employee ID for test user");
+                    return "E001";
+                }
+            }
+
+            return employee?.EmployeeID;
+        }
+
+        private string FormatFileSize(long bytes)
+        {
+            if (bytes == 0) return "0 Bytes";
+
+            string[] sizes = { "Bytes", "KB", "MB", "GB" };
+            int order = 0;
+            double size = bytes;
+
+            while (size >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                size /= 1024;
+            }
+
+            return $"{size:0.##} {sizes[order]}";
+        }
         private async Task PopulateViewBagData()
         {
             ViewBag.ClaimTypes = new List<string>

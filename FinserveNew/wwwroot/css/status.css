@@ -79,6 +79,36 @@
         transform: translateY(-1px);
     }
 
+/* Employee Balance Button Style */
+/* Employee Balance Button Style */
+.btn-custom-info {
+    background-color: #f8f9fa !important;
+    color: #6c757d !important;
+    border: 1px solid #dee2e6 !important;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+    .btn-custom-info:hover {
+        background-color: #e9ecef !important;
+        color: #495057 !important;
+        border-color: #adb5bd !important;
+        transform: translateY(-1px);
+    }
+
+    .btn-custom-info:focus {
+        background-color: #e9ecef !important;
+        color: #495057 !important;
+        border-color: #adb5bd !important;
+        box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+    }
+
+    .btn-custom-info:active {
+        background-color: #dee2e6 !important;
+        color: #495057 !important;
+        border-color: #adb5bd !important;
+    }
+
 /* Status Alert Styles */
 .alert-pending {
     background-color: #fff3cd;
@@ -126,6 +156,39 @@
     background-color: #f8d7da !important;
     color: #721c24;
 }
+
+/* Employee Balance Section Grey Background */
+.employee-balance-section {
+    background-color: #f8f9fa !important;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+    .employee-balance-section .card {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .employee-balance-section .card-header {
+        background-color: #e9ecef;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .employee-balance-section .table {
+        background-color: #ffffff;
+    }
+
+        .employee-balance-section .table thead th {
+            background-color: #f1f3f4;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .employee-balance-section .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
 
 /* Status Border Styles */
 .border-pending {
@@ -243,8 +306,13 @@
 
     .btn-custom-pending,
     .btn-custom-approved,
-    .btn-custom-rejected {
+    .btn-custom-rejected,
+    .btn-custom-info {
         font-size: 0.875rem;
         padding: 0.375rem 0.75rem;
+    }
+
+    .employee-balance-section {
+        padding: 15px;
     }
 }

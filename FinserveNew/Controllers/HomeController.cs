@@ -18,7 +18,7 @@ namespace FinserveNew.Controllers
         {
             _logger = logger;
             _context = context;
-          
+            
         }
 
         // Default Index - redirects to appropriate dashboard based on role

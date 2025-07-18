@@ -2,167 +2,201 @@
 
 @{
     ViewData["Title"] = "Rejected Leaves";
-    Layout = "~/Views/Shared/_Layout.cshtml";
 }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Rejected Leaves</h2>
+    <div class="btn-group" role="group">
+        <a asp-action="LeaveIndex" class="btn btn-outline-primary">
+            <i class="fas fa-list me-2"></i>All Leaves
+        </a>
+        <a asp-action="PendingLeaves" class="btn btn-outline-warning">
+            <i class="fas fa-clock me-2"></i>Pending
+        </a>
+        <a asp-action="ApprovedLeaves" class="btn btn-outline-success">
+            <i class="fas fa-check me-2"></i>Approved
+        </a>
+        <a asp-action="RejectedLeaves" class="btn btn-danger">
+            <i class="fas fa-times me-2"></i>Rejected (@Model.Count())
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="form-container">
+    @if (Model != null && Model.Any())
+    {
+        <div class="alert alert-danger mb-4">
+            <i class="fas fa-times-circle me-2"></i>
+            <strong>@Model.Count() rejected leave@(Model.Count() > 1 ? "s" : "")</strong> found.
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Leave ID</th>
+                        <th>Employee ID</th>
+                        <th>Leave Type</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Duration</th>
+                        <th>Rejected Date</th>
+                        <th>Status</th>
+                        <th>Rejection Reason</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var leave in Model)
+                    {
+                        <tr>
+                            <td>
+                                <strong>#@leave.LeaveID</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">@leave.Employee.EmployeeID</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">@leave.LeaveType.TypeName</span>
+                            </td>
+                            <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
+                            <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
+                            <td>
+                                 <strong>
+                                    @{
+                                        var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
+                                    }
+                                    @duration day@(duration != 1 ? "s" : "")
+                                </strong>
+                            </td>
+                            <td>
+                                @if (leave.ApprovalDate.HasValue)
+                                {
+                                    @leave.ApprovalDate.Value.ToString("dd MMM yyyy")
+                                    <br>
+                                    <small class="text-muted">@leave.ApprovalDate.Value.ToString("HH:mm")</small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge bg-danger">@leave.Status</span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(leave.ApprovalRemarks))
+                                {
+                                    <span class="text-truncate d-inline-block" style="max-width: 150px;" title="@leave.ApprovalRemarks">
+                                        @(leave.ApprovalRemarks.Length > 30 ? leave.ApprovalRemarks.Substring(0, 30) + "..." : leave.ApprovalRemarks)
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No reason provided</span>
+                                }
+                            </td>
+                            <td>
+                                <a asp-action="LeaveDetails" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
+            <h5 class="text-muted">No rejected leaves found</h5>
+            <p class="text-muted">There are no rejected leave applications to display.</p>
+            <a asp-action="LeaveIndex" class="btn btn-primary">
+                <i class="fas fa-list me-2"></i>View All Leaves
+            </a>
+        </div>
+    }
+</div>
 
 @section Styles {
     <style>
-        /* Fix for badge visibility issues */
-        .badge-info {
-            background-color: #17a2b8 !important;
-            color: #ffffff !important;
+        /* Alert styling */
+        .alert-danger {
+            background-color: #f8d7da;
+            border-color: #f5c2c7;
+            color: #842029;
         }
-        
-        .badge-success {
-            background-color: #28a745 !important;
-            color: #ffffff !important;
+
+        .table-light th {
+            background-color: #f8f9fa;
+            border-color: #dee2e6;
+            color: #212529;
         }
-        
-        .badge-danger {
-            background-color: #dc3545 !important;
-            color: #ffffff !important;
+
+        .btn-group .btn {
+            margin-right: 2px;
         }
-        
-        .badge-secondary {
-            background-color: #6c757d !important;
-            color: #ffffff !important;
+
+            .btn-group .btn:last-child {
+                margin-right: 0;
+            }
+
+        /* Badge styling */
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.35em 0.65em;
         }
-        
-        /* Ensure text is visible in all themes */
-        .table td, .table th {
-            color: inherit !important;
-        }
-        
-        /* Alternative styling for badges */
-        .leave-type-badge {
-            background-color: #007bff;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
+
+            .badge.bg-danger {
+                background-color: #dc3545 !important;
+            }
+
+            .badge.bg-info {
+                background-color: #0dcaf0 !important;
+                color: #000 !important;
+            }
+
+            .badge.bg-secondary {
+                background-color: #6c757d !important;
+            }
+
+        /* Button styling */
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
             font-size: 0.875rem;
-            font-weight: 500;
         }
-        
-        .status-badge {
-            background-color: #dc3545;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.875rem;
-            font-weight: 500;
+
+        /* Table hover effect */
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.075);
         }
-        
-        .days-badge {
-            background-color: #6c757d;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.875rem;
-            font-weight: 500;
+
+        /* Text truncation */
+        .text-truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
     </style>
 }
-
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-times-circle"></i> Rejected Leave Applications
-                    </h3>
-                    <div class="card-tools">
-                        <span class="badge badge-danger">@Model.Count() rejected applications</span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    @if (Model.Any())
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-bordered table-hover">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>Employee</th>
-                                        <th>Leave Type</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Days</th>
-                                        <th>Rejected Date</th>
-                                        <th>Status</th>
-                                        <th>Rejection Reason</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var leave in Model)
-                                    {
-                                        <tr>
-                                            <td>
-                                                <strong>@leave.Employee.Username</strong><br>
-                                                <small class="text-muted">@leave.Employee.EmployeeID</small>
-                                            </td>
-                                            <td>
-                                                @leave.LeaveType.TypeName
-                                            </td>
-                                            <td>@leave.StartDate.ToString("dd/MM/yyyy")</td>
-                                            <td>@leave.EndDate.ToString("dd/MM/yyyy")</td>
-                                            <td>
-                                                @leave.LeaveDays days
-                                            </td>
-                                            <td>
-                                                @if (leave.ApprovalDate.HasValue)
-                                                {
-                                                    @leave.ApprovalDate.Value.ToString("dd/MM/yyyy")
-                                                    <br>
-                                        
-                                                    <small class="text-muted">@leave.ApprovalDate.Value.ToString("HH:mm")</small>
-                                                }
-                                            </td>
-                                            <td>
-                                                @leave.Status
-                                            </td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(leave.ApprovalRemarks))
-                                                {
-                                                    <small>@leave.ApprovalRemarks</small>
-                                                }
-                                                else
-                                                {
-                                                    <small class="text-muted">No reason provided</small>
-                                                }
-                                            </td>
-                                            <td>
-                                                <div class="btn-group btn-group-sm" role="group">
-                                                    <a asp-action="LeaveDetails" asp-route-id="@leave.LeaveID"
-                                                       class="btn btn-info" title="View Details">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="alert alert-info text-center">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>No rejected leave applications found.</strong>
-                        </div>
-                    }
-                </div>
-                <div class="card-footer">
-                    <a asp-action="LeaveIndex" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to All Leaves
-                    </a>
-                   
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 @section Scripts {
     <script>
@@ -170,14 +204,26 @@
             // Initialize DataTable for better functionality
             if ($('table').length > 0) {
                 $('table').DataTable({
-                    "order": [[ 5, "desc" ]], // Sort by rejection date
+                    "order": [[ 6, "desc" ]], // Sort by rejection date
                     "pageLength": 25,
                     "responsive": true,
                     "columnDefs": [
-                        { "orderable": false, "targets": 8 } // Actions column
-                    ]
+                        { "orderable": false, "targets": 9 } // Actions column
+                    ],
+                    "language": {
+                        "search": "Search leaves:",
+                        "lengthMenu": "Show _MENU_ leaves per page",
+                        "info": "Showing _START_ to _END_ of _TOTAL_ rejected leaves",
+                        "infoEmpty": "No rejected leaves found",
+                        "infoFiltered": "(filtered from _MAX_ total leaves)"
+                    }
                 });
             }
+
+            // Auto-hide success/error messages after 5 seconds
+            setTimeout(function() {
+                $('.alert-success, .alert-danger').fadeOut('slow');
+            }, 5000);
         });
     </script>
 }

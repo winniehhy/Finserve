@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250718071245_UpdateLeaveDetailsForPathMC")]
-    partial class UpdateLeaveDetailsForPathMC
+    [Migration("20250718103530_AddLeaveDetailsForMcPath")]
+    partial class AddLeaveDetailsForMcPath
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

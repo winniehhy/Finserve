@@ -172,6 +172,9 @@ namespace FinserveNew.Controllers
                 leave.EmployeeID = employeeId;
                 ModelState.Remove("EmployeeID");
 
+                // Calculate and set LeaveDays before validation
+                leave.LeaveDays = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+
                 // Validate leave type exists in database
                 if (!await IsValidLeaveTypeAsync(leave.LeaveTypeID))
                 {
@@ -816,7 +819,67 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            // ADD THIS: Check if this leave has a medical certificate or other documents
+            var leaveDetails = await _context.LeaveDetails
+                .FirstOrDefaultAsync(ld => ld.LeaveID == id);
+
+            if (leaveDetails != null)
+            {
+                ViewBag.HasMedicalCertificate = true;
+                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
+                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
+                ViewBag.MedicalCertificateUploadDate = leaveDetails.UploadDate.ToString("dd/MM/yyyy HH:mm") ?? "Unknown";
+                ViewBag.DocumentComment = leaveDetails.Comment;
+            }
+            else
+            {
+                ViewBag.HasMedicalCertificate = false;
+                ViewBag.MedicalCertificateFileName = "";
+                ViewBag.MedicalCertificateUrl = "";
+                ViewBag.MedicalCertificateUploadDate = "";
+                ViewBag.DocumentComment = "";
+            }
+
             return View("~/Views/HR/Leaves/LeaveDetails.cshtml", leave);
+        }
+
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> DownloadMedicalCertificate(int leaveId)
+        {
+            try
+            {
+                var leaveDetails = await _context.LeaveDetails
+                    .FirstOrDefaultAsync(ld => ld.LeaveID == leaveId);
+
+                if (leaveDetails == null)
+                {
+                    TempData["Error"] = "Document not found.";
+                    return RedirectToAction(nameof(LeaveDetails), new { id = leaveId });
+                }
+
+                // Construct the full file path
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", leaveDetails.DocumentPath.TrimStart('/'));
+
+                if (!System.IO.File.Exists(filePath))
+                {
+                    TempData["Error"] = "Document file not found on server.";
+                    return RedirectToAction(nameof(LeaveDetails), new { id = leaveId });
+                }
+
+                var fileName = Path.GetFileName(leaveDetails.DocumentPath);
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                var contentType = GetContentType(fileName);
+
+                _logger.LogInformation($"✅ HR downloading medical certificate: {fileName} for Leave ID: {leaveId}");
+
+                return File(fileBytes, contentType, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ Error downloading medical certificate for Leave ID: {leaveId}");
+                TempData["Error"] = "Error downloading document. Please try again.";
+                return RedirectToAction(nameof(LeaveDetails), new { id = leaveId });
+            }
         }
 
         [Authorize(Roles = "HR")]
@@ -842,6 +905,27 @@ namespace FinserveNew.Controllers
             {
                 TempData["Error"] = "This leave has already been processed.";
                 return RedirectToAction(nameof(LeaveIndex));
+            }
+
+            // ADD THIS: Check if this leave has a medical certificate
+            var leaveDetails = await _context.LeaveDetails
+                .FirstOrDefaultAsync(ld => ld.LeaveID == id);
+
+            if (leaveDetails != null)
+            {
+                ViewBag.HasMedicalCertificate = true;
+                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
+                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
+                ViewBag.MedicalCertificateUploadDate = leaveDetails.UploadDate.ToString("dd/MM/yyyy HH:mm") ?? "Unknown";
+                ViewBag.DocumentComment = leaveDetails.Comment;
+            }
+            else
+            {
+                ViewBag.HasMedicalCertificate = false;
+                ViewBag.MedicalCertificateFileName = "";
+                ViewBag.MedicalCertificateUrl = "";
+                ViewBag.MedicalCertificateUploadDate = "";
+                ViewBag.DocumentComment = "";
             }
 
             return View("~/Views/HR/Leaves/ProcessLeave.cshtml", leave);
@@ -1291,6 +1375,21 @@ namespace FinserveNew.Controllers
                 default:
                     return 0;
             }
+        }
+
+        private string GetContentType(string fileName)
+        {
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            return extension switch
+            {
+                ".pdf" => "application/pdf",
+                ".jpg" => "image/jpeg",
+                ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".doc" => "application/msword",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                _ => "application/octet-stream"
+            };
         }
 
         private async Task<bool> IsValidLeaveTypeAsync(int leaveTypeId)
