@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FinserveNew.Migrations
 {
     /// <inheritdoc />
-    public partial class InitCreate : Migration
+    public partial class UpdateLeaveDetailsForPathMC : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -98,7 +98,8 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     DefaultDaysPerYear = table.Column<int>(type: "int", nullable: false),
                     Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RequiresDocumentation = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -444,9 +445,17 @@ namespace FinserveNew.Migrations
                     EndDate = table.Column<DateOnly>(type: "date", nullable: false),
                     Reason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ApprovedBy = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    LeaveDays = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    SubmissionDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ApprovedBy = table.Column<string>(type: "varchar(450)", maxLength: 450, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ApprovalRemarks = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -579,6 +588,38 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "LeaveDetails",
+                columns: table => new
+                {
+                    LeaveDetailID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    LeaveID = table.Column<int>(type: "int", nullable: false),
+                    LeaveTypeID = table.Column<int>(type: "int", nullable: false),
+                    Comment = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DocumentPath = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    UploadDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LeaveDetails", x => x.LeaveDetailID);
+                    table.ForeignKey(
+                        name: "FK_LeaveDetails_LeaveTypes_LeaveTypeID",
+                        column: x => x.LeaveTypeID,
+                        principalTable: "LeaveTypes",
+                        principalColumn: "LeaveTypeID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_LeaveDetails_Leaves_LeaveID",
+                        column: x => x.LeaveID,
+                        principalTable: "Leaves",
+                        principalColumn: "LeaveID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "PayrollComponents",
                 columns: table => new
                 {
@@ -683,6 +724,16 @@ namespace FinserveNew.Migrations
                 column: "EmployeeID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LeaveDetails_LeaveID",
+                table: "LeaveDetails",
+                column: "LeaveID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LeaveDetails_LeaveTypeID",
+                table: "LeaveDetails",
+                column: "LeaveTypeID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Leaves_EmployeeID",
                 table: "Leaves",
                 column: "EmployeeID");
@@ -767,7 +818,7 @@ namespace FinserveNew.Migrations
                 name: "Invoices");
 
             migrationBuilder.DropTable(
-                name: "Leaves");
+                name: "LeaveDetails");
 
             migrationBuilder.DropTable(
                 name: "PayrollComponents");
@@ -788,10 +839,13 @@ namespace FinserveNew.Migrations
                 name: "Claims");
 
             migrationBuilder.DropTable(
-                name: "LeaveTypes");
+                name: "Leaves");
 
             migrationBuilder.DropTable(
                 name: "PayrollRecords");
+
+            migrationBuilder.DropTable(
+                name: "LeaveTypes");
 
             migrationBuilder.DropTable(
                 name: "PayrollBatches");

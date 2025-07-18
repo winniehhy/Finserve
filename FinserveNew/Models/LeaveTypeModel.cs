@@ -21,7 +21,11 @@ namespace FinserveNew.Models
         [MaxLength(500)]
         public string? Description { get; set; }
 
-        // Navigation Property
+        [Display(Name = "Requires Documentation")]
+        public bool RequiresDocumentation { get; set; } = false; 
+
+        // Navigation Properties
         public virtual ICollection<LeaveModel>? Leaves { get; set; }
+        public virtual ICollection<LeaveDetailsModel>? LeaveDetails { get; set; }
     }
 }

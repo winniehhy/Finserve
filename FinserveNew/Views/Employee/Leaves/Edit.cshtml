@@ -55,10 +55,7 @@
 
                     <!-- Medical Certificate Section -->
                     <div class="mb-3" id="medicalCertificateSection" style="display: none;">
-                        <div class="alert alert-info">
-                            <i class="fas fa-file-medical me-2"></i>
-                            <strong>Medical Certificate Required:</strong> Please upload an official medical certificate to support your medical leave application.
-                        </div>
+                      
 
                         <!-- Current Medical Certificate Display -->
                         <div id="currentMedicalCertificate" style="display: none;">
@@ -142,10 +139,10 @@
                     </div>
 
                     <div class="mb-3">
-                        <label asp-for="Reason" class="form-label">Reason <span class="text-danger">*</span></label>
-                        <textarea asp-for="Reason" class="form-control" id="Reason" rows="4"
-                                  placeholder="Please provide a detailed reason for your leave application" required></textarea>
-                        <span asp-validation-for="Reason" class="text-danger"></span>
+                        <label asp-for="Description" class="form-label">Description <span class="text-danger">*</span></label>
+                        <textarea asp-for="Description" class="form-control" id="Description" rows="4"
+                                  placeholder="Please provide a detailed description for your leave application" required></textarea>
+                        <span asp-validation-for="Description" class="text-danger"></span>
                     </div>
 
                     <div class="alert alert-warning">
@@ -195,7 +192,7 @@
                 </div>
                 <div class="mb-3">
                     <strong>Original Duration:</strong><br>
-                    <span class="text-muted">@((Model.EndDate.DayNumber - Model.StartDate.DayNumber) + 1) day(s)</span>
+                    <span class="text-muted">@Model.LeaveDays day(s)</span>
                 </div>
                 @if (!string.IsNullOrEmpty(Model.ApprovedBy))
                 {
@@ -547,7 +544,7 @@
                 const leaveTypeId = $('#LeaveTypeID').val();
                 const startDate = $('#StartDate').val();
                 const endDate = $('#EndDate').val();
-                const reason = $('#Reason').val().trim();
+                const description = $('#Description').val().trim();
 
                 // Check if form is valid according to HTML5 validation
                 if (!this.checkValidity()) {
@@ -593,10 +590,10 @@
                     return false;
                 }
 
-                if (!reason) {
+                if (!description) {
                     e.preventDefault();
-                    alert('Please provide a reason for your leave.');
-                    $('#Reason').focus();
+                    alert('Please provide a description for your leave.');
+                    $('#Description').focus();
                     return false;
                 }
 
@@ -642,7 +639,7 @@
             });
 
             // Auto-resize textarea
-            $('#Reason').on('input', function() {
+            $('#Description').on('input', function() {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
             });

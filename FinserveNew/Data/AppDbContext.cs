@@ -30,6 +30,8 @@ namespace FinserveNew.Data
         public DbSet<LeaveModel> Leaves { get; set; }
         public DbSet<LeaveTypeModel> LeaveTypes { get; set; }
 
+        public DbSet<LeaveDetailsModel> LeaveDetails { get; set; }
+
         // Add the missing Invoice DbSet
         public DbSet<Invoice> Invoices { get; set; }
 

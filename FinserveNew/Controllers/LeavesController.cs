@@ -26,6 +26,13 @@ namespace FinserveNew.Controllers
         {
             var currentUser = await _userManager.GetUserAsync(User);
 
+            // Add null check BEFORE accessing properties
+            if (currentUser == null)
+            {
+                _logger.LogWarning("No authenticated user found");
+                return null; // or throw an exception
+            }
+
             _logger.LogInformation($"Current user: {currentUser.UserName}, Email: {currentUser.Email}");
 
             var employee = await _context.Employees
@@ -95,8 +102,27 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            // ADD THIS: Check if this leave has a medical certificate
+            var leaveDetails = await _context.LeaveDetails
+                .FirstOrDefaultAsync(ld => ld.LeaveID == id);
+
+            if (leaveDetails != null)
+            {
+                ViewBag.HasMedicalCertificate = true;
+                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
+                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
+                ViewBag.MedicalCertificateUploadDate = leaveDetails.UploadDate.ToString("dd/MM/yyyy HH:mm") ?? "Unknown";
+            }
+            else
+            {
+                ViewBag.HasMedicalCertificate = false;
+                ViewBag.MedicalCertificateFileName = "";
+                ViewBag.MedicalCertificateUrl = "";
+                ViewBag.MedicalCertificateUploadDate = "";
+            }
+
             return View("~/Views/Employee/Leaves/Details.cshtml", leave);
-        }
+        } 
 
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Create()
@@ -126,7 +152,7 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Create(LeaveModel leave)
+        public async Task<IActionResult> Create(LeaveModel leave, IFormFile? MedicalCertificate)
         {
             _logger.LogInformation("🚀 CREATE LEAVE POST started");
             _logger.LogInformation($"📝 Received leave data: Type={leave.LeaveTypeID}, Start={leave.StartDate}, End={leave.EndDate}");
@@ -153,6 +179,33 @@ namespace FinserveNew.Controllers
                     _logger.LogWarning($"❌ Invalid leave type: {leave.LeaveTypeID}");
                 }
 
+                // Check if medical leave and validate medical certificate
+                var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeID);
+                if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical"))
+                {
+                    if (MedicalCertificate == null || MedicalCertificate.Length == 0)
+                    {
+                        ModelState.AddModelError("MedicalCertificate", "Medical certificate is required for medical leave.");
+                        _logger.LogWarning("❌ Medical certificate missing for medical leave");
+                    }
+                    else
+                    {
+                        // Validate file type and size
+                        var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                        var fileExtension = Path.GetExtension(MedicalCertificate.FileName).ToLower();
+
+                        if (!allowedExtensions.Contains(fileExtension))
+                        {
+                            ModelState.AddModelError("MedicalCertificate", "Invalid file type. Please upload PDF, JPG, PNG, DOC, or DOCX files only.");
+                        }
+
+                        if (MedicalCertificate.Length > 5 * 1024 * 1024) // 5MB limit
+                        {
+                            ModelState.AddModelError("MedicalCertificate", "File size exceeds 5MB limit.");
+                        }
+                    }
+                }
+
                 // Validate leave balance
                 var currentYear = DateTime.Now.Year;
                 var leaveDays = leave.LeaveDays;
@@ -160,7 +213,6 @@ namespace FinserveNew.Controllers
 
                 if (!hasBalance)
                 {
-                    var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeID);
                     var balance = await GetRemainingLeaveBalanceAsync(leave.EmployeeID, leave.LeaveTypeID, currentYear);
                     ModelState.AddModelError("", $"Insufficient {leaveType?.TypeName} balance. You have {balance} days remaining but requested {leaveDays} days.");
                 }
@@ -174,10 +226,55 @@ namespace FinserveNew.Controllers
                     leave.CreatedDate = DateTime.Now;
                     leave.SubmissionDate = DateTime.Now;
 
+                    // Save the leave first
                     _context.Leaves.Add(leave);
                     await _context.SaveChangesAsync();
 
                     _logger.LogInformation($"✅ Leave saved successfully with ID: {leave.LeaveID}");
+
+                    // Handle medical certificate upload if provided
+                    if (MedicalCertificate != null && MedicalCertificate.Length > 0)
+                    {
+                        try
+                        {
+                            // Create uploads directory if it doesn't exist
+                            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "medical-certificates");
+                            if (!Directory.Exists(uploadsPath))
+                            {
+                                Directory.CreateDirectory(uploadsPath);
+                            }
+
+                            // Generate unique filename
+                            var fileName = $"{leave.LeaveID}_{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileName(MedicalCertificate.FileName)}";
+                            var filePath = Path.Combine(uploadsPath, fileName);
+
+                            // Save the file
+                            using (var stream = new FileStream(filePath, FileMode.Create))
+                            {
+                                await MedicalCertificate.CopyToAsync(stream);
+                            }
+
+                            // Create LeaveDetails record
+                            var leaveDetails = new LeaveDetailsModel
+                            {
+                                LeaveID = leave.LeaveID,
+                                LeaveTypeID = leave.LeaveTypeID,
+                                Comment = "Medical certificate uploaded",
+                                DocumentPath = $"/uploads/medical-certificates/{fileName}"
+                            };
+
+                            _context.LeaveDetails.Add(leaveDetails);
+                            await _context.SaveChangesAsync();
+
+                            _logger.LogInformation($"✅ Medical certificate uploaded and saved: {fileName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "💥 Error uploading medical certificate");
+                            // Don't fail the entire operation, just log the error
+                            TempData["Warning"] = "Leave application submitted, but there was an issue uploading the medical certificate. Please contact support.";
+                        }
+                    }
 
                     TempData["Success"] = "Leave application submitted successfully!";
                     return RedirectToAction(nameof(LeaveRecords));
@@ -225,15 +322,25 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
+            {
                 return NotFound();
+            }
 
             var employeeId = await GetCurrentEmployeeId();
             if (string.IsNullOrEmpty(employeeId))
+            {
                 return NotFound();
+            }
 
-            var leave = await _context.Leaves.FindAsync(id);
-            if (leave == null || leave.EmployeeID != employeeId)
+            var leave = await _context.Leaves
+                .Include(l => l.Employee)
+                .Include(l => l.LeaveType)
+                .FirstOrDefaultAsync(m => m.LeaveID == id && m.EmployeeID == employeeId);
+
+            if (leave == null)
+            {
                 return NotFound();
+            }
 
             // Only allow editing if status is Pending
             if (leave.Status != "Pending")
@@ -242,12 +349,30 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(LeaveRecords));
             }
 
+            // Populate leave types dropdown
             await PopulateLeaveTypeDropdownAsync();
 
-            // Calculate dynamic leave balances
+            // Calculate leave balances for the view
             var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
             ViewBag.LeaveBalances = leaveBalances;
             PopulateLeaveBalanceViewBag(leaveBalances);
+
+            // Check if this leave has a medical certificate
+            var leaveDetails = await _context.LeaveDetails
+                .FirstOrDefaultAsync(ld => ld.LeaveID == id);
+
+            if (leaveDetails != null)
+            {
+                ViewBag.HasMedicalCertificate = true;
+                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
+                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
+            }
+            else
+            {
+                ViewBag.HasMedicalCertificate = false;
+                ViewBag.MedicalCertificateFileName = "";
+                ViewBag.MedicalCertificateUrl = "";
+            }
 
             return View("~/Views/Employee/Leaves/Edit.cshtml", leave);
         }
@@ -255,7 +380,7 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Edit(int id, LeaveModel leave)
+        public async Task<IActionResult> Edit(int id, LeaveModel leave, IFormFile? MedicalCertificate)
         {
             if (id != leave.LeaveID)
                 return NotFound();
@@ -281,6 +406,35 @@ namespace FinserveNew.Controllers
                 ModelState.AddModelError("LeaveTypeID", "Please select a valid leave type.");
             }
 
+            // Check if medical leave and validate medical certificate
+            var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeID);
+            var existingLeaveDetails = await _context.LeaveDetails.FirstOrDefaultAsync(ld => ld.LeaveID == id);
+
+            if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical"))
+            {
+                // If no existing medical certificate and no new one uploaded
+                if (existingLeaveDetails == null && (MedicalCertificate == null || MedicalCertificate.Length == 0))
+                {
+                    ModelState.AddModelError("MedicalCertificate", "Medical certificate is required for medical leave.");
+                }
+                else if (MedicalCertificate != null && MedicalCertificate.Length > 0)
+                {
+                    // Validate new uploaded file
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                    var fileExtension = Path.GetExtension(MedicalCertificate.FileName).ToLower();
+
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        ModelState.AddModelError("MedicalCertificate", "Invalid file type. Please upload PDF, JPG, PNG, DOC, or DOCX files only.");
+                    }
+
+                    if (MedicalCertificate.Length > 5 * 1024 * 1024) // 5MB limit
+                    {
+                        ModelState.AddModelError("MedicalCertificate", "File size exceeds 5MB limit.");
+                    }
+                }
+            }
+
             // Validate leave balance for updated leave
             var currentYear = DateTime.Now.Year;
             var leaveDays = leave.LeaveDays;
@@ -290,7 +444,6 @@ namespace FinserveNew.Controllers
 
             if (!hasBalance)
             {
-                var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeID);
                 var balance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear, excludeLeaveId: id);
                 ModelState.AddModelError("", $"Insufficient {leaveType?.TypeName} balance. You have {balance} days remaining but requested {leaveDays} days.");
             }
@@ -305,6 +458,73 @@ namespace FinserveNew.Controllers
                     leaveToUpdate.EndDate = leave.EndDate;
                     leaveToUpdate.LeaveDays = leave.LeaveDays;
                     leaveToUpdate.Description = leave.Description;
+
+                    // Handle medical certificate upload if provided
+                    if (MedicalCertificate != null && MedicalCertificate.Length > 0)
+                    {
+                        try
+                        {
+                            // Create uploads directory if it doesn't exist
+                            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "medical-certificates");
+                            if (!Directory.Exists(uploadsPath))
+                            {
+                                Directory.CreateDirectory(uploadsPath);
+                            }
+
+                            // Generate unique filename
+                            var fileName = $"{leave.LeaveID}_{DateTime.Now:yyyyMMdd_HHmmss}_{Path.GetFileName(MedicalCertificate.FileName)}";
+                            var filePath = Path.Combine(uploadsPath, fileName);
+
+                            // Save the file
+                            using (var stream = new FileStream(filePath, FileMode.Create))
+                            {
+                                await MedicalCertificate.CopyToAsync(stream);
+                            }
+
+                            // Update or create LeaveDetails record
+                            if (existingLeaveDetails != null)
+                            {
+                                // Delete old file if it exists
+                                var oldFilePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", existingLeaveDetails.DocumentPath.TrimStart('/'));
+                                if (System.IO.File.Exists(oldFilePath))
+                                {
+                                    System.IO.File.Delete(oldFilePath);
+                                }
+
+                                // Update existing record
+                                existingLeaveDetails.DocumentPath = $"/uploads/medical-certificates/{fileName}";
+                                existingLeaveDetails.Comment = "Medical certificate updated";
+                                existingLeaveDetails.LeaveTypeID = leave.LeaveTypeID;
+                            }
+                            else
+                            {
+                                // Create new record
+                                var leaveDetails = new LeaveDetailsModel
+                                {
+                                    LeaveID = leave.LeaveID,
+                                    LeaveTypeID = leave.LeaveTypeID,
+                                    Comment = "Medical certificate uploaded",
+                                    DocumentPath = $"/uploads/medical-certificates/{fileName}"
+                                };
+                                _context.LeaveDetails.Add(leaveDetails);
+                            }
+
+                            _logger.LogInformation($"✅ Medical certificate updated: {fileName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "💥 Error uploading medical certificate");
+                            ModelState.AddModelError("", "Error uploading medical certificate. Please try again.");
+                            await PopulateLeaveTypeDropdownAsync();
+
+                            // Recalculate leave balances
+                            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+                            ViewBag.LeaveBalances = leaveBalances;
+                            PopulateLeaveBalanceViewBag(leaveBalances);
+
+                            return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
+                        }
+                    }
 
                     await _context.SaveChangesAsync();
                     TempData["Success"] = "Leave updated successfully!";
@@ -331,9 +551,9 @@ namespace FinserveNew.Controllers
             await PopulateLeaveTypeDropdownAsync();
 
             // Recalculate leave balances
-            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
-            ViewBag.LeaveBalances = leaveBalances;
-            PopulateLeaveBalanceViewBag(leaveBalances);
+            var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+            ViewBag.LeaveBalances = currentLeaveBalances;
+            PopulateLeaveBalanceViewBag(currentLeaveBalances);
 
             return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
         }

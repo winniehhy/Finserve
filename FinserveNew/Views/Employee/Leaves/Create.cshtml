@@ -52,16 +52,16 @@
                             <i class="fas fa-file-medical me-2"></i>
                             <strong>Medical Certificate Required:</strong> Please upload an official medical certificate to support your medical leave application.
                         </div>
-
+                        
                         <label class="form-label">Medical Certificate <span class="text-danger">*</span></label>
-                        <input type="file" name="MedicalCertificate" id="MedicalCertificate"
+                        <input type="file" name="MedicalCertificate" id="MedicalCertificate" 
                                class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
                         <div class="form-text">
                             <i class="fas fa-info-circle me-1"></i>
                             Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max size: 5MB)
                         </div>
                         <span id="medicalCertificateError" class="text-danger" style="display: none;"></span>
-
+                        
                         <!-- File preview area -->
                         <div id="filePreview" class="mt-2" style="display: none;">
                             <div class="border rounded p-2 bg-light">
@@ -229,18 +229,18 @@
 
                 const fileName = file.name.toLowerCase();
                 const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
-
+                
                 if (!allowedExtensions.includes(fileExtension)) {
-                    return {
-                        isValid: false,
-                        message: 'Invalid file type. Please select PDF, JPG, PNG, DOC, or DOCX files only.'
+                    return { 
+                        isValid: false, 
+                        message: 'Invalid file type. Please select PDF, JPG, PNG, DOC, or DOCX files only.' 
                     };
                 }
 
                 if (file.size > maxFileSize) {
-                    return {
-                        isValid: false,
-                        message: 'File size exceeds 5MB limit. Please select a smaller file.'
+                    return { 
+                        isValid: false, 
+                        message: 'File size exceeds 5MB limit. Please select a smaller file.' 
                     };
                 }
 
@@ -264,7 +264,7 @@
 
                 if (file) {
                     const validation = validateFile(file);
-
+                    
                     if (!validation.isValid) {
                         errorSpan.text(validation.message).show();
                         filePreview.hide();

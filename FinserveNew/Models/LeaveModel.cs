@@ -68,6 +68,9 @@ namespace FinserveNew.Models
         [ForeignKey("LeaveTypeID")]
         public virtual LeaveTypeModel? LeaveType { get; set; }
 
+        // Add navigation property for LeaveDetails
+        public virtual ICollection<LeaveDetailsModel>? LeaveDetails { get; set; }
+
         // Calculated property for leave duration (as backup)
         [NotMapped]
         public int CalculatedLeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;

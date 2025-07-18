@@ -482,6 +482,42 @@ namespace FinserveNew.Migrations
                     b.ToTable("Roles");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
+                {
+                    b.Property<int>("LeaveDetailID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LeaveDetailID"));
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("DocumentPath")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("LeaveID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LeaveTypeID")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UploadDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("LeaveDetailID");
+
+                    b.HasIndex("LeaveID");
+
+                    b.HasIndex("LeaveTypeID");
+
+                    b.ToTable("LeaveDetails");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
                 {
                     b.Property<int>("LeaveID")
@@ -560,6 +596,9 @@ namespace FinserveNew.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("RequiresDocumentation")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("TypeName")
                         .IsRequired()
@@ -951,6 +990,25 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
+                {
+                    b.HasOne("FinserveNew.Models.LeaveModel", "Leave")
+                        .WithMany("LeaveDetails")
+                        .HasForeignKey("LeaveID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinserveNew.Models.LeaveTypeModel", "LeaveType")
+                        .WithMany("LeaveDetails")
+                        .HasForeignKey("LeaveTypeID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Leave");
+
+                    b.Navigation("LeaveType");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
                 {
                     b.HasOne("FinserveNew.Models.Employee", "Employee")
@@ -1079,8 +1137,15 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employees");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
+                {
+                    b.Navigation("LeaveDetails");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.LeaveTypeModel", b =>
                 {
+                    b.Navigation("LeaveDetails");
+
                     b.Navigation("Leaves");
                 });
 
