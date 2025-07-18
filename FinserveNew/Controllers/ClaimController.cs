@@ -338,7 +338,7 @@ namespace FinserveNew.Controllers
         }
 
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> HRDetails(int? id)
+        public async Task<IActionResult> ClaimDetails(int? id)
         {
             if (id == null)
             {

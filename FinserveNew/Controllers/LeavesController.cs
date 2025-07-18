@@ -394,7 +394,7 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(LeaveRecords));
         }
 
-        // Add this method to your LeavesController class
+        // reflect leave balance in Dashboard
 
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Dashboard()
@@ -403,7 +403,6 @@ namespace FinserveNew.Controllers
             {
                 // Get current employee ID
                 var employeeId = await GetCurrentEmployeeId();
-
                 if (string.IsNullOrEmpty(employeeId))
                 {
                     TempData["Error"] = "Employee record not found.";
@@ -412,7 +411,7 @@ namespace FinserveNew.Controllers
 
                 var currentYear = DateTime.Now.Year;
 
-                // Calculate leave balances
+                // Calculate leave balances - USE THE SAME METHOD AS LeaveRecords
                 var leaveBalances = await CalculateLeaveBalancesAsync(employeeId, currentYear);
 
                 // Calculate total days used and remaining
@@ -445,25 +444,122 @@ namespace FinserveNew.Controllers
                     .Where(l => l.EmployeeID == employeeId && l.Status == "Pending")
                     .CountAsync();
 
-                // Set ViewBag properties
+                // ✅ ADD MISSING CLAIMS DATA
+                var claims = await _context.Claims
+                    .Where(c => c.EmployeeID == employeeId)
+                    .ToListAsync();
+
+                var recentClaims = claims
+                    .OrderByDescending(c => c.CreatedDate)
+                    .Take(5)
+                    .ToList();
+
+                var totalClaimsCount = claims.Count;
+                var approvedClaimsCount = claims.Count(c => c.Status == "Approved");
+                var pendingClaimsCount = claims.Count(c => c.Status == "Pending");
+                var totalClaimAmount = claims.Where(c => c.Status == "Approved").Sum(c => c.ClaimAmount);
+                var approvalRate = totalClaimsCount > 0 ? (approvedClaimsCount * 100.0 / totalClaimsCount) : 0;
+
+                // ✅ ENHANCED: Get approved leave dates for ENTIRE YEAR and organize by month
+                var approvedLeaves = await _context.Leaves
+                    .Where(l => l.EmployeeID == employeeId &&
+                               l.Status == "Approved" &&
+                               (l.StartDate.Year == currentYear || l.EndDate.Year == currentYear))
+                    .ToListAsync();
+
+                // ✅ ENHANCED: Create comprehensive calendar data for entire year
+                var calendarData = new Dictionary<string, List<int>>();
+
+                // Initialize all months for current year
+                for (int month = 1; month <= 12; month++)
+                {
+                    var monthKey = $"{currentYear}-{month:D2}";
+                    calendarData[monthKey] = new List<int>();
+                }
+
+                // Add leave dates to calendar data
+                foreach (var leave in approvedLeaves)
+                {
+                    var startDate = leave.StartDate;
+                    var endDate = leave.EndDate;
+
+                    for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                    {
+                        if (date.Year == currentYear)
+                        {
+                            var monthKey = $"{date.Year}-{date.Month:D2}";
+                            if (calendarData.ContainsKey(monthKey))
+                            {
+                                calendarData[monthKey].Add(date.Day);
+                            }
+                        }
+                    }
+                }
+
+                // Remove duplicates and sort
+                foreach (var key in calendarData.Keys.ToList())
+                {
+                    calendarData[key] = calendarData[key].Distinct().OrderBy(d => d).ToList();
+                }
+
+                // ✅ Set ALL ViewBag properties
                 ViewBag.LeaveBalances = leaveBalances;
                 ViewBag.TotalLeaveDaysUsed = totalDaysUsed;
                 ViewBag.TotalRemainingLeave = totalRemainingDays;
                 ViewBag.TotalDefaultDays = totalDefaultDays;
                 ViewBag.CurrentYear = currentYear;
+                ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
                 ViewBag.RecentLeaves = recentLeaves;
                 ViewBag.PendingRequestsCount = pendingRequestsCount;
 
-                // Populate individual ViewBag properties for specific leave types
+                // ✅ NEW: Enhanced calendar data
+                ViewBag.CalendarData = calendarData;
+                ViewBag.CurrentMonthIndex = DateTime.Now.Month;
+
+                // ✅ ADD MISSING CLAIMS ViewBag PROPERTIES
+                ViewBag.TotalClaims = totalClaimsCount;
+                ViewBag.ApprovedClaims = approvedClaimsCount;
+                ViewBag.PendingClaims = pendingClaimsCount;
+                ViewBag.ApprovalRate = Math.Round(approvalRate, 1);
+                ViewBag.TotalClaimAmount = totalClaimAmount;
+                ViewBag.RecentClaims = recentClaims;
+
+                // For leaves specifically
+                ViewBag.PendingLeaves = pendingRequestsCount;
+
+                // This ensures the Dashboard uses the same data as LeaveRecords
                 PopulateLeaveBalanceViewBag(leaveBalances);
 
                 _logger.LogInformation($"✅ Dashboard loaded successfully for employee {employeeId}");
-
                 return View("~/Views/Employee/Dashboard.cshtml");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "💥 Error loading dashboard");
+
+                // ✅ SET DEFAULT VALUES FOR ALL ViewBag PROPERTIES TO PREVENT NULL ERRORS
+                ViewBag.LeaveBalances = new Dictionary<string, object>();
+                ViewBag.TotalLeaveDaysUsed = 0;
+                ViewBag.TotalRemainingLeave = 0;
+                ViewBag.TotalDefaultDays = 0;
+                ViewBag.CurrentYear = DateTime.Now.Year;
+                ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
+                ViewBag.RecentLeaves = new List<LeaveModel>();
+                ViewBag.PendingRequestsCount = 0;
+
+                // Calendar defaults
+                ViewBag.CalendarData = new Dictionary<string, List<int>>();
+                ViewBag.CurrentMonthIndex = DateTime.Now.Month;
+
+                // Claims defaults
+                ViewBag.TotalClaims = 0;
+                ViewBag.ApprovedClaims = 0;
+                ViewBag.PendingClaims = 0;
+                ViewBag.ApprovalRate = 0;
+                ViewBag.TotalClaimAmount = 0;
+                ViewBag.RecentClaims = new List<Claim>();
+                ViewBag.PendingLeaves = 0;
+
                 TempData["Error"] = "An error occurred while loading the dashboard.";
                 return View("~/Views/Employee/Dashboard.cshtml");
             }
@@ -654,8 +750,8 @@ namespace FinserveNew.Controllers
                     return NotFound();
                 }
 
-                // Get employee's leave balance
-                var leaveBalances = await GetEmployeeLeaveBalance(employeeId);
+                // Use the same method as Dashboard and LeaveRecords
+                var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
 
                 // Get all leave applications for this employee
                 var employeeLeaveApplications = await _context.Leaves
@@ -673,13 +769,13 @@ namespace FinserveNew.Controllers
             }
             else
             {
-                // Show all employees - existing code
+                // Show all employees - use the same method for consistency
                 var employees = await _context.Employees.ToListAsync();
                 var allEmployeeBalances = new Dictionary<string, Dictionary<string, object>>();
 
                 foreach (var emp in employees)
                 {
-                    var balances = await GetEmployeeLeaveBalance(emp.EmployeeID);
+                    var balances = await CalculateLeaveBalancesAsync(emp.EmployeeID);
                     allEmployeeBalances[emp.EmployeeID] = balances;
                 }
 
@@ -690,7 +786,7 @@ namespace FinserveNew.Controllers
             }
         }
 
-         
+
 
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> LeaveReports()
@@ -824,16 +920,18 @@ namespace FinserveNew.Controllers
                     var usedDays = 0;
                     foreach (var leave in approvedLeaves)
                     {
+                        // Use LeaveDays if available, otherwise calculate from dates
                         var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
-                                          (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
+                                          (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                         usedDays += leaveDuration;
                     }
 
                     var pendingDays = 0;
                     foreach (var leave in pendingLeaves)
                     {
+                        // Use LeaveDays if available, otherwise calculate from dates
                         var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
-                                          (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
+                                          (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                         pendingDays += leaveDuration;
                     }
 
@@ -849,6 +947,8 @@ namespace FinserveNew.Controllers
                         RemainingDays = Math.Max(0, remainingDays)
                     };
                 }
+
+                _logger.LogInformation($"🧮 Calculated balances: {string.Join(", ", leaveBalances.Select(b => $"{b.Key}: {((dynamic)b.Value).RemainingDays}/{((dynamic)b.Value).DefaultDays}"))}");
             }
             catch (Exception ex)
             {

@@ -141,6 +141,9 @@
                             <td>
                                 @if (leave.Status == "Pending")
                                 {
+                                     <a asp-action="Details" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     <a asp-action="Edit" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-success" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
@@ -150,7 +153,9 @@
                                 }
                                 else
                                 {
-                                    <span class="text-muted">No actions available</span>
+                                     <a asp-action="Details" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                 }
                             </td>
                         </tr>
