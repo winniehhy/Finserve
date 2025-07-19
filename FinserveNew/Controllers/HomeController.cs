@@ -42,30 +42,161 @@ namespace FinserveNew.Controllers
         }
 
         // Admin Dashboard - Only accessible by Admin
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AdminDashboard()
-        {
-            ViewData["Title"] = "Admin Dashboard";
-            ViewData["UserRole"] = "Admin";
-
-            // TODO: Add admin-specific dashboard data here
-            // Example:
-            // ViewBag.TotalEmployees = await _context.Employees.CountAsync();
-            // ViewBag.TotalInvoices = await _context.Invoices.CountAsync();
-
-            return View("~/Views/Admins/Dashboard.cshtml");
-        }
-
-        // HR Dashboard - Only accessible by HR
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> HRDashboard()
         {
-            ViewData["Title"] = "HR Dashboard";
-            ViewData["UserRole"] = "HR";
+            try
+            {
+                ViewData["Title"] = "HR Dashboard";
+                ViewData["UserRole"] = "HR";
 
-            // 
+                var currentYear = DateTime.Now.Year;
+                var currentMonth = DateTime.Now.Month;
 
-            return View("~/Views/HR/Dashboard.cshtml");
+                // Get all employees count
+                var totalEmployees = await _context.Employees.CountAsync();
+                var activeEmployees = await _context.Employees
+                    .Where(e => e.ResignationDate == null || e.ResignationDate > DateOnly.FromDateTime(DateTime.Now))
+                    .CountAsync();
+
+                // Get leave statistics
+                var totalPendingLeaves = await _context.Leaves
+                    .Where(l => l.Status == "Pending")
+                    .CountAsync();
+
+                var totalApprovedLeaves = await _context.Leaves
+                    .Where(l => l.Status == "Approved" && l.StartDate.Year == currentYear)
+                    .CountAsync();
+
+                var recentLeaveApplications = await _context.Leaves
+                    .Include(l => l.Employee)
+                    .Include(l => l.LeaveType)
+                    .OrderByDescending(l => l.CreatedDate)
+                    .Take(5)
+                    .ToListAsync();
+
+                // Get claims statistics
+                var totalPendingClaims = await _context.Claims
+                    .Where(c => c.Status == "Pending")
+                    .CountAsync();
+
+                var totalApprovedClaims = await _context.Claims
+                    .Where(c => c.Status == "Approved" && c.CreatedDate.Year == currentYear)
+                    .CountAsync();
+
+                var totalClaimAmount = await _context.Claims
+                    .Where(c => c.Status == "Approved" && c.CreatedDate.Year == currentYear)
+                    .SumAsync(c => c.ClaimAmount);
+
+                var recentClaimApplications = await _context.Claims
+                    .OrderByDescending(c => c.CreatedDate)
+                    .Take(5)
+                    .ToListAsync();
+
+                // Get payroll statistics
+                var currentPayrollBatch = await _context.PayrollBatches
+                    .Where(b => b.Year == currentYear && b.Month == currentMonth)
+                    .FirstOrDefaultAsync();
+
+                // Get employees by department/status - FIX THE ISSUE HERE
+                var employeesByStatus = await _context.Employees
+                    .GroupBy(e => e.ConfirmationStatus)
+                    .Select(g => new { Status = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                // Convert to a list of objects that can be safely cast - KEEP ONLY THIS ONE
+                var employeeStatusList = employeesByStatus.Select(x => new
+                {
+                    Status = x.Status,
+                    Count = x.Count
+                }).Cast<object>().ToList();
+
+                // Calendar data for HR - show all approved leaves
+                var allApprovedLeaves = await _context.Leaves
+                    .Include(l => l.Employee)
+                    .Where(l => l.Status == "Approved" &&
+                               (l.StartDate.Year == currentYear || l.EndDate.Year == currentYear))
+                    .ToListAsync();
+
+                var calendarData = new Dictionary<string, List<object>>();
+
+                // Initialize all months for current year
+                for (int month = 1; month <= 12; month++)
+                {
+                    var monthKey = $"{currentYear}-{month:D2}";
+                    calendarData[monthKey] = new List<object>();
+                }
+
+                // Add leave dates to calendar data with employee info
+                foreach (var leave in allApprovedLeaves)
+                {
+                    var startDate = leave.StartDate;
+                    var endDate = leave.EndDate;
+
+                    for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                    {
+                        if (date.Year == currentYear)
+                        {
+                            var monthKey = $"{date.Year}-{date.Month:D2}";
+                            if (calendarData.ContainsKey(monthKey))
+                            {
+                                calendarData[monthKey].Add(new
+                                {
+                                    Day = date.Day,
+                                    EmployeeName = $"{leave.Employee?.FirstName} {leave.Employee?.LastName}",
+                                    LeaveType = leave.LeaveType?.TypeName ?? "Leave"
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Set ViewBag properties - USE ONLY THE CONVERTED LIST
+                ViewBag.TotalEmployees = totalEmployees;
+                ViewBag.ActiveEmployees = activeEmployees;
+                ViewBag.TotalPendingLeaves = totalPendingLeaves;
+                ViewBag.TotalApprovedLeaves = totalApprovedLeaves;
+                ViewBag.TotalPendingClaims = totalPendingClaims;
+                ViewBag.TotalApprovedClaims = totalApprovedClaims;
+                ViewBag.TotalClaimAmount = totalClaimAmount;
+                ViewBag.RecentLeaveApplications = recentLeaveApplications;
+                ViewBag.RecentClaimApplications = recentClaimApplications;
+                ViewBag.CurrentPayrollStatus = currentPayrollBatch?.Status ?? "Not Started";
+                ViewBag.CurrentPayrollBatch = currentPayrollBatch;
+                ViewBag.EmployeesByStatus = employeeStatusList; // USE ONLY THIS ONE - REMOVE THE DUPLICATE
+                ViewBag.CalendarData = calendarData;
+                ViewBag.CurrentYear = currentYear;
+                ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
+                ViewBag.CurrentMonthIndex = DateTime.Now.Month;
+
+                _logger.LogInformation($"✅ HR Dashboard loaded successfully");
+                return View("~/Views/HR/Dashboard.cshtml");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "💥 Error loading HR dashboard");
+
+                // Set default values
+                ViewBag.TotalEmployees = 0;
+                ViewBag.ActiveEmployees = 0;
+                ViewBag.TotalPendingLeaves = 0;
+                ViewBag.TotalApprovedLeaves = 0;
+                ViewBag.TotalPendingClaims = 0;
+                ViewBag.TotalApprovedClaims = 0;
+                ViewBag.TotalClaimAmount = 0;
+                ViewBag.RecentLeaveApplications = new List<LeaveModel>();
+                ViewBag.RecentClaimApplications = new List<Claim>();
+                ViewBag.CurrentPayrollStatus = "Error";
+                ViewBag.CurrentPayrollBatch = null;
+                ViewBag.EmployeesByStatus = new List<object>();
+                ViewBag.CalendarData = new Dictionary<string, List<object>>();
+                ViewBag.CurrentYear = DateTime.Now.Year;
+                ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
+                ViewBag.CurrentMonthIndex = DateTime.Now.Month;
+
+                TempData["Error"] = "An error occurred while loading the dashboard.";
+                return View("~/Views/HR/Dashboard.cshtml");
+            }
         }
 
         // Employee Dashboard - Only accessible by Employee
