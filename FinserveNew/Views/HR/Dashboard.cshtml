@@ -3,9 +3,613 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!-- Your HR Dashboard content here -->
+<!-- Dashboard Content -->
 <div class="dashboard-container">
-    <h1>HR Dashboard</h1>
-    <p>Welcome to the HR Dashboard</p>
-    <!-- Add your HR-specific dashboard content -->
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-users-cog me-2"></i>
+                    HR Dashboard
+                </h1>
+                <p class="page-subtitle">Welcome back, @User.Identity.Name | @ViewBag.CurrentMonth</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary" onclick="exportReport()">
+                    <i class="fas fa-download me-2"></i>Export Report
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-plus me-2"></i>Quick Action
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="@Url.Action("AllAccounts", "Employees")">Manage Employees</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("LeaveIndex", "Leaves")">Review Leave Applications</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("HRIndex", "Claim")">Review Claims</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("Dashboard", "Payroll")">Process Payroll</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.TotalEmployees</div>
+                    <div class="stat-label">Total Employees</div>
+                    <div class="stat-change positive">
+                        <i class="fas fa-user-check"></i> @ViewBag.ActiveEmployees active
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="fas fa-calendar-times"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.TotalPendingLeaves</div>
+                    <div class="stat-label">Pending Leaves</div>
+                    <div class="stat-change @(ViewBag.TotalPendingLeaves > 5 ? "negative" : "neutral")">
+                        <i class="fas fa-@(ViewBag.TotalPendingLeaves > 5 ? "exclamation-triangle" : "clock")"></i>
+                        @(ViewBag.TotalPendingLeaves > 5 ? "Needs attention" : "Under control")
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="fas fa-file-medical"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.TotalPendingClaims</div>
+                    <div class="stat-label">Pending Claims</div>
+                    <div class="stat-change neutral">
+                        <i class="fas fa-money-bill-wave"></i> RM @ViewBag.TotalClaimAmount.ToString("N0")
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.CurrentPayrollStatus</div>
+                    <div class="stat-label">Payroll Status</div>
+                    <div class="stat-change @(ViewBag.CurrentPayrollStatus == "Completed" ? "positive" : ViewBag.CurrentPayrollStatus == "Processing" ? "neutral" : "negative")">
+                        <i class="fas fa-@(ViewBag.CurrentPayrollStatus == "Completed" ? "check" : ViewBag.CurrentPayrollStatus == "Processing" ? "spinner" : "clock")"></i>
+                        @(ViewBag.CurrentPayrollStatus == "Not Started" ? "Ready to start" : ViewBag.CurrentPayrollStatus)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="@Url.Action("AllAccounts", "Accounts")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-primary">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Manage Employees</h6>
+                                    <p>View and manage staff</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="@Url.Action("LeaveIndex", "Leaves")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-warning">
+                                    <i class="fas fa-calendar-check"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Review Leaves</h6>
+                                    <p>Approve/reject requests</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="@Url.Action("HRIndex", "Claim")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-info">
+                                    <i class="fas fa-file-medical"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Review Claims</h6>
+                                    <p>Process claim requests</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="@Url.Action("Dashboard", "Payroll")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-success">
+                                    <i class="fas fa-calculator"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Process Payroll</h6>
+                                    <p>Manage monthly payroll</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Claims -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-medical me-2"></i>Recent Claims
+                    </h5>
+                    <a href="@Url.Action("HRIndex", "Claim")" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.RecentClaimApplications != null && ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaimApplications).Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Claim ID</th>
+                                        <th>Employee</th>
+                                        <th>Type</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaimApplications)
+                                    {
+                                        <tr>
+                                            <td>@claim.CreatedDate.ToString("dd MMM, yyyy")</td>
+                                            <td>#CLM-@claim.Id.ToString("D3")</td>
+                                            <td>@(claim.EmployeeID ?? "N/A")</td>
+                                            <td>@claim.ClaimType</td>
+                                            <td>RM @claim.ClaimAmount.ToString("N2")</td>
+                                            <td>
+                                                <span class="badge bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : claim.Status == "Processing" ? "info" : "danger")">
+                                                    @claim.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="@Url.Action("ClaimDetails", "Claim", new { id = claim.Id })" class="btn btn-sm btn-outline-primary">View</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No recent claims</p>
+                            <a href="@Url.Action("Index", "Claim")" class="btn btn-info">View All Claims</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        
+
+            <!-- Recent Leave Applications -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Recent Leave Applications
+                    </h5>
+                    <a href="@Url.Action("LeaveIndex", "Leaves")" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.RecentLeaveApplications != null && ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaveApplications).Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Leave Type</th>
+                                        <th>From</th>
+                                        <th>To</th>
+                                        <th>Days</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaveApplications)
+                                    {
+                                        var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+                                        <tr>
+                                            <td>@(leave.Employee?.FirstName + " " + leave.Employee?.LastName ?? "N/A")</td>
+                                            <td>@(leave.LeaveType?.TypeName ?? "N/A")</td>
+                                            <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
+                                            <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
+                                            <td>@duration days</td>
+                                            <td>
+                                                <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
+                                                    @leave.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="@Url.Action("LeaveDetails", "Leaves", new { id = leave.LeaveID })" class="btn btn-sm btn-outline-primary">View</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No recent leave applications</p>
+                            <a href="@Url.Action("Index", "Leaves")" class="btn btn-primary">View All Leaves</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Employee Status Distribution -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Employee Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.EmployeesByStatus != null && ((List<object>)ViewBag.EmployeesByStatus).Any())
+                    {
+                        @foreach (var status in (List<object>)ViewBag.EmployeesByStatus)
+                        {
+                            var statusData = status as dynamic;
+                            var statusName = statusData?.Status ?? "Unknown";
+                            var statusCount = statusData?.Count ?? 0;
+                            var percentage = ViewBag.TotalEmployees > 0 ? (statusCount * 100.0 / ViewBag.TotalEmployees) : 0;
+                            var progressColor = statusName == "Confirmed" ? "success" : statusName == "Probation" ? "warning" : "info";
+
+                            <div class="status-item mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>@statusName</span>
+                                    <span class="fw-bold">@statusCount employees</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-@progressColor" style="width: @percentage%"></div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No employee status data available</p>
+                    }
+                </div>
+            </div>
+
+            
+
+            <!-- Calendar Widget -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar me-2"></i>Team Leave Calendar
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="calendar-widget" id="calendarWidget">
+                        <!-- Calendar navigation -->
+                        <div class="calendar-navigation">
+                            <button class="btn btn-sm btn-outline-primary" id="prevMonth" onclick="changeMonth(-1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <div class="calendar-month-year" id="calendarMonthYear">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" id="nextMonth" onclick="changeMonth(1)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <!-- Calendar grid -->
+                        <div class="calendar-grid" id="calendarGrid">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+
+                        <!-- Calendar legend -->
+                        <div class="calendar-legend">
+                            <div class="legend-item">
+                                <div class="legend-color today"></div>
+                                <span>Today</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color leave-day"></div>
+                                <span>Team Leaves</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Calendar functionality for HR Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCalendar();
+            loadReadNotifications();
+        });
+
+        // Calendar state
+        let currentCalendarMonth = new Date().getMonth();
+        let currentCalendarYear = new Date().getFullYear();
+        const today = new Date();
+
+        // Get calendar data from server (HR sees all employee leaves)
+        const calendarData = @Html.Raw(Json.Serialize(ViewBag.CalendarData ?? new Dictionary<string, List<object>>()));
+
+        // Initialize calendar
+        function initializeCalendar() {
+            generateCalendar();
+            updateCalendarTitle();
+        }
+
+        // Change month function
+        function changeMonth(direction) {
+            currentCalendarMonth += direction;
+
+            if (currentCalendarMonth > 11) {
+                currentCalendarMonth = 0;
+                currentCalendarYear++;
+            } else if (currentCalendarMonth < 0) {
+                currentCalendarMonth = 11;
+                currentCalendarYear--;
+            }
+
+            generateCalendar();
+            updateCalendarTitle();
+        }
+
+        // Update calendar title
+        function updateCalendarTitle() {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+
+            const monthYearElement = document.getElementById('calendarMonthYear');
+            const monthYearText = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
+
+            if (monthYearElement) {
+                monthYearElement.textContent = monthYearText;
+            }
+        }
+
+        // Generate calendar for HR (showing all employee leaves)
+        function generateCalendar() {
+            const calendarGrid = document.getElementById('calendarGrid');
+            if (!calendarGrid) return;
+
+            const firstDay = new Date(currentCalendarYear, currentCalendarMonth, 1);
+            const lastDay = new Date(currentCalendarYear, currentCalendarMonth + 1, 0);
+            const firstDayWeek = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+
+            // Get leave data for current month
+            const monthKey = `${currentCalendarYear}-${(currentCalendarMonth + 1).toString().padStart(2, '0')}`;
+            const leaveDataForMonth = calendarData[monthKey] || [];
+            
+            // Group leaves by day
+            const leavesByDay = {};
+            leaveDataForMonth.forEach(leave => {
+                if (!leavesByDay[leave.Day]) {
+                    leavesByDay[leave.Day] = [];
+                }
+                leavesByDay[leave.Day].push(leave);
+            });
+
+            // Build calendar HTML
+            let calendarHTML = `
+                <div class="calendar-day-header">S</div>
+                <div class="calendar-day-header">M</div>
+                <div class="calendar-day-header">T</div>
+                <div class="calendar-day-header">W</div>
+                <div class="calendar-day-header">T</div>
+                <div class="calendar-day-header">F</div>
+                <div class="calendar-day-header">S</div>
+            `;
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDayWeek; i++) {
+                calendarHTML += '<div class="calendar-day"></div>';
+            }
+
+            // Add days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                let classes = 'calendar-day';
+
+                // Check if it's today
+                if (day === today.getDate() &&
+                    currentCalendarMonth === today.getMonth() &&
+                    currentCalendarYear === today.getFullYear()) {
+                    classes += ' today';
+                }
+
+                // Check if there are leaves on this day
+                if (leavesByDay[day] && leavesByDay[day].length > 0) {
+                    classes += ' leave-day';
+                }
+
+                const leaveCount = leavesByDay[day] ? leavesByDay[day].length : 0;
+                const leaveIndicator = leaveCount > 0 ? `<span class="leave-count">${leaveCount}</span>` : '';
+
+                calendarHTML += `<div class="${classes}" onclick="selectDate(${day})" title="${leaveCount > 0 ? leaveCount + ' employee(s) on leave' : ''}">${day}${leaveIndicator}</div>`;
+            }
+
+            calendarGrid.innerHTML = calendarHTML;
+        }
+
+        // Handle date selection for HR
+        function selectDate(day) {
+            const monthKey = `${currentCalendarYear}-${(currentCalendarMonth + 1).toString().padStart(2, '0')}`;
+            const leaveDataForMonth = calendarData[monthKey] || [];
+            const leavesForDay = leaveDataForMonth.filter(leave => leave.Day === day);
+
+            if (leavesForDay.length > 0) {
+                showLeaveDetails(day, leavesForDay);
+            }
+        }
+
+        // Show leave details for HR
+        function showLeaveDetails(day, leaves) {
+            const date = new Date(currentCalendarYear, currentCalendarMonth, day);
+            const formattedDate = date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            let leavesList = leaves.map(leave => 
+                `• ${leave.EmployeeName} (${leave.LeaveType})`
+            ).join('\n');
+
+            alert(`Employees on leave for ${formattedDate}:\n\n${leavesList}`);
+        }
+
+        // Export report functionality
+        function exportReport() {
+            alert('HR Report export functionality will be implemented soon!');
+        }
+
+        // Notification functions (similar to employee dashboard)
+        let readNotifications = JSON.parse(localStorage.getItem('hr_readNotifications') || '[]');
+
+        function loadReadNotifications() {
+            readNotifications.forEach(function(notificationId) {
+                const notification = document.querySelector(`[data-id="${notificationId}"]`);
+                if (notification) {
+                    notification.style.display = 'none';
+                }
+            });
+            checkForEmptyNotifications();
+        }
+
+        function markAsRead(button, type, id) {
+            const notificationItem = button.closest('.notification-item');
+
+            if (!readNotifications.includes(id)) {
+                readNotifications.push(id);
+                localStorage.setItem('hr_readNotifications', JSON.stringify(readNotifications));
+            }
+
+            notificationItem.style.transition = 'opacity 0.3s ease';
+            notificationItem.style.opacity = '0';
+
+            setTimeout(() => {
+                notificationItem.style.display = 'none';
+                checkForEmptyNotifications();
+            }, 300);
+        }
+
+        function markAllAsRead() {
+            const notifications = document.querySelectorAll('.notification-item');
+
+            notifications.forEach(function(notification) {
+                const id = notification.getAttribute('data-id');
+                if (id && !readNotifications.includes(id)) {
+                    readNotifications.push(id);
+                }
+
+                notification.style.transition = 'opacity 0.3s ease';
+                notification.style.opacity = '0';
+
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 300);
+            });
+
+            localStorage.setItem('hr_readNotifications', JSON.stringify(readNotifications));
+
+            setTimeout(() => {
+                checkForEmptyNotifications();
+            }, 300);
+        }
+
+        function checkForEmptyNotifications() {
+            const visibleNotifications = document.querySelectorAll('.notification-item[style*="display: none"], .notification-item[style*="opacity: 0"]');
+            const allNotifications = document.querySelectorAll('.notification-item');
+
+            if (visibleNotifications.length === allNotifications.length || allNotifications.length === 0) {
+                const container = document.getElementById('notificationContainer');
+                let emptyState = document.getElementById('noNotifications');
+
+                if (!emptyState) {
+                    emptyState = document.createElement('div');
+                    emptyState.id = 'noNotifications';
+                    emptyState.className = 'text-center py-3';
+                    emptyState.innerHTML = `
+                        <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">All caught up! No urgent notifications.</p>
+                    `;
+                    container.appendChild(emptyState);
+                } else {
+                    emptyState.style.display = 'block';
+                }
+            }
+        }
+    </script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/rbac_dashboard.css" />
+    <style>
+        /* Additional HR-specific styles */
+        .leave-count {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+    </style>
+      }

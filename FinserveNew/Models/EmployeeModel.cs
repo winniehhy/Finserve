@@ -7,7 +7,7 @@ namespace FinserveNew.Models
     public class Employee
     {
         [Key]
-        public string EmployeeID { get; set; } = null!;
+        public string? EmployeeID { get; set; } = null!;
 
         [Required(ErrorMessage = "Username is required")]
         [Display(Name = "Username")]
