@@ -21,5 +21,8 @@
 # Logs
 *.log
 
+# Upload directories (user-generated content)
+wwwroot/uploads/
+
 # Others
 *.DS_Store
