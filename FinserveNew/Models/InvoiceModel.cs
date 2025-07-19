@@ -10,7 +10,7 @@ namespace FinserveNew.Models
 
         [Required]
         [StringLength(50)]
-        public string InvoiceNumber { get; set; }
+        public string? InvoiceNumber { get; set; }
 
         [Required]
         public DateTime IssueDate { get; set; }
@@ -32,14 +32,14 @@ namespace FinserveNew.Models
         public int Year { get; set; }
 
         [StringLength(500)]
-        public string Remark { get; set; }
+        public string? Remark { get; set; }
 
         [StringLength(255)]
-        public string FilePath { get; set; }
+        public string? FilePath { get; set; }
 
         // Foreign Key
         [Required]
-        public string EmployeeID { get; set; }
+        public string? EmployeeID { get; set; }
 
         // Navigation Properties
         [ForeignKey("EmployeeID")]

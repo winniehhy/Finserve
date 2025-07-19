@@ -127,6 +127,90 @@
     color: #7f8c8d;
 }
 
+/* Notification Styles */
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 15px;
+    border-bottom: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+    transition: opacity 0.3s ease;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+    .notification-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+
+    .notification-item:hover {
+        background-color: #e9ecef;
+    }
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    flex-shrink: 0;
+    font-size: 16px;
+}
+
+    .notification-icon.bg-success {
+        background-color: #28a745 !important;
+        color: white;
+    }
+
+    .notification-icon.bg-warning {
+        background-color: #ffc107 !important;
+        color: #212529;
+    }
+
+    .notification-icon.bg-info {
+        background-color: #17a2b8 !important;
+        color: white;
+    }
+
+    .notification-icon.bg-danger {
+        background-color: #dc3545 !important;
+        color: white;
+    }
+
+.notification-content {
+    flex: 1;
+    margin-right: 15px;
+}
+
+    .notification-content h6 {
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #333;
+        font-size: 0.9rem;
+    }
+
+    .notification-content p {
+        margin-bottom: 5px;
+        color: #666;
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+
+    .notification-content small {
+        color: #999;
+        font-size: 0.75rem;
+    }
+
+.notification-read-btn {
+    flex-shrink: 0;
+    align-self: flex-start;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+
 .calendar-widget {
     background: white;
 }
@@ -188,7 +272,7 @@
     }
 
         .calendar-day.leave-day.today {
-            background: ##229954;
+            background: #229954;
         }
 
 .calendar-legend {
@@ -227,6 +311,15 @@
         margin-bottom: 0;
     }
 
+/* Leave Balance Styles */
+.leave-balance-item {
+    margin-bottom: 20px;
+}
+
+    .leave-balance-item:last-child {
+        margin-bottom: 0;
+    }
+
 /* Card styles */
 .card {
     border: 1px solid #ecf0f1;
@@ -250,6 +343,23 @@
     padding: 20px;
 }
 
+/* HR Calendar specific styles */
+.leave-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .stat-card {
@@ -262,5 +372,24 @@
 
     .calendar-day {
         font-size: 0.8rem;
+    }
+
+    .notification-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .notification-icon {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    .notification-content {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+
+    .notification-read-btn {
+        align-self: flex-end;
     }
 }

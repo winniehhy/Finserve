@@ -12,7 +12,7 @@ namespace FinserveNew.Models
         public virtual PayrollBatch PayrollBatch { get; set; }
 
         [Required]
-        public string EmployeeID { get; set; }
+        public string? EmployeeID { get; set; }
         public virtual Employee Employee { get; set; }
 
         public decimal BasicSalary { get; set; }

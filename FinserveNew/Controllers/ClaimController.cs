@@ -438,6 +438,12 @@ namespace FinserveNew.Controllers
                 // For HR actions, we can still use the current user's ID for ApprovedBy
                 var currentUser = await _userManager.GetUserAsync(User);
 
+                if (currentUser == null)
+                {
+                    TempData["Error"] = "Unable to identify current user. Please try again.";
+                    return RedirectToAction(nameof(ProcessClaim), new { id = id });
+                }
+
                 // Update claim based on action
                 if (action == "approve")
                 {

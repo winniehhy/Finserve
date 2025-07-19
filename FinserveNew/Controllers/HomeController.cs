@@ -42,6 +42,15 @@ namespace FinserveNew.Controllers
         }
 
         // Admin Dashboard - Only accessible by Admin
+        [Authorize(Roles = "Admin")]
+        public IActionResult AdminDashboard()
+        {
+            ViewData["Title"] = "Admin Dashboard";
+            ViewData["UserRole"] = "Admin";
+            return View("~/Views/Admins/Dashboard.cshtml");
+        }
+
+        // HR Dashboard - Only accessible by HR
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> HRDashboard()
         {

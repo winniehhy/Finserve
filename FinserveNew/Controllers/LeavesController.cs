@@ -873,7 +873,7 @@ namespace FinserveNew.Controllers
         }
 
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> EmployeeLeaveBalance(string employeeId = null)
+        public async Task<IActionResult> EmployeeLeaveBalance(string? employeeId = null)
         {
             if (!string.IsNullOrEmpty(employeeId))
             {
