@@ -407,6 +407,25 @@ namespace FinserveNew.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("InvoiceID"));
 
+                    b.Property<string>("ClientCompany")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("ClientEmail")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("ClientName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("Currency")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -422,7 +441,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("FilePath")
-                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
@@ -435,7 +453,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Remark")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
@@ -789,7 +806,6 @@ namespace FinserveNew.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("StatutoryRateId"));
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<bool>("IsActive")
@@ -981,7 +997,7 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
                 {
-                    b.HasOne("FinserveNew.Models.Employee", "Employee")
+                    b.HasOne("FinserveNew.Models.ApplicationUser", "Employee")
                         .WithMany()
                         .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Restrict)

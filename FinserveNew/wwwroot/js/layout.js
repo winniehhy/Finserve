@@ -3,14 +3,6 @@
  * Handles theme toggle, sidebar, and responsive behavior
  */
 
-// ===== THEME TOGGLE FUNCTIONALITY =====
-function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-}
 
 // ===== SIDEBAR FUNCTIONALITY =====
 function toggleSidebar() {
@@ -18,22 +10,7 @@ function toggleSidebar() {
     sidebar.classList.toggle('show');
 }
 
-// ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', function () {
-    // Load saved theme on page load
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    document.documentElement.setAttribute('data-theme', savedTheme);
 
-    // Active menu highlighting (commented out but available)
-    // const currentPath = window.location.pathname;
-    // const menuLinks = document.querySelectorAll('.menu-link');
-    // menuLinks.forEach(link => {
-    //     link.classList.remove('active');
-    //     if (link.getAttribute('href') === currentPath) {
-    //         link.classList.add('active');
-    //     }
-    // });
-});
 
 // ===== MOBILE RESPONSIVE HANDLERS =====
 // Close sidebar when clicking outside on mobile
