@@ -2,6 +2,12 @@
 @{
     ViewData["Title"] = "Payroll Summary";
 }
+@{
+    var totalEmployerCost = Model.Payrolls?.Sum(e => e.TotalEmployerCost) ?? 0;
+    var totalNetWages = Model.Payrolls?.Sum(e => e.TotalWages) ?? 0;
+    var totalEmployees = Model.Payrolls?.Count ?? 0;
+}
+
 
 <div class="container-fluid py-4">
     <div class="row mb-4">
@@ -43,8 +49,9 @@
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
-                <button type="button" class="btn btn-outline-success" onclick="exportToExcel()">
-                    <i class="fas fa-file-excel me-1"></i> Export
+                <button type="button" class="btn btn-outline-success d-flex align-items-center">
+                    <i class="fas fa-file-excel me-1"></i>
+                    <span>Export</span>
                 </button>
             </div>
         </div>
@@ -61,6 +68,7 @@
                                 <th>Basic Salary</th>
                                 <th>Total Wages</th>
                                 <th>Total Cost</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -74,6 +82,22 @@
                                     <td>RM @entry.BasicSalary.ToString("N2")</td>
                                     <td>RM @entry.TotalWages.ToString("N2")</td>
                                     <td>RM @entry.TotalEmployerCost.ToString("N2")</td>
+                                    <td>
+                                        <span class="badge bg-secondary">@entry.PaymentStatus</span>
+                                        @if (entry.PaymentStatus == "Pending")
+                                        {
+                                            <button class="btn btn-sm btn-warning ms-2" onclick="sendApprovalRequest('@entry.PayrollID')">Send for Approval</button>
+                                        }
+                                        else if (entry.PaymentStatus == "Pending Approval" && User.IsInRole("Admin"))
+                                        {
+                                            <button class="btn btn-sm btn-success ms-2" onclick="approvePayroll('@entry.PayrollID')">Approve</button>
+                                        }
+                                        else if (entry.PaymentStatus == "Approved" && User.IsInRole("HR"))
+                                        {
+                                            <button class="btn btn-sm btn-primary ms-2" onclick="markAsPaid('@entry.PayrollID')">Mark as Paid</button>
+                                        }
+                                    </td>
+
                                     <td>
                                         <a asp-action="Process" 
                                            asp-route-month="@Model.Month" 
@@ -89,8 +113,8 @@
                         <tfoot>
                             <tr class="table-light fw-bold">
                                 <td colspan="4">Totals</td>
-                                <td>RM @Model.TotalWages.ToString("N2")</td>
-                                <td>RM @Model.TotalEmployerCost.ToString("N2")</td>
+                                <td>RM @totalNetWages.ToString("N2")</td>
+                                <td>RM @totalEmployerCost.ToString("N2")</td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -106,15 +130,15 @@
                                     <table class="table table-sm">
                                         <tr>
                                             <td>Total Employees</td>
-                                            <td>@Model.Payrolls.Count</td>
+                                            <td>@totalEmployees</td>
                                         </tr>
                                         <tr>
                                             <td>Total Salary Cost</td>
-                                            <td>RM @Model.TotalEmployerCost.ToString("N2")</td>
+                                            <td>RM @totalEmployerCost.ToString("N2")</td>
                                         </tr>
                                         <tr>
                                             <td>Total Net Wages</td>
-                                            <td>RM @Model.TotalWages.ToString("N2")</td>
+                                            <td>RM @totalNetWages.ToString("N2")</td>
                                         </tr>
                                     </table>
                                 </div>
@@ -162,6 +186,30 @@
             
             // Generate file and trigger download
             XLSX.writeFile(wb, 'Payroll_@(Model.MonthName)@(Model.Year).xlsx');
+        }
+
+        function sendApprovalRequest(payrollId) {
+            if (confirm('Send this payroll for approval?')) {
+                $.post('@Url.Action("SendApprovalRequest")', { payrollId }, function (res) {
+                    if (res.success) location.reload();
+                });
+            }
+        }
+
+        function approvePayroll(payrollId) {
+            if (confirm('Approve this payroll?')) {
+                $.post('@Url.Action("ApprovePayroll")', { payrollId }, function (res) {
+                    if (res.success) location.reload();
+                });
+            }
+        }
+
+        function markAsPaid(payrollId) {
+            if (confirm('Mark this payroll as paid?')) {
+                $.post('@Url.Action("MarkAsPaid")', { payrollId }, function (res) {
+                    if (res.success) location.reload();
+                });
+            }
         }
     </script>
     

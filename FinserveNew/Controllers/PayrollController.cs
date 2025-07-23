@@ -7,16 +7,21 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using FinserveNew.Controllers;
+using Microsoft.AspNetCore.Identity;
 
 namespace FinserveNew.Controllers
 {
     public class PayrollController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IEmailSender _emailSender;
 
-        public PayrollController(AppDbContext context)
+        public PayrollController(AppDbContext context, IEmailSender emailSender)
         {
             _context = context;
+            _emailSender = emailSender;
         }
 
         // GET: /Payroll - Main entry point (Process page as default)
@@ -159,17 +164,21 @@ namespace FinserveNew.Controllers
                     EmployeeEis = model.EmployeeEis,
                     EmployeeTax = model.EmployeeTax,
                     TotalWages = model.TotalWages,
-                    TotalEmployerCost = model.TotalEmployerCost
+                    TotalEmployerCost = model.TotalEmployerCost,
+                    PaymentStatus = "Pending"
                 };
                 _context.Payrolls.Add(salary);
             }
 
             await _context.SaveChangesAsync();
-            TempData["Success"] = "Payroll data processed successfully!";
-
+            //TempData["Success"] = "Payroll data processed successfully!";
             //return RedirectToAction(nameof(Process));
+
             // Redirect to Summary instead of Process
-            return RedirectToAction(nameof(Summary), new { month = model.Month, year = model.Year });
+            //return RedirectToAction(nameof(Summary), new { month = model.Month, year = model.Year });
+
+            TempData["Success"] = "Payroll data saved successfully!";
+            return RedirectToAction(nameof(Process), new { month = model.Month, year = model.Year, employeeId = model.EmployeeID });
 
         }
 
@@ -228,5 +237,66 @@ namespace FinserveNew.Controllers
 
             return View("~/Views/HR/Payroll/History.cshtml", viewModel);
         }
+
+        // POST: /Payroll/SendApprovalRequest
+        [HttpPost]
+        public async Task<IActionResult> SendApprovalRequest(int payrollId)
+        {
+            var payroll = await _context.Payrolls.Include(p => p.Employee).FirstOrDefaultAsync(p => p.PayrollID == payrollId);
+            if (payroll == null) return NotFound();
+
+            payroll.PaymentStatus = "Pending Approval";
+            await _context.SaveChangesAsync();
+
+            // TODO: Send email to admin for approval 
+            var adminEmail = "admin@yourcompany.com";
+            var subject = $"Payroll Approval Needed for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+            var body = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} ({payroll.EmployeeID}) is pending approval.<br/>" +
+                       $"<a href='https://yourdomain.com/Admin/Payroll/Approve?payrollId={payroll.PayrollID}'>Approve Now</a>";
+
+            await _emailSender.SendEmailAsync(adminEmail, subject, body);
+
+
+            return Json(new { success = true });
+        }
+
+        // POST: /Payroll/ApprovePayroll
+        [HttpPost]
+        public async Task<IActionResult> ApprovePayroll(int payrollId)
+        {
+            var payroll = await _context.Payrolls.Include(p => p.Employee).FirstOrDefaultAsync(p => p.PayrollID == payrollId);
+            if (payroll == null) return NotFound();
+
+            payroll.PaymentStatus = "Approved";
+            await _context.SaveChangesAsync();
+
+            // TODO: Send email to HR to proceed with payment
+            var hrEmail = "hr@yourcompany.com";
+            var subject = $"Payroll Approved for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+            var body = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been approved. You may now proceed with payment.";
+
+            await _emailSender.SendEmailAsync(hrEmail, subject, body);
+
+            return Json(new { success = true });
+        }
+
+        // POST: /Payroll/MarkAsPaid
+        [HttpPost]
+        public async Task<IActionResult> MarkAsPaid(int payrollId)
+        {
+            var payroll = await _context.Payrolls.Include(p => p.Employee).FirstOrDefaultAsync(p => p.PayrollID == payrollId);
+            if (payroll == null) return NotFound();
+
+            payroll.PaymentStatus = "Completed";
+            await _context.SaveChangesAsync();
+
+            // TODO: Send email to employee about payment
+            var subject = "Your Payroll Has Been Paid";
+            var body = $"Dear {payroll.Employee.FirstName},<br/>Your salary for {payroll.Month}/{payroll.Year} has been paid. You can now view your payslip in the employee portal.";
+            await _emailSender.SendEmailAsync(payroll.Employee.Email, subject, body);
+
+            return Json(new { success = true });
+        }
+
     }
 } 

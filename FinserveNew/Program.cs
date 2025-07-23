@@ -2,6 +2,9 @@
 using FinserveNew.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using FinserveNew.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +63,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminOrHR", policy => policy.RequireRole("Admin", "HR"));
     options.AddPolicy("AdminOrHROrEmployee", policy => policy.RequireRole("Admin", "HR", "Employee"));
 });
+
+// ✅ Register the email sender service
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 var app = builder.Build();
 

@@ -63,6 +63,11 @@ namespace FinserveNew.Models
         [Required]
         public DateTime CreatedDate { get; set; } = DateTime.Now;
 
+        [Required]
+        [MaxLength(30)]
+        public string PaymentStatus { get; set; } = "Pending"; // Default value
+
+
         // Navigation property
         [ForeignKey("EmployeeID")]
         public virtual Employee Employee { get; set; }

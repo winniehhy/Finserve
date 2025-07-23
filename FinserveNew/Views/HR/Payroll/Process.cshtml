@@ -7,7 +7,6 @@
     <div class="row mb-4">
         <div class="col-md-8">
             <h2>Payroll Processing</h2>
-            <p class="text-muted">Manage employee salary and compensation details</p>
         </div>
         <div class="col-md-4 text-end">
             <a asp-action="Summary" asp-route-month="@Model.Month" asp-route-year="@Model.Year" class="btn btn-primary me-2">
@@ -30,7 +29,7 @@
                 <div class="row mb-3">
                     <div class="col-md-4">
                         <label asp-for="Month" class="form-label">Month</label>
-                        <select asp-for="Month" class="form-select" required id="payrollMonth">
+                        <select asp-for="Month" class="form-select" required>
                             @for (int m = 1; m <= 12; m++)
                             {
                                 <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
@@ -40,7 +39,7 @@
                     </div>
                     <div class="col-md-4">
                         <label asp-for="Year" class="form-label">Year</label>
-                        <select asp-for="Year" class="form-select" required id="payrollYear">
+                        <select asp-for="Year" class="form-select" required>
                             @for (int y = DateTime.Now.Year - 3; y <= DateTime.Now.Year + 3; y++)
                             {
                                 <option value="@y">@y</option>
@@ -209,21 +208,14 @@
                 calculateStatutoryAmounts();
             });
 
-            $('#payrollMonth').on('change', function() {
+            $('#Month, #Year').on('change', function() {
                 let employeeId = $('#employeeSelect').val();
+                let month = $('#Month').val();
+                let year = $('#Year').val();
                 if (employeeId) {
-                    let month = $('#payrollMonth').val();
-                    let year = $('#payrollYear').val();
                     window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
-                }
-            });
-
-            $('#payrollYear').on('change', function() {
-                let employeeId = $('#employeeSelect').val();
-                if (employeeId) {
-                    let month = $('#payrollMonth').val();
-                    let year = $('#payrollYear').val();
-                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
+                } else {
+                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year;
                 }
             });
 
@@ -231,8 +223,8 @@
             $('#employeeSelect').on('change', function() {
                 let employeeId = $(this).val();
                 if (employeeId) {
-                    let month = $('#payrollMonth').val();
-                    let year = $('#payrollYear').val();
+                    let month = $('#Month').val();
+                    let year = $('#Year').val();
                     window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
                 }
                 else {
@@ -244,8 +236,8 @@
             $('#sameAsPrevious').on('change', function() {
                 if ($(this).is(':checked')) {
                     let employeeId = $('#employeeSelect').val();
-                    let month = parseInt($('#payrollMonth').val());
-                    let year = parseInt($('#payrollYear').val());
+                    let month = parseInt($('#Month').val());
+                    let year = parseInt($('#Year').val());
 
                     if (employeeId) {
                         loadPreviousMonthData(employeeId, month, year);
