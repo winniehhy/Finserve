@@ -36,10 +36,6 @@ namespace FinserveNew.Data
         public DbSet<Invoice> Invoices { get; set; }
 
 
-
-        // for testing new payroll
-        //public DbSet<NewPayrollRecord> NewPayrollRecords { get; set; }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

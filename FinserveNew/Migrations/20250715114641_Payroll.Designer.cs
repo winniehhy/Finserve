@@ -635,7 +635,7 @@ namespace FinserveNew.Migrations
                     b.ToTable("Payrolls");
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.Role", b =>
+            modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
                 {
                     b.Property<int>("RoleID")
                         .ValueGeneratedOnAdd()
@@ -818,7 +818,7 @@ namespace FinserveNew.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("FinserveNew.Models.Role", "Role")
+                    b.HasOne("FinserveNew.Models.JobRole", "Role")
                         .WithMany("Employees")
                         .HasForeignKey("RoleID")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -960,7 +960,7 @@ namespace FinserveNew.Migrations
                     b.Navigation("Leaves");
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.Role", b =>
+            modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
                 {
                     b.Navigation("Employees");
                 });
