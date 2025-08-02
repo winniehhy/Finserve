@@ -1,46 +1,48 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using FinserveNew.Models;
 using FinserveNew.Data;
 
 namespace FinserveNew.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Admin")] // Only Admins can access
     public class InvoiceController : Controller
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<InvoiceController> _logger;
 
-        public InvoiceController(AppDbContext context, IWebHostEnvironment webHostEnvironment)
+        public InvoiceController(AppDbContext context, IWebHostEnvironment webHostEnvironment,
+                               UserManager<ApplicationUser> userManager, ILogger<InvoiceController> logger)
         {
             _context = context;
             _webHostEnvironment = webHostEnvironment;
+            _userManager = userManager;
+            _logger = logger;
         }
 
-        // GET: Invoice/InvoiceRecord (Admin view)
+        // GET: Invoice/InvoiceRecord (Admin view - all invoices)
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> InvoiceRecord()
         {
             var invoices = await _context.Invoices
-                .Include(i => i.Employee)
-                .OrderByDescending(i => i.IssueDate)
+                .OrderByDescending(i => i.CreatedDate)
                 .ToListAsync();
 
-            return View("~/Views/Admins/Invoice/InvoiceRecord.cshtml",invoices);
+            return View("~/Views/Admins/Invoice/InvoiceRecord.cshtml", invoices);
         }
 
-        // GET: Invoice/Index (Employee view - their own invoices)
+        // Keep existing Index method for backward compatibility
         public async Task<IActionResult> Index()
         {
-            var currentUserId = User.Identity.Name;
             var invoices = await _context.Invoices
-                .Include(i => i.Employee)
-                .Where(i => i.EmployeeID == currentUserId)
-                .OrderByDescending(i => i.IssueDate)
+                .OrderByDescending(i => i.CreatedDate)
                 .ToListAsync();
 
-            return View(invoices);
+            return View("~/Views/Admins/Invoice/InvoiceRecord.cshtml", invoices);
         }
 
         // GET: Invoice/Details/5
@@ -52,7 +54,6 @@ namespace FinserveNew.Controllers
             }
 
             var invoice = await _context.Invoices
-                .Include(i => i.Employee)
                 .FirstOrDefaultAsync(m => m.InvoiceID == id);
 
             if (invoice == null)
@@ -60,13 +61,7 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // Check if user can view this invoice
-            if (!User.IsInRole("Admin") && !User.IsInRole("HR") && invoice.EmployeeID != User.Identity.Name)
-            {
-                return Forbid();
-            }
-
-            return View(invoice);
+            return View("~/Views/Admins/Invoice/Details.cshtml", invoice);
         }
 
         // GET: Invoice/Create
@@ -77,10 +72,11 @@ namespace FinserveNew.Controllers
                 IssueDate = DateTime.Now,
                 DueDate = DateTime.Now.AddDays(30),
                 Year = DateTime.Now.Year,
-                EmployeeID = User.Identity.Name
+                Currency = "MYR",
+                Status = "Draft"
             };
 
-            return View(invoice);
+            return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
         }
 
         // POST: Invoice/Create
@@ -88,56 +84,68 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Invoice invoice, IFormFile invoiceFile)
         {
-            if (ModelState.IsValid)
+            try
             {
-                // Set default values
-                invoice.EmployeeID = User.Identity.Name;
-                invoice.Year = invoice.IssueDate.Year;
-                invoice.Status = "Pending";
-
-                // Generate invoice number
+                // Auto-generate InvoiceNumber
                 var lastInvoice = await _context.Invoices
-                    .Where(i => i.Year == invoice.Year)
                     .OrderByDescending(i => i.InvoiceID)
                     .FirstOrDefaultAsync();
 
-                var nextNumber = 1;
-                if (lastInvoice != null)
+                string newInvoiceNumber = "INV001";
+                if (lastInvoice != null && !string.IsNullOrEmpty(lastInvoice.InvoiceNumber))
                 {
-                    var lastNumber = lastInvoice.InvoiceNumber.Split('-').LastOrDefault();
-                    if (int.TryParse(lastNumber, out int num))
-                    {
-                        nextNumber = num + 1;
-                    }
+                    var lastNumber = int.Parse(lastInvoice.InvoiceNumber.Substring(3));
+                    newInvoiceNumber = $"INV{(lastNumber + 1):D3}";
                 }
 
-                invoice.InvoiceNumber = $"INV-{invoice.Year}-{nextNumber:D4}";
+                // Set auto-generated fields
+                invoice.InvoiceNumber = newInvoiceNumber;
+                invoice.CreatedDate = DateTime.Now;
+                invoice.CreatedBy = User.Identity.Name;
+                invoice.Year = invoice.IssueDate.Year;
+
+                // Remove these fields from model validation
+                ModelState.Remove("InvoiceNumber");
+                ModelState.Remove("CreatedBy");
+
+                if (!ModelState.IsValid)
+                {
+                    // Log validation errors for debugging
+                    foreach (var error in ModelState)
+                    {
+                        foreach (var modelError in error.Value.Errors)
+                        {
+                            _logger.LogWarning($"Validation error for {error.Key}: {modelError.ErrorMessage}");
+                        }
+                    }
+                    return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
+                }
 
                 // Handle file upload
                 if (invoiceFile != null && invoiceFile.Length > 0)
                 {
-                    var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "invoices");
-                    Directory.CreateDirectory(uploadsFolder);
-
-                    var uniqueFileName = $"{invoice.InvoiceNumber}_{Path.GetFileName(invoiceFile.FileName)}";
-                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await invoiceFile.CopyToAsync(fileStream);
-                    }
-
-                    invoice.FilePath = $"/uploads/invoices/{uniqueFileName}";
+                    var filePath = await SaveFile(invoiceFile, "invoices");
+                    invoice.FilePath = filePath;
                 }
 
-                _context.Add(invoice);
+                _context.Invoices.Add(invoice);
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = "Invoice created successfully!";
-                return RedirectToAction(nameof(Index));
+                TempData["Success"] = $"Invoice {invoice.InvoiceNumber} created successfully!";
+                return RedirectToAction(nameof(InvoiceRecord));
             }
-
-            return View(invoice);
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error while saving invoice");
+                ModelState.AddModelError("", "An error occurred while saving the invoice. Please try again.");
+                return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while creating invoice");
+                ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+                return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
+            }
         }
 
         // GET: Invoice/Edit/5
@@ -154,19 +162,13 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // Check if user can edit this invoice
-            if (!User.IsInRole("Admin") && !User.IsInRole("HR") && invoice.EmployeeID != User.Identity.Name)
-            {
-                return Forbid();
-            }
-
             if (!invoice.CanEdit)
             {
-                TempData["Error"] = "This invoice cannot be edited as it's no longer in pending status.";
-                return RedirectToAction(nameof(Index));
+                TempData["Error"] = "This invoice cannot be edited as it's no longer in draft status.";
+                return RedirectToAction(nameof(InvoiceRecord));
             }
 
-            return View(invoice);
+            return View("~/Views/Admins/Invoice/Edit.cshtml", invoice);
         }
 
         // POST: Invoice/Edit/5
@@ -179,6 +181,10 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            // Remove fields that shouldn't be validated during edit
+            ModelState.Remove("InvoiceNumber");
+            ModelState.Remove("CreatedBy");
+
             if (ModelState.IsValid)
             {
                 try
@@ -189,17 +195,16 @@ namespace FinserveNew.Controllers
                         return NotFound();
                     }
 
-                    // Check if user can edit this invoice
-                    if (!User.IsInRole("Admin") && !User.IsInRole("HR") && existingInvoice.EmployeeID != User.Identity.Name)
-                    {
-                        return Forbid();
-                    }
-
-                    // Update properties
+                    // Update properties (don't change InvoiceNumber, CreatedBy, or CreatedDate)
+                    existingInvoice.ClientName = invoice.ClientName;
+                    existingInvoice.ClientCompany = invoice.ClientCompany;
+                    existingInvoice.ClientEmail = invoice.ClientEmail;
+                    existingInvoice.IssueDate = invoice.IssueDate;
                     existingInvoice.DueDate = invoice.DueDate;
                     existingInvoice.TotalAmount = invoice.TotalAmount;
+                    existingInvoice.Currency = invoice.Currency;
                     existingInvoice.Remark = invoice.Remark;
-                    existingInvoice.Year = invoice.IssueDate.Year;
+                    existingInvoice.Year = invoice.Year;
 
                     // Handle file upload
                     if (invoiceFile != null && invoiceFile.Length > 0)
@@ -214,24 +219,15 @@ namespace FinserveNew.Controllers
                             }
                         }
 
-                        var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "invoices");
-                        Directory.CreateDirectory(uploadsFolder);
-
-                        var uniqueFileName = $"{existingInvoice.InvoiceNumber}_{Path.GetFileName(invoiceFile.FileName)}";
-                        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                        using (var fileStream = new FileStream(filePath, FileMode.Create))
-                        {
-                            await invoiceFile.CopyToAsync(fileStream);
-                        }
-
-                        existingInvoice.FilePath = $"/uploads/invoices/{uniqueFileName}";
+                        var filePath = await SaveFile(invoiceFile, "invoices");
+                        existingInvoice.FilePath = filePath;
                     }
 
                     _context.Update(existingInvoice);
                     await _context.SaveChangesAsync();
 
                     TempData["Success"] = "Invoice updated successfully!";
+                    return RedirectToAction(nameof(InvoiceRecord));
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -244,9 +240,19 @@ namespace FinserveNew.Controllers
                         throw;
                     }
                 }
-                return RedirectToAction(nameof(Index));
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Database error while updating invoice");
+                    ModelState.AddModelError("", "An error occurred while updating the invoice. Please try again.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unexpected error while updating invoice");
+                    ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+                }
             }
-            return View(invoice);
+
+            return View("~/Views/Admins/Invoice/Edit.cshtml", invoice);
         }
 
         // GET: Invoice/Delete/5
@@ -258,7 +264,6 @@ namespace FinserveNew.Controllers
             }
 
             var invoice = await _context.Invoices
-                .Include(i => i.Employee)
                 .FirstOrDefaultAsync(m => m.InvoiceID == id);
 
             if (invoice == null)
@@ -266,19 +271,13 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // Check if user can delete this invoice
-            if (!User.IsInRole("Admin") && !User.IsInRole("HR") && invoice.EmployeeID != User.Identity.Name)
-            {
-                return Forbid();
-            }
-
             if (!invoice.CanDelete)
             {
-                TempData["Error"] = "This invoice cannot be deleted as it's no longer in pending status.";
-                return RedirectToAction(nameof(Index));
+                TempData["Error"] = "This invoice cannot be deleted as it's no longer in draft status.";
+                return RedirectToAction(nameof(InvoiceRecord));
             }
 
-            return View(invoice);
+            return View("~/Views/Admins/Invoice/Delete.cshtml", invoice);
         }
 
         // POST: Invoice/Delete/5
@@ -286,31 +285,55 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var invoice = await _context.Invoices.FindAsync(id);
-            if (invoice != null)
+            try
             {
-                // Check if user can delete this invoice
-                if (!User.IsInRole("Admin") && !User.IsInRole("HR") && invoice.EmployeeID != User.Identity.Name)
+                var invoice = await _context.Invoices.FindAsync(id);
+                if (invoice != null)
                 {
-                    return Forbid();
-                }
-
-                // Delete associated file
-                if (!string.IsNullOrEmpty(invoice.FilePath))
-                {
-                    var filePath = Path.Combine(_webHostEnvironment.WebRootPath, invoice.FilePath.TrimStart('/'));
-                    if (System.IO.File.Exists(filePath))
+                    // Check if invoice can be deleted
+                    if (!invoice.CanDelete)
                     {
-                        System.IO.File.Delete(filePath);
+                        TempData["Error"] = "This invoice cannot be deleted as it's no longer in draft status.";
+                        return RedirectToAction(nameof(InvoiceRecord));
                     }
-                }
 
-                _context.Invoices.Remove(invoice);
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Invoice deleted successfully!";
+                    // Delete associated file if exists
+                    if (!string.IsNullOrEmpty(invoice.FilePath))
+                    {
+                        var filePath = Path.Combine(_webHostEnvironment.WebRootPath, invoice.FilePath.TrimStart('/'));
+                        if (System.IO.File.Exists(filePath))
+                        {
+                            try
+                            {
+                                System.IO.File.Delete(filePath);
+                                _logger.LogInformation($"Deleted file: {filePath}");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, $"Could not delete file: {filePath}");
+                                // Continue with invoice deletion even if file deletion fails
+                            }
+                        }
+                    }
+
+                    _context.Invoices.Remove(invoice);
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = $"Invoice {invoice.InvoiceNumber} deleted successfully!";
+                    _logger.LogInformation($"Invoice {invoice.InvoiceNumber} deleted by {User.Identity.Name}");
+                }
+                else
+                {
+                    TempData["Error"] = "Invoice not found.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error deleting invoice with ID: {id}");
+                TempData["Error"] = "An error occurred while deleting the invoice. Please try again.";
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(InvoiceRecord));
         }
 
         // POST: Invoice/UpdateStatus/5
@@ -318,23 +341,91 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStatus(int id, string status)
         {
-            var invoice = await _context.Invoices.FindAsync(id);
-            if (invoice == null)
+            try
             {
-                return NotFound();
+                var invoice = await _context.Invoices.FindAsync(id);
+                if (invoice == null)
+                {
+                    return NotFound();
+                }
+
+                invoice.Status = status;
+
+                // Update overdue status automatically
+                if (status == "Sent" && invoice.DueDate < DateTime.Now)
+                {
+                    invoice.Status = "Overdue";
+                }
+
+                _context.Update(invoice);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = $"Invoice status updated to {invoice.Status}!";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating invoice status");
+                TempData["Error"] = "An error occurred while updating the invoice status.";
             }
 
-            invoice.Status = status;
-            _context.Update(invoice);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = $"Invoice status updated to {status}!";
             return RedirectToAction(nameof(InvoiceRecord));
+        }
+
+        // GET: Invoice/GenerateReport
+        public async Task<IActionResult> GenerateReport(int? year, string? status)
+        {
+            var query = _context.Invoices.AsQueryable();
+
+            if (year.HasValue)
+            {
+                query = query.Where(i => i.Year == year.Value);
+            }
+
+            if (!string.IsNullOrEmpty(status))
+            {
+                query = query.Where(i => i.Status == status);
+            }
+
+            var invoices = await query
+                .OrderByDescending(i => i.CreatedDate)
+                .ToListAsync();
+
+            var reportData = new
+            {
+                TotalInvoices = invoices.Count,
+                TotalAmount = invoices.Sum(i => i.TotalAmount),
+                PaidAmount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount),
+                PendingAmount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount),
+                OverdueAmount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount),
+                Invoices = invoices
+            };
+
+            ViewBag.ReportData = reportData;
+            ViewBag.SelectedYear = year;
+            ViewBag.SelectedStatus = status;
+
+            return View("~/Views/Admins/Invoice/Report.cshtml", invoices);
         }
 
         private bool InvoiceExists(int id)
         {
             return _context.Invoices.Any(e => e.InvoiceID == id);
+        }
+
+        private async Task<string> SaveFile(IFormFile file, string folderName)
+        {
+            var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", folderName);
+            Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fileStream);
+            }
+
+            return $"/uploads/{folderName}/{uniqueFileName}";
         }
     }
 }

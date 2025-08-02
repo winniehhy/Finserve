@@ -1,0 +1,253 @@
+﻿@model FinserveNew.Models.Invoice
+@{
+    ViewData["Title"] = "Delete Invoice";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0 text-danger">
+        <i class="fas fa-trash me-2"></i>Delete Invoice
+    </h2>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to List
+    </a>
+</div>
+
+<div class="alert alert-danger">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+        <div>
+            <h5 class="alert-heading mb-1">Are you sure you want to delete this invoice?</h5>
+            <p class="mb-0">This action cannot be undone. All associated data and files will be permanently removed.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-file-invoice me-2"></i>Invoice Details
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-sm-4">Invoice Number:</dt>
+                    <dd class="col-sm-8">
+                        <strong class="text-primary">@Model.InvoiceNumber</strong>
+                    </dd>
+
+                    <dt class="col-sm-4">Employee:</dt>
+                    <dd class="col-sm-8">
+                        @if (Model.Employee != null)
+                        {
+                            <div>
+                                <strong>@Model.Employee.FirstName @Model.Employee.LastName</strong>
+                                <br />
+                                <small class="text-muted">ID: @Model.EmployeeID</small>
+                            </div>
+                        }
+                        else
+                        {
+                            <span>@Model.EmployeeID</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-4">Issue Date:</dt>
+                    <dd class="col-sm-8">@Model.IssueDate.ToString("dd MMMM yyyy")</dd>
+
+                    <dt class="col-sm-4">Due Date:</dt>
+                    <dd class="col-sm-8">
+                        @Model.DueDate.ToString("dd MMMM yyyy")
+                        @if (Model.DueDate < DateTime.Now && Model.Status == "Pending")
+                        {
+                            <br />
+                            <small class="text-danger">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Overdue by @((DateTime.Now - Model.DueDate).Days) days
+                            </small>
+                        }
+                    </dd>
+                </dl>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-sm-4">Amount:</dt>
+                    <dd class="col-sm-8">
+                        <span class="h5 text-success">@Model.FormattedAmount</span>
+                        <br />
+                        <small class="text-muted">Currency: @Model.Currency</small>
+                    </dd>
+
+                    <dt class="col-sm-4">Status:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge @Model.StatusBadgeClass fs-6">@Model.Status</span>
+                    </dd>
+
+                    <dt class="col-sm-4">Year:</dt>
+                    <dd class="col-sm-8">@Model.Year</dd>
+
+                    <dt class="col-sm-4">Attached File:</dt>
+                    <dd class="col-sm-8">
+                        @if (!string.IsNullOrEmpty(Model.FilePath))
+                        {
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file-pdf text-danger me-2"></i>
+                                <span>Invoice File Available</span>
+                                <a href="@Model.FilePath" target="_blank" class="btn btn-sm btn-outline-primary ms-2">
+                                    <i class="fas fa-external-link-alt"></i> View
+                                </a>
+                            </div>
+                            <small class="text-warning d-block mt-1">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                This file will also be permanently deleted
+                            </small>
+                        }
+                        else
+                        {
+                            <span class="text-muted">No file attached</span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Remark))
+        {
+            <hr />
+            <div>
+                <dt>Remarks:</dt>
+                <dd class="mt-2">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            @Model.Remark
+                        </div>
+                    </div>
+                </dd>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Deletion Impact Warning -->
+<div class="card border-warning mt-3">
+    <div class="card-header bg-warning text-dark">
+        <h6 class="card-title mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>Deletion Impact
+        </h6>
+    </div>
+    <div class="card-body">
+        <ul class="mb-0">
+            <li>The invoice record will be permanently removed from the database</li>
+            @if (!string.IsNullOrEmpty(Model.FilePath))
+            {
+                <li class="text-danger">The attached invoice file will be deleted from the server</li>
+            }
+            <li>This action will affect any reports or analytics that reference this invoice</li>
+            <li>You will lose all historical data for invoice number <strong>@Model.InvoiceNumber</strong></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Confirmation Form -->
+<div class="mt-4">
+    <form asp-action="Delete" method="post">
+        <input type="hidden" asp-for="InvoiceID" />
+
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <a asp-action="Index" class="btn btn-outline-secondary me-3">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </a>
+                <a asp-action="Edit" asp-route-id="@Model.InvoiceID" class="btn btn-outline-primary">
+                    <i class="fas fa-edit me-2"></i>Edit Instead
+                </a>
+            </div>
+
+            <div>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                    <i class="fas fa-trash me-2"></i>Delete Invoice
+                </button>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div class="modal fade" id="confirmDeleteModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="text-center">
+                            <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                            <h5>Are you absolutely sure?</h5>
+                            <p class="mb-0">
+                                This will permanently delete invoice
+                                <strong class="text-danger">@Model.InvoiceNumber</strong>
+                                and cannot be recovered.
+                            </p>
+                        </div>
+
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" id="confirmCheck" required>
+                            <label class="form-check-label" for="confirmCheck">
+                                I understand that this action cannot be undone
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </button>
+                        <button type="submit" class="btn btn-danger" id="finalDeleteBtn" disabled>
+                            <i class="fas fa-trash me-2"></i>Yes, Delete Invoice
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Enable/disable final delete button based on checkbox
+            $('#confirmCheck').on('change', function() {
+                $('#finalDeleteBtn').prop('disabled', !this.checked);
+            });
+
+            // Optional: Add additional confirmation on form submit
+            $('form').on('submit', function(e) {
+                if (!$('#confirmCheck').is(':checked')) {
+                    e.preventDefault();
+                    alert('Please confirm that you understand this action cannot be undone.');
+                    return false;
+                }
+
+                // Show loading state on submit button
+                $('#finalDeleteBtn').html('<i class="fas fa-spinner fa-spin me-2"></i>Deleting...');
+                $('#finalDeleteBtn').prop('disabled', true);
+            });
+
+            // Reset modal state when it's closed
+            $('#confirmDeleteModal').on('hidden.bs.modal', function() {
+                $('#confirmCheck').prop('checked', false);
+                $('#finalDeleteBtn').prop('disabled', true);
+                $('#finalDeleteBtn').html('<i class="fas fa-trash me-2"></i>Yes, Delete Invoice');
+            });
+
+            // Optional: Focus on checkbox when modal opens
+            $('#confirmDeleteModal').on('shown.bs.modal', function() {
+                $('#confirmCheck').focus();
+            });
+        });
+    </script>
+}

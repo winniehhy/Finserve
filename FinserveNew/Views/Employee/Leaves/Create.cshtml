@@ -27,7 +27,7 @@
                 <h4 class="card-title">Leave Application Form</h4>
             </div>
             <div class="card-body">
-                <form asp-action="Create" method="post">
+                <form asp-action="Create" method="post" enctype="multipart/form-data">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                     <div class="row mb-3">
@@ -42,6 +42,37 @@
                             <label class="form-label">Available Days</label>
                             <div id="availableDays" class="form-control bg-light text-muted">
                                 Select a leave type to see available days
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Medical Certificate Upload Section (Hidden by default) -->
+                    <div class="mb-3" id="medicalCertificateSection" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-file-medical me-2"></i>
+                            <strong>Medical Certificate Required:</strong> Please upload an official medical certificate to support your medical leave application.
+                        </div>
+                        
+                        <label class="form-label">Medical Certificate <span class="text-danger">*</span></label>
+                        <input type="file" name="MedicalCertificate" id="MedicalCertificate" 
+                               class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max size: 5MB)
+                        </div>
+                        <span id="medicalCertificateError" class="text-danger" style="display: none;"></span>
+                        
+                        <!-- File preview area -->
+                        <div id="filePreview" class="mt-2" style="display: none;">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-alt me-2 text-primary"></i>
+                                    <span id="fileName" class="me-auto"></span>
+                                    <span id="fileSize" class="text-muted small me-2"></span>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" id="removeFile">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -161,8 +192,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
-            console.log("🚀 Leave application script loaded");
-
             // FIXED: Use dynamic leave balance data from ViewBag
             const leaveBalances = {
                 '1': {
@@ -185,36 +214,109 @@
                 '3': 'Hospitalization Leave'
             };
 
-            console.log("📊 Leave balances loaded:", leaveBalances);
-
-            // DEBUGGING: Log the actual ViewBag values
-            console.log("🔍 ViewBag values:");
-            console.log("- AnnualLeaveBalance:", @(ViewBag.AnnualLeaveBalance ?? 14));
-            console.log("- MedicalLeaveBalance:", @(ViewBag.MedicalLeaveBalance ?? 10));
-            console.log("- HospitalizationLeaveBalance:", @(ViewBag.HospitalizationLeaveBalance ?? 16));
+            // File validation settings
+            const maxFileSize = 5 * 1024 * 1024; // 5MB
+            const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
 
             // Validate leave type selection
             function isValidLeaveType(leaveTypeId) {
                 return ['1', '2', '3'].includes(leaveTypeId);
             }
 
+            // File validation function
+            function validateFile(file) {
+                if (!file) return { isValid: false, message: 'No file selected' };
+
+                const fileName = file.name.toLowerCase();
+                const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+                
+                if (!allowedExtensions.includes(fileExtension)) {
+                    return { 
+                        isValid: false, 
+                        message: 'Invalid file type. Please select PDF, JPG, PNG, DOC, or DOCX files only.' 
+                    };
+                }
+
+                if (file.size > maxFileSize) {
+                    return { 
+                        isValid: false, 
+                        message: 'File size exceeds 5MB limit. Please select a smaller file.' 
+                    };
+                }
+
+                return { isValid: true, message: '' };
+            }
+
+            // Format file size
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // Handle medical certificate file selection
+            $('#MedicalCertificate').on('change', function() {
+                const file = this.files[0];
+                const errorSpan = $('#medicalCertificateError');
+                const filePreview = $('#filePreview');
+
+                if (file) {
+                    const validation = validateFile(file);
+                    
+                    if (!validation.isValid) {
+                        errorSpan.text(validation.message).show();
+                        filePreview.hide();
+                        this.value = ''; // Clear the file input
+                        return;
+                    }
+
+                    // Hide error and show preview
+                    errorSpan.hide();
+                    $('#fileName').text(file.name);
+                    $('#fileSize').text(formatFileSize(file.size));
+                    filePreview.show();
+                } else {
+                    errorSpan.hide();
+                    filePreview.hide();
+                }
+            });
+
+            // Handle remove file button
+            $('#removeFile').on('click', function() {
+                $('#MedicalCertificate').val('');
+                $('#filePreview').hide();
+                $('#medicalCertificateError').hide();
+            });
+
             // Handle leave type selection
             $('#LeaveTypeID').on('change', function() {
                 const leaveTypeId = $(this).val();
-                console.log("🔄 Leave type changed to:", leaveTypeId);
-
                 const availableDaysDiv = $('#availableDays');
+                const medicalCertificateSection = $('#medicalCertificateSection');
+
+                // Show/hide medical certificate section based on leave type
+                if (leaveTypeId === '2') { // Medical Leave
+                    medicalCertificateSection.show();
+                    $('#MedicalCertificate').prop('required', true);
+                } else {
+                    medicalCertificateSection.hide();
+                    $('#MedicalCertificate').prop('required', false);
+                    // Clear any selected file when switching away from medical leave
+                    $('#MedicalCertificate').val('');
+                    $('#filePreview').hide();
+                    $('#medicalCertificateError').hide();
+                }
 
                 if (!leaveTypeId) {
                     availableDaysDiv.text('Select a leave type to see available days');
                     availableDaysDiv.removeClass('text-danger text-success text-warning').addClass('text-muted');
-                    console.log("⚠️ No leave type selected");
                     return;
                 }
 
                 // Validate leave type
                 if (!isValidLeaveType(leaveTypeId)) {
-                    console.log("❌ Invalid leave type selected:", leaveTypeId);
                     availableDaysDiv.text('Invalid leave type selected');
                     availableDaysDiv.removeClass('text-muted text-success text-warning').addClass('text-danger');
                     return;
@@ -223,9 +325,6 @@
                 const balance = leaveBalances[leaveTypeId];
                 const remainingDays = balance.remaining;
                 const maxDays = balance.maxDays;
-                const leaveName = leaveNames[leaveTypeId];
-
-                console.log(`✅ Selected ${leaveName}: ${remainingDays}/${maxDays} days`);
 
                 availableDaysDiv.html(`<strong>${remainingDays}</strong> of ${maxDays} days remaining`);
 
@@ -244,7 +343,6 @@
 
             // Handle date changes
             $('#StartDate, #EndDate').on('change', function() {
-                console.log("📅 Date changed:", $(this).attr('id'), "=", $(this).val());
                 calculateDuration();
             });
 
@@ -254,19 +352,13 @@
                 const endDate = $('#EndDate').val();
                 const leaveTypeId = $('#LeaveTypeID').val();
 
-                console.log("🧮 Calculating duration - Start:", startDate, "End:", endDate, "Type:", leaveTypeId);
-
                 if (startDate && endDate) {
                     const start = new Date(startDate);
                     const end = new Date(endDate);
 
-                    console.log("📅 Parsed dates - Start:", start, "End:", end);
-
                     if (end >= start) {
                         const timeDiff = end.getTime() - start.getTime();
                         const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-
-                        console.log("⏱️ Duration calculated:", daysDiff, "days");
 
                         $('#calculatedDuration').text(daysDiff);
                         $('#durationInfo').show();
@@ -274,24 +366,19 @@
                         // Check if duration exceeds available balance
                         if (isValidLeaveType(leaveTypeId) && leaveBalances[leaveTypeId] !== undefined) {
                             const availableBalance = leaveBalances[leaveTypeId].remaining;
-                            console.log("💰 Balance check - Requested:", daysDiff, "Available:", availableBalance);
 
                             if (daysDiff > availableBalance) {
-                                console.log("⚠️ WARNING: Duration exceeds available balance");
                                 $('#balanceWarning').show();
                                 $('#durationInfo').removeClass('alert-info').addClass('alert-warning');
                             } else {
-                                console.log("✅ Duration within available balance");
                                 $('#balanceWarning').hide();
                                 $('#durationInfo').removeClass('alert-warning').addClass('alert-info');
                             }
                         }
                     } else {
-                        console.log("❌ End date is before start date");
                         $('#durationInfo').hide();
                     }
                 } else {
-                    console.log("⚠️ Missing date(s) for calculation");
                     $('#durationInfo').hide();
                 }
             }
@@ -299,7 +386,6 @@
             // Set minimum date to today
             const today = new Date().toISOString().split('T')[0];
             $('#StartDate').attr('min', today);
-            console.log("📅 Set minimum date to:", today);
 
             // Update end date minimum when start date changes
             $('#StartDate').on('change', function() {
@@ -312,39 +398,45 @@
 
             // Form validation before submission
             $('form').on('submit', function(e) {
-                console.log("🚀 FORM SUBMISSION STARTED");
-
                 const leaveTypeId = $('#LeaveTypeID').val();
                 const startDate = $('#StartDate').val();
                 const endDate = $('#EndDate').val();
                 const reason = $('#Reason').val().trim();
 
-                console.log("📝 Form data collected:");
-                console.log("- Leave Type ID:", leaveTypeId);
-                console.log("- Start Date:", startDate);
-                console.log("- End Date:", endDate);
-                console.log("- Reason length:", reason.length);
-
                 // Check if form is valid according to HTML5 validation
                 const form = this;
-                console.log("✅ Form validity check:", form.checkValidity());
-
                 if (!form.checkValidity()) {
-                    console.log("❌ Form HTML5 validation failed");
                     return true;
                 }
 
                 // Validate leave type
                 if (!isValidLeaveType(leaveTypeId)) {
-                    console.log("❌ VALIDATION FAILED: Invalid leave type");
                     e.preventDefault();
                     alert('Please select a valid leave type (Annual Leave, Medical Leave, or Hospitalization Leave).');
                     $('#LeaveTypeID').focus();
                     return false;
                 }
 
+                // Medical leave specific validation
+                if (leaveTypeId === '2') {
+                    const medicalCertFile = $('#MedicalCertificate')[0].files[0];
+                    if (!medicalCertFile) {
+                        e.preventDefault();
+                        alert('Please upload a medical certificate for medical leave applications.');
+                        $('#MedicalCertificate').focus();
+                        return false;
+                    }
+
+                    const validation = validateFile(medicalCertFile);
+                    if (!validation.isValid) {
+                        e.preventDefault();
+                        alert('Medical certificate validation failed: ' + validation.message);
+                        $('#MedicalCertificate').focus();
+                        return false;
+                    }
+                }
+
                 if (!startDate || !endDate) {
-                    console.log("❌ VALIDATION FAILED: Missing dates");
                     e.preventDefault();
                     alert('Please select both start and end dates.');
                     if (!startDate) $('#StartDate').focus();
@@ -353,7 +445,6 @@
                 }
 
                 if (!reason) {
-                    console.log("❌ VALIDATION FAILED: No reason provided");
                     e.preventDefault();
                     alert('Please provide a reason for your leave.');
                     $('#Reason').focus();
@@ -365,7 +456,6 @@
                 const end = new Date(endDate);
 
                 if (end < start) {
-                    console.log("❌ VALIDATION FAILED: End date before start date");
                     e.preventDefault();
                     alert('End date must be after or equal to start date.');
                     $('#EndDate').focus();
@@ -377,31 +467,21 @@
                 const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
                 const availableBalance = leaveBalances[leaveTypeId].remaining;
 
-                console.log("💰 Final balance validation:");
-                console.log("- Days requested:", daysDiff);
-                console.log("- Available balance:", availableBalance);
-
                 if (daysDiff > availableBalance) {
-                    console.log("⚠️ WARNING: Exceeding balance, showing confirmation");
                     e.preventDefault();
                     const leaveName = leaveNames[leaveTypeId];
                     const confirmMsg = `You are requesting ${daysDiff} days but only have ${availableBalance} days remaining for ${leaveName}.\n\nDo you want to proceed anyway?`;
 
                     if (!confirm(confirmMsg)) {
-                        console.log("❌ User cancelled submission due to balance warning");
                         return false;
                     } else {
-                        console.log("✅ User confirmed to proceed despite balance warning");
                         // Re-submit the form programmatically
                         setTimeout(() => {
-                            console.log("🔄 Re-submitting form after confirmation");
                             $(this).off('submit').submit();
                         }, 100);
                         return false;
                     }
                 }
-
-                console.log("✅ ALL VALIDATIONS PASSED");
 
                 // Show loading state
                 const submitBtn = $(this).find('button[type="submit"]');
@@ -409,7 +489,6 @@
                     .prop('disabled', true)
                     .html('<i class="fas fa-spinner fa-spin me-2"></i>Submitting...');
 
-                console.log("✅ FORM SUBMISSION PROCEEDING");
                 return true;
             });
 

@@ -110,14 +110,19 @@
                 <tbody>
                     @foreach (var leave in Model)
                     {
-                        var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                         <tr>
                             <td>
                                 <span class="badge bg-primary">@leave.LeaveType?.TypeName</span>
                             </td>
                             <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
                             <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
-                            <td>@duration day(s)</td>
+                            <td>
+                                @{
+                                    var duration = leave.LeaveDays > 0 ? leave.LeaveDays : 
+                                                  (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+                                }
+                                @duration day@(duration != 1 ? "s" : "")
+                            </td>
                             <td>
                                 <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@leave.Reason">
                                     @(leave.Reason?.Length > 50 ? leave.Reason.Substring(0, 50) + "..." : leave.Reason)
@@ -141,6 +146,9 @@
                             <td>
                                 @if (leave.Status == "Pending")
                                 {
+                                     <a asp-action="Details" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     <a asp-action="Edit" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-success" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
@@ -150,7 +158,9 @@
                                 }
                                 else
                                 {
-                                    <span class="text-muted">No actions available</span>
+                                     <a asp-action="Details" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                 }
                             </td>
                         </tr>

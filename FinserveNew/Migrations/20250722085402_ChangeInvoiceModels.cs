@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FinserveNew.Migrations
 {
     /// <inheritdoc />
-    public partial class RemoveUnusedIdentityTables : Migration
+    public partial class ChangeInvoiceModels : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -98,7 +98,8 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     DefaultDaysPerYear = table.Column<int>(type: "int", nullable: false),
                     Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RequiresDocumentation = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -150,7 +151,7 @@ namespace FinserveNew.Migrations
                     Name = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Rate = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
-                    Description = table.Column<string>(type: "longtext", nullable: false)
+                    Description = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
@@ -161,22 +162,46 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Approvals",
+                name: "AspNetRoleClaims",
                 columns: table => new
                 {
-                    ApprovalID = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    Purpose = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                    RoleId = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ApprovedBy = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    ClaimType = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
+                    ClaimValue = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Approvals", x => x.ApprovalID);
+                    table.PrimaryKey("PK_AspNetRoleClaims", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AspNetRoleClaims_AspNetRoles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "AspNetRoles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "AspNetUserClaims",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    UserId = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClaimType = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClaimValue = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AspNetUserClaims", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -309,6 +334,50 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "Invoices",
+                columns: table => new
+                {
+                    InvoiceID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    InvoiceNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClientName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClientCompany = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClientEmail = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IssueDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    DueDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Currency = table.Column<string>(type: "varchar(3)", maxLength: 3, nullable: false, defaultValue: "MYR")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Pending")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Year = table.Column<int>(type: "int", nullable: false),
+                    Remark = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FilePath = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    CreatedBy = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Invoices", x => x.InvoiceID);
+                    table.ForeignKey(
+                        name: "FK_Invoices_AspNetUsers_EmployeeID",
+                        column: x => x.EmployeeID,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Claims",
                 columns: table => new
                 {
@@ -328,19 +397,17 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     EmployeeID = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     SubmissionDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    ApprovalID = table.Column<int>(type: "int", nullable: true)
+                    ApprovedBy = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ApprovalRemarks = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Claims", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Claims_Approvals_ApprovalID",
-                        column: x => x.ApprovalID,
-                        principalTable: "Approvals",
-                        principalColumn: "ApprovalID");
                     table.ForeignKey(
                         name: "FK_Claims_Employees_EmployeeID",
                         column: x => x.EmployeeID,
@@ -387,9 +454,17 @@ namespace FinserveNew.Migrations
                     EndDate = table.Column<DateOnly>(type: "date", nullable: false),
                     Reason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ApprovedBy = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    LeaveDays = table.Column<int>(type: "int", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    SubmissionDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ApprovedBy = table.Column<string>(type: "varchar(450)", maxLength: 450, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ApprovalRemarks = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -471,19 +546,12 @@ namespace FinserveNew.Migrations
                     PaymentDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     EmployeeID = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ApprovalID = table.Column<int>(type: "int", nullable: false),
                     EmployeeID1 = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Salaries", x => x.SalaryID);
-                    table.ForeignKey(
-                        name: "FK_Salaries_Approvals_ApprovalID",
-                        column: x => x.ApprovalID,
-                        principalTable: "Approvals",
-                        principalColumn: "ApprovalID",
-                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_Salaries_Employees_EmployeeID",
                         column: x => x.EmployeeID,
@@ -529,6 +597,38 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "LeaveDetails",
+                columns: table => new
+                {
+                    LeaveDetailID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    LeaveID = table.Column<int>(type: "int", nullable: false),
+                    LeaveTypeID = table.Column<int>(type: "int", nullable: false),
+                    Comment = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DocumentPath = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    UploadDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_LeaveDetails", x => x.LeaveDetailID);
+                    table.ForeignKey(
+                        name: "FK_LeaveDetails_LeaveTypes_LeaveTypeID",
+                        column: x => x.LeaveTypeID,
+                        principalTable: "LeaveTypes",
+                        principalColumn: "LeaveTypeID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_LeaveDetails_Leaves_LeaveID",
+                        column: x => x.LeaveID,
+                        principalTable: "Leaves",
+                        principalColumn: "LeaveID",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "PayrollComponents",
                 columns: table => new
                 {
@@ -555,15 +655,20 @@ namespace FinserveNew.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Approvals_EmployeeID",
-                table: "Approvals",
-                column: "EmployeeID");
+                name: "IX_AspNetRoleClaims_RoleId",
+                table: "AspNetRoleClaims",
+                column: "RoleId");
 
             migrationBuilder.CreateIndex(
                 name: "RoleNameIndex",
                 table: "AspNetRoles",
                 column: "NormalizedName",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUserClaims_UserId",
+                table: "AspNetUserClaims",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetUserRoles_RoleId",
@@ -590,11 +695,6 @@ namespace FinserveNew.Migrations
                 name: "IX_ClaimDetails_ClaimTypeID",
                 table: "ClaimDetails",
                 column: "ClaimTypeID");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Claims_ApprovalID",
-                table: "Claims",
-                column: "ApprovalID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Claims_EmployeeID",
@@ -628,6 +728,21 @@ namespace FinserveNew.Migrations
                 column: "RoleID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Invoices_EmployeeID",
+                table: "Invoices",
+                column: "EmployeeID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LeaveDetails_LeaveID",
+                table: "LeaveDetails",
+                column: "LeaveID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LeaveDetails_LeaveTypeID",
+                table: "LeaveDetails",
+                column: "LeaveTypeID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Leaves_EmployeeID",
                 table: "Leaves",
                 column: "EmployeeID");
@@ -653,11 +768,6 @@ namespace FinserveNew.Migrations
                 column: "PayrollBatchId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Salaries_ApprovalID",
-                table: "Salaries",
-                column: "ApprovalID");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Salaries_EmployeeID",
                 table: "Salaries",
                 column: "EmployeeID");
@@ -668,11 +778,11 @@ namespace FinserveNew.Migrations
                 column: "EmployeeID1");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_Approvals_Employees_EmployeeID",
-                table: "Approvals",
-                column: "EmployeeID",
-                principalTable: "Employees",
-                principalColumn: "EmployeeID",
+                name: "FK_AspNetUserClaims_AspNetUsers_UserId",
+                table: "AspNetUserClaims",
+                column: "UserId",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
@@ -695,8 +805,14 @@ namespace FinserveNew.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Employees_EmployeeID1",
-                table: "AspNetUsers");
+                name: "FK_Employees_AspNetUsers_ApplicationUserId",
+                table: "Employees");
+
+            migrationBuilder.DropTable(
+                name: "AspNetRoleClaims");
+
+            migrationBuilder.DropTable(
+                name: "AspNetUserClaims");
 
             migrationBuilder.DropTable(
                 name: "AspNetUserRoles");
@@ -708,7 +824,10 @@ namespace FinserveNew.Migrations
                 name: "EmployeeDocuments");
 
             migrationBuilder.DropTable(
-                name: "Leaves");
+                name: "Invoices");
+
+            migrationBuilder.DropTable(
+                name: "LeaveDetails");
 
             migrationBuilder.DropTable(
                 name: "PayrollComponents");
@@ -729,22 +848,22 @@ namespace FinserveNew.Migrations
                 name: "Claims");
 
             migrationBuilder.DropTable(
-                name: "LeaveTypes");
+                name: "Leaves");
 
             migrationBuilder.DropTable(
                 name: "PayrollRecords");
 
             migrationBuilder.DropTable(
-                name: "Approvals");
+                name: "LeaveTypes");
 
             migrationBuilder.DropTable(
                 name: "PayrollBatches");
 
             migrationBuilder.DropTable(
-                name: "Employees");
+                name: "AspNetUsers");
 
             migrationBuilder.DropTable(
-                name: "AspNetUsers");
+                name: "Employees");
 
             migrationBuilder.DropTable(
                 name: "BankInformations");

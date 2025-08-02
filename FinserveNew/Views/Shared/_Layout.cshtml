@@ -12,6 +12,8 @@
     <!-- Custom CSS -->
     <link href="~/css/dashboard.css" rel="stylesheet" />
     <link href="~/css/layout.css" rel="stylesheet" />
+
+    @RenderSection("Styles", required: false)
 </head>
 <body>
     @if (User.Identity.IsAuthenticated)
@@ -37,10 +39,7 @@
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge">3</span>
                     </button>
-                    <button class="theme-toggle" onclick="toggleTheme()">
-                        <i class="fas fa-sun"></i>
-                        <i class="fas fa-moon"></i>
-                    </button>
+                    
                     <div class="user-menu dropdown" data-bs-toggle="dropdown">
                         <div class="user-avatar">
                             @{
@@ -118,7 +117,7 @@
                 @if (User.IsInRole("HR"))
                 {
                     <li class="menu-section">
-                        <div class="menu-section-title">MANAGEMENT</div>
+                        <div class="menu-section-title">HR MANAGEMENT</div>
                     </li>
                     <li class="menu-item">
                         <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
@@ -132,7 +131,19 @@
                             Payroll Management
                         </a>
                     </li>
-
+                    
+                    <li class="menu-item">
+                        <a href="@Url.Action("HRIndex", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
+                            <i class="fa-solid fa-file menu-icon"></i>
+                             Claim Management
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("LeaveIndex", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
+                            <i class="fa-solid fa-calendar-xmark menu-icon"></i>
+                             Leave Management
+                        </a>
+                    </li>
                 }
 
                 <!-- Employee Only Sections -->
@@ -193,12 +204,7 @@
                         Help Center
                     </a>
                 </li>
-                <li class="menu-item">
-                    <a href="@Url.Action("BackToWebsite", "Others")" class="menu-link @(currentController == "Others" && currentAction == "BackToWebsite" ? "active" : "")">
-                        <i class="fas fa-external-link-alt menu-icon"></i>
-                        Back To Website
-                    </a>
-                </li>
+               
             </ul>
         </nav>
 

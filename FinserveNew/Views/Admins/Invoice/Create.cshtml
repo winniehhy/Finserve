@@ -1,0 +1,193 @@
+﻿@model FinserveNew.Models.Invoice
+@{
+    ViewData["Title"] = "Create Invoice";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Create New Invoice</h2>
+    <a href="@Url.Action("Index", "Invoice")" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>
+        Back to List
+    </a>
+</div>
+
+<div class="form-container">
+    <div class="card">
+        <div class="card-body">
+            <form asp-action="Create" method="post" enctype="multipart/form-data">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="row">
+                    <!-- Client Information -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-user me-2"></i>
+                            Client Information
+                        </h5>
+
+                        <div class="mb-3">
+                            <label asp-for="ClientName" class="form-label"></label>
+                            <input asp-for="ClientName" class="form-control" placeholder="Enter client name" />
+                            <span asp-validation-for="ClientName" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ClientCompany" class="form-label"></label>
+                            <input asp-for="ClientCompany" class="form-control" placeholder="Enter company name (optional)" />
+                            <span asp-validation-for="ClientCompany" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ClientEmail" class="form-label"></label>
+                            <input asp-for="ClientEmail" type="email" class="form-control" placeholder="Enter client email" />
+                            <span asp-validation-for="ClientEmail" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- Invoice Details -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-file-invoice me-2"></i>
+                            Invoice Details
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="IssueDate" class="form-label"></label>
+                                    <input asp-for="IssueDate" type="date" class="form-control" />
+                                    <span asp-validation-for="IssueDate" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="DueDate" class="form-label"></label>
+                                    <input asp-for="DueDate" type="date" class="form-control" />
+                                    <span asp-validation-for="DueDate" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label asp-for="TotalAmount" class="form-label"></label>
+                                    <div class="input-group">
+                                        <input asp-for="TotalAmount" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" />
+                                        <span class="input-group-text">@Model.Currency</span>
+                                    </div>
+                                    <span asp-validation-for="TotalAmount" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Currency" class="form-label"></label>
+                                    <select asp-for="Currency" class="form-select">
+                                        <option value="MYR">MYR (RM)</option>
+                                        <option value="USD">USD ($)</option>
+                                        <option value="SGD">SGD (S$)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                    </select>
+                                    <span asp-validation-for="Currency" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Status" class="form-label"></label>
+                            <select asp-for="Status" class="form-select">
+                                <option value="Draft">Draft</option>
+                                <option value="Pending">Pending</option>
+                            </select>
+                            <span asp-validation-for="Status" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Upload and Remarks -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-paperclip me-2"></i>
+                            Attachment
+                        </h5>
+
+                        <div class="mb-3">
+                            <label for="invoiceFile" class="form-label">Upload Invoice File (Optional)</label>
+                            <input type="file" name="invoiceFile" id="invoiceFile" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+                            <small class="text-muted">Accepted formats: PDF, DOC, DOCX, JPG, JPEG, PNG (Max 5MB)</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-comment me-2"></i>
+                            Additional Notes
+                        </h5>
+
+                        <div class="mb-3">
+                            <label asp-for="Remark" class="form-label">Remarks (Optional)</label>
+                            <textarea asp-for="Remark" class="form-control" rows="4" placeholder="Enter any additional notes or remarks..."></textarea>
+                            <span asp-validation-for="Remark" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <hr />
+                        <div class="d-flex justify-content-between">
+                            <a href="@Url.Action("Index", "Invoice")" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                Cancel
+                            </a>
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    Create Invoice
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Auto-calculate due date when issue date changes (30 days later)
+        document.getElementById('IssueDate').addEventListener('change', function() {
+            var issueDate = new Date(this.value);
+            if (issueDate) {
+                var dueDate = new Date(issueDate);
+                dueDate.setDate(dueDate.getDate() + 30);
+                document.getElementById('DueDate').value = dueDate.toISOString().split('T')[0];
+            }
+        });
+
+        // File size validation
+        document.getElementById('invoiceFile').addEventListener('change', function() {
+            var file = this.files[0];
+            if (file && file.size > 5 * 1024 * 1024) { // 5MB limit
+                alert('File size must be less than 5MB');
+                this.value = '';
+            }
+        });
+
+        // Update currency symbol when currency changes
+        document.querySelector('select[name="Currency"]').addEventListener('change', function() {
+            var symbol = this.value === 'MYR' ? 'RM' :
+                        this.value === 'USD' ? '$' :
+                        this.value === 'SGD' ? 'S$' :
+                        this.value === 'EUR' ? '€' : this.value;
+            document.querySelector('.input-group-text').textContent = symbol;
+        });
+    </script>
+}

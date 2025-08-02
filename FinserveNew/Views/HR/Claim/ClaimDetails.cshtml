@@ -1,0 +1,216 @@
+﻿@model FinserveNew.Models.Claim
+
+@{
+    ViewData["Title"] = "Claim Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Claim Details #@Model.Id</h2>
+    <div class="btn-group" role="group">
+        <a asp-action="HRIndex" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Claims
+        </a>
+        @if (Model.Status == "Pending")
+        {
+            <a asp-action="ProcessClaim" asp-route-id="@Model.Id" class="btn btn-primary">
+                <i class="fas fa-clipboard-check me-2"></i>Process Claim
+            </a>
+        }
+    </div>
+</div>
+
+<div class="form-container">
+    <div class="row">
+        <!-- Claim Information -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Claim Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Claim ID:</strong></div>
+                        <div class="col-sm-8">#@Model.Id</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Employee ID:</strong></div>
+                        <div class="col-sm-8">
+                            <span class="badge bg-secondary">@Model.EmployeeID</span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Claim Type:</strong></div>
+                        <div class="col-sm-8">
+                            <span class="badge bg-info">@Model.ClaimType</span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Amount:</strong></div>
+                        <div class="col-sm-8">
+                            <strong class="text-primary fs-5">RM @Model.ClaimAmount.ToString("F2")</strong>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Status:</strong></div>
+                        <div class="col-sm-8">
+                            @if (string.IsNullOrEmpty(Model.Status))
+                            {
+                                <span class="badge bg-secondary fs-6">No Status</span>
+                            }
+                            else if (Model.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge badge-pending fs-6">@Model.Status</span>
+                            }
+                            else if (Model.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge badge-approved fs-6">@Model.Status</span>
+                            }
+                            else if (Model.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <span class="badge badge-rejected fs-6">@Model.Status</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary fs-6">@Model.Status</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Total Amount:</strong></div>
+                        <div class="col-sm-8">RM @(Model.TotalAmount?.ToString("F2") ?? "N/A")</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline & Processing Info -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Timeline & Processing
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Created:</strong></div>
+                        <div class="col-sm-8">@Model.CreatedDate.ToString("dd MMM yyyy HH:mm")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Submitted:</strong></div>
+                        <div class="col-sm-8">@(Model.SubmissionDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Approval Date:</strong></div>
+                        <div class="col-sm-8">@(Model.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-4"><strong>Approved By:</strong></div>
+                        <div class="col-sm-8">@(Model.ApprovedBy ?? "N/A")</div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.ApprovalRemarks))
+                    {
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Approval Remarks:</strong></div>
+                            <div class="col-sm-8">@Model.ApprovalRemarks</div>
+                        </div>
+                    }
+                    @if (Model.Status == "Pending")
+                    {
+                        <div class="row mb-3">
+                            <div class="col-sm-4"><strong>Days Pending:</strong></div>
+                            <div class="col-sm-8">
+                                @{
+                                    var daysPending = (DateTime.Now - Model.CreatedDate).Days;
+                                }
+                                @if (daysPending > 7)
+                                {
+                                    <span class="badge bg-danger">@daysPending days</span>
+                                }
+                                else if (daysPending > 3)
+                                {
+                                    <span class="badge bg-warning">@daysPending days</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">@daysPending days</span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Description -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-align-left me-2"></i>Description
+            </h5>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.Description))
+            {
+                <p class="mb-0">@Model.Description</p>
+            }
+            else
+            {
+                <p class="text-muted mb-0">No description provided</p>
+            }
+        </div>
+    </div>
+
+    <!-- Supporting Document -->
+    @if (!string.IsNullOrEmpty(Model.SupportingDocumentPath))
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-paperclip me-2"></i>Supporting Document
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-file-alt fa-3x text-muted me-3"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">@(Model.SupportingDocumentName ?? System.IO.Path.GetFileName(Model.SupportingDocumentPath))</h6>
+                        <p class="text-muted mb-0">Click to view or download</p>
+                    </div>
+                    <a href="@Url.Content(Model.SupportingDocumentPath)"
+                       class="btn btn-outline-primary btn-sm"
+                       target="_blank">
+                        <i class="fas fa-download me-1"></i>Download
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Admin Actions (if needed) -->
+    @if (Model.Status == "Pending")
+    {
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cogs me-2"></i>Admin Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2">
+                    <a asp-action="ProcessClaim" asp-route-id="@Model.Id" class="btn btn-custom-approved">
+                        <i class="fas fa-check me-2"></i>Process Claim
+                    </a>
+                   
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/status.css">
+}
