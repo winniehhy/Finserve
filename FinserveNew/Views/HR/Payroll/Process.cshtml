@@ -1,232 +1,347 @@
 @model FinserveNew.Models.ViewModels.PayrollProcessViewModel
-@using System.Globalization;
 @{
     ViewData["Title"] = "Payroll Processing";
-    var monthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(Model.Month);
 }
 
 <div class="container-fluid py-4">
-    <h2 class="mb-4">Payroll Processing - @monthName @Model.Year</h2>
-    <ul class="nav nav-tabs mb-3" id="payrollTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="salary-tab" data-bs-toggle="tab" data-bs-target="#salary" type="button" role="tab">1. Basic Salary & Allowances</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="contrib-tab" data-bs-toggle="tab" data-bs-target="#contrib" type="button" role="tab">2. Contributions</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="deduct-tab" data-bs-toggle="tab" data-bs-target="#deduct" type="button" role="tab">3. Deductions</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="review-tab" data-bs-toggle="tab" data-bs-target="#review" type="button" role="tab">4. Review & Calculation</button>
-        </li>
-    </ul>
-    <div class="tab-content bg-white p-4 border rounded-bottom" id="payrollTabContent">
-        <!-- Step 1: Basic Salary & Allowances -->
-        <div class="tab-pane fade show active" id="salary" role="tabpanel">
-            <form method="post" asp-action="SaveSalaryStep" asp-route-batchId="@Model.BatchId">
-                <div class="table-responsive mb-3">
-                    <table class="table table-bordered table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Employee ID</th>
-                                <th>Name</th>
-                                <th>Basic Salary</th>
-                                <th>Housing</th>
-                                <th>Transport</th>
-                                <th>Other</th>
-                                <th>Total Allowances</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var rec in Model.Records)
-                            {
-                                var emp = rec.Employee;
-                                var housing = rec.Components.FirstOrDefault(c => c.Type == "Allowance" && c.Name == "Housing")?.Amount ?? 0;
-                                var transport = rec.Components.FirstOrDefault(c => c.Type == "Allowance" && c.Name == "Transport")?.Amount ?? 0;
-                                var other = rec.Components.Where(c => c.Type == "Allowance" && c.Name != "Housing" && c.Name != "Transport").Sum(c => c.Amount);
-                                <tr>
-                                    <td>@rec.EmployeeID</td>
-                                    <td>@emp?.FirstName @emp?.LastName</td>
-                                    <td><input type="number" step="0.01" name="BasicSalary_@rec.PayrollRecordId" value="@rec.BasicSalary" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="Housing_@rec.PayrollRecordId" value="@housing" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="Transport_@rec.PayrollRecordId" value="@transport" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="Other_@rec.PayrollRecordId" value="@other" class="form-control" /></td>
-                                    <td>@((housing + transport + other).ToString("C"))</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary">Save & Next</button>
-                </div>
-            </form>
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Payroll Processing</h2>
         </div>
-        <!-- Step 2: Contributions -->
-        <div class="tab-pane fade" id="contrib" role="tabpanel">
-            <form method="post" asp-action="SaveContributionsStep" asp-route-batchId="@Model.BatchId">
-                <div class="mb-3">
-                    <strong>Reference Rates:</strong>
-                    @foreach (var rate in Model.StatutoryRates)
-                    {
-                        <span class="badge bg-info me-2">@rate.Name: @(rate.Rate * 100)%</span>
-                    }
-                </div>
-                <div class="table-responsive mb-3">
-                    <table class="table table-bordered table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Employee ID</th>
-                                <th>Name</th>
-                                <th>EPF</th>
-                                <th>SOCSO</th>
-                                <th>EIS</th>
-                                <th>Total Contributions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var rec in Model.Records)
-                            {
-                                var emp = rec.Employee;
-                                var epf = rec.Components.FirstOrDefault(c => c.Type == "Contribution" && c.Name == "EPF")?.Amount ?? 0;
-                                var socso = rec.Components.FirstOrDefault(c => c.Type == "Contribution" && c.Name == "SOCSO")?.Amount ?? 0;
-                                var eis = rec.Components.FirstOrDefault(c => c.Type == "Contribution" && c.Name == "EIS")?.Amount ?? 0;
-                                <tr>
-                                    <td>@rec.EmployeeID</td>
-                                    <td>@emp?.FirstName @emp?.LastName</td>
-                                    <td><input type="number" step="0.01" name="EPF_@rec.PayrollRecordId" value="@epf" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="SOCSO_@rec.PayrollRecordId" value="@socso" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="EIS_@rec.PayrollRecordId" value="@eis" class="form-control" /></td>
-                                    <td>@((epf + socso + eis).ToString("C"))</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <button type="button" class="btn btn-secondary" onclick="$('#salary-tab').tab('show')">Back</button>
-                    <button type="submit" class="btn btn-primary">Save & Next</button>
-                </div>
-            </form>
+        <div class="col-md-4 text-end">
+            <a asp-action="Summary" asp-route-month="@Model.Month" asp-route-year="@Model.Year" class="btn btn-primary me-2">
+                <i class="fas fa-table me-2"></i>View Summary
+            </a>
+            <a asp-action="HistoryByMonth" class="btn btn-outline-primary">
+                <i class="fas fa-history me-2"></i>Payroll History
+            </a>
         </div>
-        <!-- Step 3: Deductions -->
-        <div class="tab-pane fade" id="deduct" role="tabpanel">
-            <form method="post" asp-action="SaveDeductionsStep" asp-route-batchId="@Model.BatchId">
-                <div class="table-responsive mb-3">
-                    <table class="table table-bordered table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Employee ID</th>
-                                <th>Name</th>
-                                <th>Income Tax (PCB)</th>
-                                <th>Zakat</th>
-                                <th>Loan Deductions</th>
-                                <th>Other Deductions</th>
-                                <th>Total Deductions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var rec in Model.Records)
-                            {
-                                var emp = rec.Employee;
-                                var pcb = rec.Components.FirstOrDefault(c => c.Type == "Deduction" && c.Name == "PCB")?.Amount ?? 0;
-                                var zakat = rec.Components.FirstOrDefault(c => c.Type == "Deduction" && c.Name == "Zakat")?.Amount ?? 0;
-                                var loan = rec.Components.FirstOrDefault(c => c.Type == "Deduction" && c.Name == "Loan")?.Amount ?? 0;
-                                var other = rec.Components.Where(c => c.Type == "Deduction" && c.Name != "PCB" && c.Name != "Zakat" && c.Name != "Loan").Sum(c => c.Amount);
-                                <tr>
-                                    <td>@rec.EmployeeID</td>
-                                    <td>@emp?.FirstName @emp?.LastName</td>
-                                    <td><input type="number" step="0.01" name="PCB_@rec.PayrollRecordId" value="@pcb" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="Zakat_@rec.PayrollRecordId" value="@zakat" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="Loan_@rec.PayrollRecordId" value="@loan" class="form-control" /></td>
-                                    <td><input type="number" step="0.01" name="OtherDeduct_@rec.PayrollRecordId" value="@other" class="form-control" /></td>
-                                    <td>@((pcb + zakat + loan + other).ToString("C"))</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <button type="button" class="btn btn-secondary" onclick="$('#contrib-tab').tab('show')">Back</button>
-                    <button type="submit" class="btn btn-primary">Save & Next</button>
-                </div>
-            </form>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-light">
+            <h4 class="card-title mb-0">Enter Salary Details</h4>
         </div>
-        <!-- Step 4: Review & Calculation -->
-        <div class="tab-pane fade" id="review" role="tabpanel">
-            <div class="table-responsive mb-3">
-                <table class="table table-bordered table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Employee ID</th>
-                            <th>Name</th>
-                            <th>Gross Salary</th>
-                            <th>Total Contributions</th>
-                            <th>Total Deductions</th>
-                            <th>Net Salary</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var rec in Model.Records)
+        <div class="card-body">
+            <form method="post" asp-action="Process" id="payrollForm">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label asp-for="Month" class="form-label">Month</label>
+                        <select asp-for="Month" class="form-select" required>
+                            @for (int m = 1; m <= 12; m++)
+                            {
+                                <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Month" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Year" class="form-label">Year</label>
+                        <select asp-for="Year" class="form-select" required>
+                            @for (int y = DateTime.Now.Year - 3; y <= DateTime.Now.Year + 3; y++)
+                            {
+                                <option value="@y">@y</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Year" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="EmployeeID" class="form-label">Select Employee</label>
+                    <select asp-for="EmployeeID" class="form-select" required id="employeeSelect">
+                        <option value="">-- Select Employee --</option>
+                        @foreach (var emp in Model.Employees)
                         {
-                            var emp = rec.Employee;
-                            <tr>
-                                <td>@rec.EmployeeID</td>
-                                <td>@emp?.FirstName @emp?.LastName</td>
-                                <td>@((rec.BasicSalary + rec.TotalAllowances).ToString("C"))</td>
-                                <td>@rec.TotalContributions.ToString("C")</td>
-                                <td>@rec.TotalDeductions.ToString("C")</td>
-                                <td>@rec.NetSalary.ToString("C")</td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="collapse" data-bs-target="#details-@rec.PayrollRecordId">Breakdown</button>
-                                </td>
-                            </tr>
-                            <tr class="collapse" id="details-@rec.PayrollRecordId">
-                                <td colspan="7">
-                                    <strong>Allowances:</strong>
-                                    <ul>
-                                        @foreach (var c in rec.Components.Where(c => c.Type == "Allowance"))
-                                        {
-                                            <li>@c.Name: @c.Amount.ToString("C")</li>
-                                        }
-                                    </ul>
-                                    <strong>Contributions:</strong>
-                                    <ul>
-                                        @foreach (var c in rec.Components.Where(c => c.Type == "Contribution"))
-                                        {
-                                            <li>@c.Name: @c.Amount.ToString("C")</li>
-                                        }
-                                    </ul>
-                                    <strong>Deductions:</strong>
-                                    <ul>
-                                        @foreach (var c in rec.Components.Where(c => c.Type == "Deduction"))
-                                        {
-                                            <li>@c.Name: @c.Amount.ToString("C")</li>
-                                        }
-                                    </ul>
-                                </td>
-                            </tr>
+                            <option value="@emp.EmployeeID">@emp.EmployeeID - @emp.FirstName @emp.LastName</option>
                         }
-                    </tbody>
-                </table>
-            </div>
-            <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-secondary" onclick="$('#deduct-tab').tab('show')">Back</button>
-                <a asp-action="Dashboard" class="btn btn-success">Finish & Return to Dashboard</a>
-            </div>
+                    </select>
+                    <span asp-validation-for="EmployeeID" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input asp-for="SameAsPreviousMonth" class="form-check-input" id="sameAsPrevious" />
+                        <label asp-for="SameAsPreviousMonth" class="form-check-label">Copy previous month data</label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="ProjectName" class="form-label">Project Name</label>
+                    <input asp-for="ProjectName" class="form-control" required />
+                    <span asp-validation-for="ProjectName" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="BasicSalary" class="form-label">Basic Salary</label>
+                    <div class="input-group">
+                        <span class="input-group-text">RM</span>
+                        <input asp-for="BasicSalary" class="form-control calculation-input" required />
+                    </div>
+                    <span asp-validation-for="BasicSalary" class="text-danger"></span>
+                </div>
+
+                <h5 class="mt-4 text-primary">Employer Contributions</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployerEpf" class="form-label">Employer EPF (13%)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerEpf" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerEpf" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployerSocso" class="form-label">Employer SOCSO</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerSocso" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerSocso" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployerEis" class="form-label">Employer EIS</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerEis" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerEis" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployerTax" class="form-label">Employer Tax</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployerTax" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployerTax" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="EmployerOtherContributions" class="form-label">Other Contributions</label>
+                    <div class="input-group">
+                        <span class="input-group-text">RM</span>
+                        <input asp-for="EmployerOtherContributions" class="form-control calculation-input" />
+                    </div>
+                    <span asp-validation-for="EmployerOtherContributions" class="text-danger"></span>
+                </div>
+
+                <h5 class="mt-4 text-primary">Employee Deductions</h5>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeEpf" class="form-label">Employee EPF (11%)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeEpf" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeEpf" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeSocso" class="form-label">Employee SOCSO</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeSocso" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeSocso" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeEis" class="form-label">Employee EIS</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeEis" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeEis" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EmployeeTax" class="form-label">Employee Tax</label>
+                        <div class="input-group">
+                            <span class="input-group-text">RM</span>
+                            <input asp-for="EmployeeTax" class="form-control calculation-input" />
+                        </div>
+                        <span asp-validation-for="EmployeeTax" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <h5 class="mt-4 text-primary">Salary Breakdown</h5>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Total Wages</th>
+                                <th>Total Employer Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong id="totalWages">RM 0.00</strong></td>
+                                <td><strong id="totalEmployerCost">RM 0.00</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-action="Summary" asp-route-month="@Model.Month" asp-route-year="@Model.Year" class="btn btn-secondary">
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">Save Payroll Entry</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
 @section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
     <script>
-        // Enable tab navigation with Next/Back buttons
         $(function () {
-            $('#payrollTabs button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                window.scrollTo(0, 0);
+            // Auto-calculate fields based on Basic Salary
+            $('#BasicSalary').on('input', function() {
+                calculateStatutoryAmounts();
             });
+
+            $('#Month, #Year').on('change', function() {
+                let employeeId = $('#employeeSelect').val();
+                let month = $('#Month').val();
+                let year = $('#Year').val();
+                if (employeeId) {
+                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
+                } else {
+                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year;
+                }
+            });
+
+            // Handle employee selection change
+            $('#employeeSelect').on('change', function() {
+                let employeeId = $(this).val();
+                if (employeeId) {
+                    let month = $('#Month').val();
+                    let year = $('#Year').val();
+                    window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
+                }
+                else {
+                    window.location.href = '@Url.Action("Process")';
+                }
+            });
+
+            // Handle "Same as Previous Month" checkbox
+            $('#sameAsPrevious').on('change', function() {
+                if ($(this).is(':checked')) {
+                    let employeeId = $('#employeeSelect').val();
+                    let month = parseInt($('#Month').val());
+                    let year = parseInt($('#Year').val());
+
+                    if (employeeId) {
+                        loadPreviousMonthData(employeeId, month, year);
+                    } else {
+                        alert("Please select an employee first");
+                        $(this).prop('checked', false);
+                    }
+                }
+            });
+
+            // Recalculate totals when any input changes
+            $('.calculation-input').on('input', function() {
+                calculateTotals();
+            });
+
+            // Initial calculation
+            calculateTotals();
+
+            // Show success message if exists
+        @if (TempData["Success"] != null)
+        {
+            <text>
+                        // You can replace this with your preferred notification method
+                        alert('@TempData["Success"]');
+            </text>
+        }
         });
+
+        function loadPreviousMonthData(employeeId, month, year) {
+            $.ajax({
+                url: '@Url.Action("GetPreviousMonthData")',
+                type: 'GET',
+                data: { employeeId, month, year },
+                success: function(response) {
+                    if (response.success) {
+                        // Populate the form with previous month's data
+                        $('#ProjectName').val(response.projectName);
+                        $('#BasicSalary').val(response.basicSalary);
+                        $('#EmployerEpf').val(response.employerEpf);
+                        $('#EmployerSocso').val(response.employerSocso);
+                        $('#EmployerEis').val(response.employerEis);
+                        $('#EmployerTax').val(response.employerTax);
+                        $('#EmployerOtherContributions').val(response.employerOtherContributions);
+                        $('#EmployeeEpf').val(response.employeeEpf);
+                        $('#EmployeeSocso').val(response.employeeSocso);
+                        $('#EmployeeEis').val(response.employeeEis);
+                        $('#EmployeeTax').val(response.employeeTax);
+
+                        // Recalculate totals
+                        calculateTotals();
+                    } else {
+                        alert("No data found for the previous month.");
+                        $('#sameAsPrevious').prop('checked', false);
+                    }
+                },
+                error: function() {
+                    alert("Error loading previous month data.");
+                    $('#sameAsPrevious').prop('checked', false);
+                }
+            });
+        }
+
+        function calculateStatutoryAmounts() {
+            let basicSalary = parseFloat($('#BasicSalary').val()) || 0;
+
+            // Calculate employer contributions
+            $('#EmployerEpf').val((basicSalary * 0.13).toFixed(2));
+
+            // TODO: Use manual entry for now, may implement the calculation logic here
+            $('#EmployerSocso').val((basicSalary * 0.02).toFixed(2));  // Example rate
+            $('#EmployerEis').val((basicSalary * 0.005).toFixed(2));   // Example rate
+
+            // Calculate employee deductions
+            $('#EmployeeEpf').val((basicSalary * 0.11).toFixed(2));
+
+            // TODO: Use manual entry for now, may implement the calculation logic here
+            $('#EmployeeSocso').val((basicSalary * 0.01).toFixed(2));  // Example rate
+            $('#EmployeeEis').val((basicSalary * 0.002).toFixed(2));   // Example rate
+
+            // Recalculate totals
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            // Parse all values
+            let basicSalary = parseFloat($('#BasicSalary').val()) || 0;
+            let employeeEpf = parseFloat($('#EmployeeEpf').val()) || 0;
+            let employeeSocso = parseFloat($('#EmployeeSocso').val()) || 0;
+            let employeeEis = parseFloat($('#EmployeeEis').val()) || 0;
+            let employeeTax = parseFloat($('#EmployeeTax').val()) || 0;
+
+            let employerEpf = parseFloat($('#EmployerEpf').val()) || 0;
+            let employerSocso = parseFloat($('#EmployerSocso').val()) || 0;
+            let employerEis = parseFloat($('#EmployerEis').val()) || 0;
+            let employerTax = parseFloat($('#EmployerTax').val()) || 0;
+            let employerOther = parseFloat($('#EmployerOtherContributions').val()) || 0;
+
+            // Calculate totals
+            let totalWages = basicSalary - employeeEpf - employeeSocso - employeeEis - employeeTax;
+            let totalEmployerCost = basicSalary + employerEpf + employerSocso + employerEis + employerTax + employerOther;
+
+            // Display totals
+            $('#totalWages').text('RM ' + totalWages.toFixed(2));
+            $('#totalEmployerCost').text('RM ' + totalEmployerCost.toFixed(2));
+        }
     </script>
-} 
+}

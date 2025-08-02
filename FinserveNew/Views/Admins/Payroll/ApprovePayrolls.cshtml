@@ -1,0 +1,171 @@
+﻿@model IEnumerable<FinserveNew.Models.Payroll>
+@{
+    ViewData["Title"] = "Payroll Approvals";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Payroll Approvals</h2>
+            <p class="text-muted">Review and approve pending payroll entries</p>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#pending" role="tab">
+                        Pending <span class="badge bg-danger">@Model.Count(p => p.PaymentStatus == "Pending Approval")</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#approved" role="tab">
+                        Approved <span class="badge bg-success">@Model.Count(p => p.PaymentStatus == "Approved")</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#rejected" role="tab">
+                        Rejected <span class="badge bg-secondary">@Model.Count(p => p.PaymentStatus == "Rejected")</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Pending Approvals Tab -->
+                <div class="tab-pane fade show active" id="pending" role="tabpanel">
+                    @if (Model.Any(p => p.PaymentStatus == "Pending Approval"))
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Month/Year</th>
+                                        <th>Basic Salary</th>
+                                        <th>Net Salary</th>
+                                        <th>Total Cost</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Pending Approval"))
+                                    {
+                                        <tr>
+                                            <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
+                                            <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
+                                            <td>RM @payroll.BasicSalary.ToString("N2")</td>
+                                            <td>RM @payroll.TotalWages.ToString("N2")</td>
+                                            <td>RM @payroll.TotalEmployerCost.ToString("N2")</td>
+                                            <td><span class="badge bg-warning">@payroll.PaymentStatus</span></td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <a asp-controller="Payroll" asp-action="PayrollDetails" asp-route-id="@payroll.PayrollID" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye me-1"></i> Review
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No payroll entries pending approval.</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Approved Tab -->
+                <div class="tab-pane fade" id="approved" role="tabpanel">
+                    @if (Model.Any(p => p.PaymentStatus == "Approved"))
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Month/Year</th>
+                                        <th>Basic Salary</th>
+                                        <th>Net Salary</th>
+                                        <th>Total Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Approved"))
+                                    {
+                                        <tr>
+                                            <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
+                                            <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
+                                            <td>RM @payroll.BasicSalary.ToString("N2")</td>
+                                            <td>RM @payroll.TotalWages.ToString("N2")</td>
+                                            <td>RM @payroll.TotalEmployerCost.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No approved payroll entries found.</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Rejected Tab -->
+                <div class="tab-pane fade" id="rejected" role="tabpanel">
+                    @if (Model.Any(p => p.PaymentStatus == "Rejected"))
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Month/Year</th>
+                                        <th>Basic Salary</th>
+                                        <th>Net Salary</th>
+                                        <th>Total Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Rejected"))
+                                    {
+                                        <tr>
+                                            <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
+                                            <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
+                                            <td>RM @payroll.BasicSalary.ToString("N2")</td>
+                                            <td>RM @payroll.TotalWages.ToString("N2")</td>
+                                            <td>RM @payroll.TotalEmployerCost.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No rejected payroll entries found.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

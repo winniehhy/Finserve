@@ -1,0 +1,172 @@
+﻿@model FinserveNew.Models.Payroll
+@{
+    ViewData["Title"] = "Payslip Details";
+    var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(Model.Month);
+    var totalDeductions = Model.EmployeeEpf + Model.EmployeeSocso + Model.EmployeeEis + Model.EmployeeTax;
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Payslip for @monthName @Model.Year</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            <a asp-action="DownloadPayslip" asp-route-id="@Model.PayrollID" class="btn btn-success me-2">
+                <i class="fas fa-download me-2"></i>Download PDF
+            </a>
+            <a asp-action="Payslips" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Payslips
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4 class="mb-0">PAYSLIP</h4>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h5 class="mb-0">@monthName @Model.Year</h5>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Employee Information</h5>
+                    <table class="table table-borderless">
+                        <tr>
+                            <td>Employee Name:</td>
+                            <td><strong>@Model.Employee.FirstName @Model.Employee.LastName</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Employee ID:</td>
+                            <td>@Model.EmployeeID</td>
+                        </tr>
+                        <tr>
+                            <td>Position:</td>
+                            <td>@Model.Employee.Position</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5>Payment Information</h5>
+                    <table class="table table-borderless">
+                        <tr>
+                            <td>Payment Date:</td>
+                            <td>@Model.CreatedDate.ToString("dd MMMM yyyy")</td>
+                        </tr>
+                        <tr>
+                            <td>Payment Status:</td>
+                            <td><span class="badge bg-success">@Model.PaymentStatus</span></td>
+                        </tr>
+                        <tr>
+                            <td>Project:</td>
+                            <td>@Model.ProjectName</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <h5>Salary Details</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount (RM)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Basic Salary</td>
+                                    <td class="text-end">@Model.BasicSalary.ToString("N2")</td>
+                                </tr>
+                                <tr class="table-secondary">
+                                    <td><strong>Gross Salary</strong></td>
+                                    <td class="text-end"><strong>@Model.BasicSalary.ToString("N2")</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h5>Deductions</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount (RM)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>EPF (11%)</td>
+                                    <td class="text-end">@Model.EmployeeEpf.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>SOCSO</td>
+                                    <td class="text-end">@Model.EmployeeSocso.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>EIS</td>
+                                    <td class="text-end">@Model.EmployeeEis.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Income Tax</td>
+                                    <td class="text-end">@Model.EmployeeTax.ToString("N2")</td>
+                                </tr>
+                                <tr class="table-secondary">
+                                    <td><strong>Total Deductions</strong></td>
+                                    <td class="text-end"><strong>@totalDeductions.ToString("N2")</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Summary</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount (RM)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Gross Salary</td>
+                                    <td class="text-end">@Model.BasicSalary.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Deductions</td>
+                                    <td class="text-end">@totalDeductions.ToString("N2")</td>
+                                </tr>
+                                <tr class="table-success">
+                                    <td><strong>Net Salary</strong></td>
+                                    <td class="text-end"><strong>@Model.TotalWages.ToString("N2")</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i> This is an electronic payslip and does not require a signature.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

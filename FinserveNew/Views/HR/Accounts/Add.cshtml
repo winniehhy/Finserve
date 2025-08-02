@@ -2,6 +2,10 @@
 @{
     ViewData["Title"] = "Add New Employee";
 }
+@{
+    string dobValue = Model.DateOfBirth == DateOnly.MinValue ? "" : Model.DateOfBirth.ToString("yyyy-MM-dd");
+    string joinValue = Model.JoinDate == DateOnly.MinValue ? "" : Model.JoinDate.ToString("yyyy-MM-dd");
+}
 
 <div class="container mt-4">
     <h2>Add New Employee</h2>
@@ -11,19 +15,19 @@
 
         <div class="card mb-4">
             <div class="card-header">
-                <h4>Personal & Contact Details</h4>
+                <h4>Personal Details</h4>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="FirstName" class="control-label">First Name</label>
                         <input asp-for="FirstName" class="form-control" required />
-                        <span asp-validation-for="FirstName" class="text-danger"></span>
+                        <small><span asp-validation-for="FirstName" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="LastName" class="control-label">Last Name</label>
                         <input asp-for="LastName" class="form-control" required />
-                        <span asp-validation-for="LastName" class="text-danger"></span>
+                        <small><span asp-validation-for="LastName" class="text-danger"></span></small>
                     </div>
                 </div>
 
@@ -31,57 +35,59 @@
                     <div class="col-md-6 mb-3">
                         <label asp-for="IC" class="control-label">IC Number</label>
                         <input asp-for="IC" class="form-control" required />
-                        <span asp-validation-for="IC" class="text-danger"></span>
+                        <small><span asp-validation-for="IC" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="Nationality" class="control-label">Nationality</label>
                         <select asp-for="Nationality" class="form-select" required>
-                            <option value="">Select Nationality</option>
+                            <option value="">-- Select Nationality --</option>
                             @foreach (var nationality in Model.Nationalities)
                             {
                                 <option value="@nationality">@nationality</option>
                             }
                         </select>
-                        <span asp-validation-for="Nationality" class="text-danger"></span>
+                        <small><span asp-validation-for="Nationality" class="text-danger"></span></small>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="DateOfBirth" class="control-label">Date of Birth</label>
-                        <input asp-for="DateOfBirth" class="form-control" type="date" required />
-                        <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+                        <input asp-for="DateOfBirth" class="form-control" type="date" required value="@dobValue"/>
+                        <small><span asp-validation-for="DateOfBirth" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="Email" class="control-label">Email</label>
                         <input asp-for="Email" class="form-control" type="email" required />
-                        <span asp-validation-for="Email" class="text-danger"></span>
+                        <small><span asp-validation-for="Email" class="text-danger"></span></small>
                     </div>
                 </div>
 
-                <div class="col-md-6 mb-3">
-                    <label asp-for="TelephoneNumber" class="control-label">Telephone Number</label>
-                    <input asp-for="TelephoneNumber" class="form-control" required />
-                    <span asp-validation-for="TelephoneNumber" class="text-danger"></span>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="TelephoneNumber" class="control-label">Telephone Number</label>
+                        <input asp-for="TelephoneNumber" class="form-control" required />
+                        <small><span asp-validation-for="TelephoneNumber" class="text-danger"></span></small>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="card mb-4">
             <div class="card-header">
-                <h4>Employment & Position Details</h4>
+                <h4>Employment Details</h4>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="JoinDate" class="control-label">Join Date</label>
-                        <input asp-for="JoinDate" class="form-control" type="date" required />
-                        <span asp-validation-for="JoinDate" class="text-danger"></span>
+                        <input asp-for="JoinDate" class="form-control" type="date" required value="@joinValue"/>
+                        <small><span asp-validation-for="JoinDate" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label asp-for="ResignationDate" class="control-label">Resignation Date</label>
-                        <input asp-for="ResignationDate" class="form-control" type="date" />
-                        <span asp-validation-for="ResignationDate" class="text-danger"></span>
+                        <label asp-for="Position" class="control-label">Position</label>
+                        <input asp-for="Position" class="form-control" required />
+                        <small><span asp-validation-for="Position" class="text-danger"></span></small>
                     </div>
                 </div>
 
@@ -94,14 +100,17 @@
                             <option value="Confirmed">Confirmed</option>
                             <option value="Terminated">Terminated</option>
                         </select>
-                        <span asp-validation-for="ConfirmationStatus" class="text-danger"></span>
+                        <small><span asp-validation-for="ConfirmationStatus" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label asp-for="Position" class="control-label">Position</label>
-                        <input asp-for="Position" class="form-control" required />
-                        <span asp-validation-for="Position" class="text-danger"></span>
+                        <label asp-for="RoleID" class="control-label">Role</label>
+                        <select asp-for="RoleID" asp-items="Model.AvailableRoles" class="form-select" required>
+                            <option value="">-- Select Role --</option>
+                        </select>
+                        <small><span asp-validation-for="RoleID" class="text-danger"></span></small>
                     </div>
                 </div>
+
             </div>
         </div>
 
@@ -120,7 +129,7 @@
                                 <option value="@bank">@bank</option>
                             }
                         </select>
-                        <span asp-validation-for="BankName" class="text-danger"></span>
+                        <small><span asp-validation-for="BankName" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="BankType" class="control-label">Account Type</label>
@@ -131,7 +140,7 @@
                                 <option value="@type">@type</option>
                             }
                         </select>
-                        <span asp-validation-for="BankType" class="text-danger"></span>
+                        <small><span asp-validation-for="BankType" class="text-danger"></span></small>
                     </div>
                 </div>
 
@@ -139,7 +148,7 @@
                     <div class="col-md-6 mb-3">
                         <label asp-for="BankAccountNumber" class="control-label">Bank Account Number</label>
                         <input asp-for="BankAccountNumber" class="form-control" required />
-                        <span asp-validation-for="BankAccountNumber" class="text-danger"></span>
+                        <small><span asp-validation-for="BankAccountNumber" class="text-danger"></span></small>
                     </div>
                 </div>
             </div>
@@ -154,12 +163,12 @@
                     <div class="col-md-6 mb-3">
                         <label asp-for="IncomeTaxNumber" class="control-label">Income Tax Number</label>
                         <input asp-for="IncomeTaxNumber" class="form-control" required />
-                        <span asp-validation-for="IncomeTaxNumber" class="text-danger"></span>
+                        <small><span asp-validation-for="IncomeTaxNumber" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="EPFNumber" class="control-label">EPF (Employee Provident Fund) Number</label>
                         <input asp-for="EPFNumber" class="form-control" required />
-                        <span asp-validation-for="EPFNumber" class="text-danger"></span>
+                        <small><span asp-validation-for="EPFNumber" class="text-danger"></span></small>
                     </div>
                 </div>
             </div>
@@ -174,40 +183,20 @@
                     <div class="col-md-6 mb-3">
                         <label asp-for="EmergencyContactName" class="control-label">Full Name</label>
                         <input asp-for="EmergencyContactName" class="form-control" required />
-                        <span asp-validation-for="EmergencyContactName" class="text-danger"></span>
+                        <small><span asp-validation-for="EmergencyContactName" class="text-danger"></span></small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="EmergencyContactPhone" class="control-label">Contact Number</label>
                         <input asp-for="EmergencyContactPhone" class="form-control" required />
-                        <span asp-validation-for="EmergencyContactPhone" class="text-danger"></span>
+                        <small><span asp-validation-for="EmergencyContactPhone" class="text-danger"></span></small>
                     </div>
                 </div>
 
-                <div class="col-md-6 mb-3">
-                    <label asp-for="EmergencyContactRelationship" class="control-label">Relationship</label>
-                    <input asp-for="EmergencyContactRelationship" class="form-control" required />
-                    <span asp-validation-for="EmergencyContactRelationship" class="text-danger"></span>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4>System Login Credentials</h4>
-            </div>
-            <div class="card-body">
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label asp-for="Username" class="control-label">Username</label>
-                        <input asp-for="Username" class="form-control" required />
-                        <span asp-validation-for="Username" class="text-danger"></span>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="Password" class="control-label">Password</label>
-                        <input asp-for="Password" class="form-control" type="password" required 
-                               pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$!%*?&])[A-Za-z\d$!%*?&]{8,}$"
-                               title="Password must be at least 8 characters long and contain at least one uppercase letter, one number, and one special character" />
-                        <span asp-validation-for="Password" class="text-danger"></span>
+                        <label asp-for="EmergencyContactRelationship" class="control-label">Relationship</label>
+                        <input asp-for="EmergencyContactRelationship" class="form-control" required />
+                        <small><span asp-validation-for="EmergencyContactRelationship" class="text-danger"></span></small>
                     </div>
                 </div>
             </div>
@@ -221,7 +210,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="control-label">IC Photo</label>
-                        <input type="file" name="ICFile" class="form-control" accept="image/*, .pdf" />
+                        <input type="file" name="ICFile" class="form-control" accept="image, .pdf" />
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="control-label">Resume</label>
@@ -246,18 +235,8 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-    
-    <script>
-        // Auto-generate username based on first and last name
-        document.getElementById('FirstName').addEventListener('input', updateUsername);
-        document.getElementById('LastName').addEventListener('input', updateUsername);
 
-        function updateUsername() {
-            const firstName = document.getElementById('FirstName').value.toLowerCase().replace(/\s+/g, '');
-            const lastName = document.getElementById('LastName').value.toLowerCase().replace(/\s+/g, '');
-            if (firstName && lastName) {
-                document.getElementById('Username').value = `${firstName}.${lastName}`;
-            }
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    
 }

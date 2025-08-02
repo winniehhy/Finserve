@@ -55,7 +55,7 @@
                         <i class="fas fa-chevron-down ms-1"></i>
                     </div>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="@Url.Action("Profile", "Account")"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("Profile", "Accounts")"><i class="fas fa-user me-2"></i>Profile</a></li>
                         <li><a class="dropdown-item" href="@Url.Action("Settings", "Account")"><i class="fas fa-cog me-2"></i>Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
@@ -98,6 +98,19 @@
                             Invoice Management
                         </a>
                     </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                            <i class="fas fa-check-circle menu-icon"></i>
+                            <span>Approve Payrolls</span>
+                            @{
+                                var pendingCount = await Component.InvokeAsync("PendingPayrollCount");
+                                if (pendingCount != null && int.TryParse(pendingCount.ToString(), out int count) && count > 0)
+                                {
+                                    <span class="badge bg-danger ms-2">@count</span>
+                                }
+                            }
+                        </a>
+                    </li>
                 }
 
                 <!-- HR Only Sections -->
@@ -113,11 +126,12 @@
                         </a>
                     </li>
                     <li class="menu-item">
-                        <a href="@Url.Action("Dashboard", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                        <a href="@Url.Action("Process", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
                             <i class="fas fa-money-bill-wave menu-icon"></i>
                             Payroll Management
                         </a>
                     </li>
+                    
                     <li class="menu-item">
                         <a href="@Url.Action("HRIndex", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
                             <i class="fa-solid fa-file menu-icon"></i>
@@ -157,7 +171,27 @@
                         </a>
                     </li>
 
+                    <!-- Payroll Section - Employee Only -->
+                    <li class="menu-section">
+                        <div class="menu-section-title">SALARY</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("Payslips", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                            <i class="fas fa-receipt menu-icon"></i>
+                            My Payslips
+                        </a>
+                    </li>
 
+                    <!-- Invoice Section - Employee Only (for their own invoices) -->
+                    @* <li class="menu-section">
+                        <div class="menu-section-title">INVOICES</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("Index", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
+                            <i class="fas fa-file-invoice menu-icon"></i>
+                            My Invoices
+                        </a>
+                    </li> *@
                 }
 
                 <!-- General Section - All authenticated users -->
@@ -192,6 +226,9 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
     <script src="~/js/layout.js"></script>
 
     @RenderSection("Scripts", required: false)

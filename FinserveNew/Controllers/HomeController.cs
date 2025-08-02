@@ -221,7 +221,6 @@ namespace FinserveNew.Controllers
                     TempData["Error"] = "Employee record not found.";
                     return View("~/Views/Employee/Dashboard.cshtml");
                 }
-
                 var currentYear = DateTime.Now.Year;
 
                 // Calculate leave balances - USE THE SAME METHOD AS LeaveRecords

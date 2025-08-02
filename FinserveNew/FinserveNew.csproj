@@ -8,18 +8,29 @@
 
   <ItemGroup>
     <Compile Remove="Claim.cs" />
+    <Compile Remove="Controllers\AdminController.cs" />
     <Compile Remove="Efmigrationshistory.cs" />
     <Compile Remove="Employee.cs" />
     <Compile Remove="FinserveNewDbContext.cs" />
+    <Compile Remove="Models\NewPayrollRecord.cs" />
+    <Compile Remove="Models\PayrollBatch.cs" />
+    <Compile Remove="Models\PayrollComponent.cs" />
+    <Compile Remove="Models\PayrollRecord.cs" />
+    <Compile Remove="Models\SalaryModel.cs" />
+    <Compile Remove="Models\StatutoryRate.cs" />
+    <Compile Remove="Models\ViewModels\NewPayrollViewModel.cs" />
     <Compile Remove="Views\Accounts\Create.cshtml.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Remove="Views\Accounts\Component.razor" />
     <Content Remove="Views\Accounts\Create.cshtml" />
+    <Content Remove="Views\HR\Payroll\Dashboard.cshtml" />
+    <Content Remove="Views\HR\Payroll\NewProcess.cshtml" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="ISO3166" Version="1.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.17" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.17" />
@@ -38,6 +49,7 @@
 
   <ItemGroup>
     <Folder Include="Models\ViewModels\" />
+    <Folder Include="Services\" />
   </ItemGroup>
 
   <ItemGroup>

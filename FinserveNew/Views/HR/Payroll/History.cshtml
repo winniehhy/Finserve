@@ -1,0 +1,182 @@
+﻿@model FinserveNew.Models.ViewModels.PayrollProcessViewModel
+@{
+    ViewData["Title"] = "Payroll History";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Payroll History</h2>
+            <p class="text-muted">View and export past payroll records</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a asp-action="Process" class="btn btn-primary">
+                <i class="fas fa-chevron-left me-2"></i>Back to Payroll Processing
+            </a>
+            <a asp-action="Summary" class="btn btn-outline-secondary">
+                <i class="fas fa-table me-2"></i>Summary
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h4 class="card-title mb-0">Payroll Records - @Model.MonthName @Model.Year</h4>
+
+            <div class="d-flex">
+                <div class="input-group me-2">
+                    <select id="historyMonth" class="form-select" style="max-width: 150px;">
+                        @for (int m = 1; m <= 12; m++)
+                        {
+                            <option value="@m" selected="@(m == Model.Month)">
+                                @System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)
+                            </option>
+                        }
+                    </select>
+                    <select id="historyYear" class="form-select" style="max-width: 100px;">
+                        @for (int y = DateTime.Now.Year - 5; y <= DateTime.Now.Year; y++)
+                        {
+                            <option value="@y" selected="@(y == Model.Year)">
+                                @y
+                            </option>
+                        }
+                    </select>
+                    <button type="button" id="viewHistory" class="btn btn-outline-secondary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                <button type="button" class="btn btn-outline-success d-flex align-items-center" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-1"></i>
+                    <span>Export</span>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            @if (Model.Payrolls.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover" id="payrollTable">
+                        <thead class="bg-light">
+                            <tr>
+                                <th rowspan="2" class="text-center align-middle">No</th>
+                                <th colspan="3" class="text-center">Employee Details</th>
+                                <th colspan="4" class="text-center">Employer Contribution</th>
+                                <th colspan="4" class="text-center">Employee Contribution</th>
+                                <th rowspan="2" class="text-center align-middle">Net Salary</th>
+                            </tr>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Emp Name</th>
+                                <th>Gross Salary</th>
+                                <th>EPF (13%)</th>
+                                <th>Socso</th>
+                                <th>EIS</th>
+                                <th>PCB</th>
+                                <th>EPF (11%)</th>
+                                <th>Socso</th>
+                                <th>EIS</th>
+                                <th>PCB</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var count = 1;
+                            }
+                            @foreach (var entry in Model.Payrolls)
+                            {
+                                <tr>
+                                    <td class="text-center">@count</td>
+                                    <td>@entry.EmployeeID</td>
+                                    <td>@entry.Employee.FirstName @entry.Employee.LastName</td>
+                                    <td class="text-end">@entry.BasicSalary.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerEpf.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerSocso.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerEis.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerTax.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeEpf.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeSocso.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeEis.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeTax.ToString("N2")</td>
+                                    <td class="text-end">@entry.TotalWages.ToString("N2")</td>
+                                </tr>
+                                count++;
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td colspan="2"></td>
+                                <td>Total</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.BasicSalary).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerEpf).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerSocso).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerEis).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerTax).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeEpf).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeSocso).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeEis).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeTax).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.TotalWages).ToString("N2")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <p class="mb-0">No payroll records found for @Model.MonthName @Model.Year.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom styling for the table */
+    #payrollTable thead th {
+        vertical-align: middle;
+        background-color: #f8f9fa;
+    }
+
+    #payrollTable th, #payrollTable td {
+        white-space: nowrap;
+        padding: 0.5rem;
+    }
+
+    #payrollTable tfoot {
+        border-top: 2px solid #dee2e6;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        $(function() {
+            $('#viewHistory').click(function() {
+                let month = $('#historyMonth').val();
+                let year = $('#historyYear').val();
+                window.location.href = '@Url.Action("HistoryByMonth")' + '?month=' + month + '&year=' + year;
+            });
+        });
+
+        function exportToExcel() {
+            // Check if table has data
+            if ($('#payrollTable tbody tr').length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            // Create a workbook with a worksheet
+            let wb = XLSX.utils.book_new();
+            let ws = XLSX.utils.table_to_sheet(document.getElementById('payrollTable'));
+
+            // Add the worksheet to the workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Payroll @Model.MonthName @Model.Year');
+
+            // Generate file and trigger download
+            XLSX.writeFile(wb, 'Payroll_@(Model.MonthName)@(Model.Year).xlsx');
+        }
+    </script>
+
+    <!-- Include SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+}

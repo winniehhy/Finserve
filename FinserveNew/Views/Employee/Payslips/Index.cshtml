@@ -1,0 +1,78 @@
+﻿@model IEnumerable<FinserveNew.Models.Payroll>
+@{
+    ViewData["Title"] = "My Payslips";
+    int currentYear = ViewBag.SelectedYear;
+    List<int> availableYears = ViewBag.AvailableYears;
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>My Payslips</h2>
+            <p class="text-muted">View and download your payslip history</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="yearDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    @currentYear
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="yearDropdown">
+                    @foreach (var year in availableYears)
+                    {
+                        <li><a class="dropdown-item @(year == currentYear ? "active" : "")" href="@Url.Action("Payslips", "Employee", new { year = year })">@year</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            @if (Model.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Project</th>
+                                <th>Basic Salary</th>
+                                <th>Deductions</th>
+                                <th>Net Salary</th>
+                                <th>Payment Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var payslip in Model)
+                            {
+                                <tr>
+                                    <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payslip.Month)</td>
+                                    <td>@payslip.ProjectName</td>
+                                    <td>RM @payslip.BasicSalary.ToString("N2")</td>
+                                    <td>RM @((payslip.EmployeeEpf + payslip.EmployeeSocso + payslip.EmployeeEis + payslip.EmployeeTax).ToString("N2"))</td>
+                                    <td>RM @payslip.TotalWages.ToString("N2")</td>
+                                    <td>@payslip.CreatedDate.ToString("dd MMM yyyy")</td>
+                                    <td>
+                                        <a asp-action="ViewPayslip" asp-route-id="@payslip.PayrollID" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye me-1"></i> View
+                                        </a>
+                                        <a asp-action="DownloadPayslip" asp-route-id="@payslip.PayrollID" class="btn btn-sm btn-success">
+                                            <i class="fas fa-download me-1"></i> PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info mb-0">
+                    <p class="mb-0">No payslips are available for @currentYear.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

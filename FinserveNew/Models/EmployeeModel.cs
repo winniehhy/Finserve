@@ -102,7 +102,7 @@ namespace FinserveNew.Models
         public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
 
         // One Employee can have many Salary records
-        public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();
+        public virtual ICollection<Payroll> Payrolls { get; set; } = new List<Payroll>();
 
         // One Employee can have many Approvals
         //public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();
