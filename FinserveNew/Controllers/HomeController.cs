@@ -102,11 +102,6 @@ namespace FinserveNew.Controllers
                     .Take(5)
                     .ToListAsync();
 
-                // Get payroll statistics
-                var currentPayrollBatch = await _context.PayrollBatches
-                    .Where(b => b.Year == currentYear && b.Month == currentMonth)
-                    .FirstOrDefaultAsync();
-
                 // Get employees by department/status - FIX THE ISSUE HERE
                 var employeesByStatus = await _context.Employees
                     .GroupBy(e => e.ConfirmationStatus)
@@ -170,8 +165,8 @@ namespace FinserveNew.Controllers
                 ViewBag.TotalClaimAmount = totalClaimAmount;
                 ViewBag.RecentLeaveApplications = recentLeaveApplications;
                 ViewBag.RecentClaimApplications = recentClaimApplications;
-                ViewBag.CurrentPayrollStatus = currentPayrollBatch?.Status ?? "Not Started";
-                ViewBag.CurrentPayrollBatch = currentPayrollBatch;
+                //ViewBag.CurrentPayrollStatus = currentPayrollBatch?.Status ?? "Not Started";
+                //ViewBag.CurrentPayrollBatch = currentPayrollBatch;
                 ViewBag.EmployeesByStatus = employeeStatusList; // USE ONLY THIS ONE - REMOVE THE DUPLICATE
                 ViewBag.CalendarData = calendarData;
                 ViewBag.CurrentYear = currentYear;

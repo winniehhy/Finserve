@@ -102,6 +102,38 @@ namespace FinserveNew.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
+                {
+                    b.Property<int>("ApprovalID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ApprovalID"));
+
+                    b.Property<DateTime>("ApprovalDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ApprovedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("EmployeeID")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.HasKey("ApprovalID");
+
+                    b.HasIndex("EmployeeID");
+
+                    b.ToTable("Approvals", (string)null);
+                });
+
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
                 {
                     b.Property<int>("BankID")
@@ -127,7 +159,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("BankID");
 
-                    b.ToTable("BankInformations");
+                    b.ToTable("BankInformations", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
@@ -141,13 +173,8 @@ namespace FinserveNew.Migrations
                     b.Property<DateTime?>("ApprovalDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("ApprovalRemarks")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("ApprovedBy")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
+                    b.Property<int?>("ApprovalID")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("ClaimAmount")
                         .HasPrecision(18, 2)
@@ -194,9 +221,11 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ApprovalID");
+
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Claims");
+                    b.ToTable("Claims", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
@@ -221,7 +250,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("ClaimTypeID");
 
-                    b.ToTable("ClaimDetails");
+                    b.ToTable("ClaimDetails", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
@@ -242,7 +271,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("ClaimTypeID");
 
-                    b.ToTable("ClaimTypes");
+                    b.ToTable("ClaimTypes", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmergencyContact", b =>
@@ -270,7 +299,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("EmergencyID");
 
-                    b.ToTable("EmergencyContacts");
+                    b.ToTable("EmergencyContacts", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Employee", b =>
@@ -362,7 +391,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("RoleID");
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmployeeDocument", b =>
@@ -396,7 +425,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("EmployeeDocuments");
+                    b.ToTable("EmployeeDocuments", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
@@ -406,25 +435,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("InvoiceID"));
-
-                    b.Property<string>("ClientCompany")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<string>("ClientEmail")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("ClientName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Currency")
                         .IsRequired()
@@ -441,6 +451,7 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("FilePath")
+                        .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
@@ -453,6 +464,7 @@ namespace FinserveNew.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Remark")
+                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
@@ -474,7 +486,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
@@ -496,43 +508,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("RoleID");
 
-                    b.ToTable("Roles");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
-                {
-                    b.Property<int>("LeaveDetailID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LeaveDetailID"));
-
-                    b.Property<string>("Comment")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("DocumentPath")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<int>("LeaveID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LeaveTypeID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UploadDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("LeaveDetailID");
-
-                    b.HasIndex("LeaveID");
-
-                    b.HasIndex("LeaveTypeID");
-
-                    b.ToTable("LeaveDetails");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
@@ -543,23 +519,9 @@ namespace FinserveNew.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("LeaveID"));
 
-                    b.Property<DateTime?>("ApprovalDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ApprovalRemarks")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
                     b.Property<string>("ApprovedBy")
-                        .HasMaxLength(450)
-                        .HasColumnType("varchar(450)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("EmployeeID")
                         .IsRequired()
@@ -567,9 +529,6 @@ namespace FinserveNew.Migrations
 
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
-
-                    b.Property<int>("LeaveDays")
-                        .HasColumnType("int");
 
                     b.Property<int>("LeaveTypeID")
                         .HasColumnType("int");
@@ -587,16 +546,13 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<DateTime>("SubmissionDate")
-                        .HasColumnType("datetime(6)");
-
                     b.HasKey("LeaveID");
 
                     b.HasIndex("EmployeeID");
 
                     b.HasIndex("LeaveTypeID");
 
-                    b.ToTable("Leaves");
+                    b.ToTable("Leaves", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveTypeModel", b =>
@@ -614,9 +570,6 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
-                    b.Property<bool>("RequiresDocumentation")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<string>("TypeName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -624,7 +577,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("LeaveTypeID");
 
-                    b.ToTable("LeaveTypes");
+                    b.ToTable("LeaveTypes", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Payroll", b =>
@@ -697,29 +650,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Payrolls");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Role", b =>
-                {
-                    b.Property<int>("RoleID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("RoleID"));
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<string>("RoleName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.HasKey("RoleID");
-
-                    b.ToTable("Roles");
+                    b.ToTable("Payrolls", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -822,8 +753,23 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
+                {
+                    b.HasOne("FinserveNew.Models.Employee", "Employee")
+                        .WithMany("Approvals")
+                        .HasForeignKey("EmployeeID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
                 {
+                    b.HasOne("FinserveNew.Models.Approval", null)
+                        .WithMany("Claims")
+                        .HasForeignKey("ApprovalID");
+
                     b.HasOne("FinserveNew.Models.Employee", null)
                         .WithMany("Claims")
                         .HasForeignKey("EmployeeID")
@@ -896,32 +842,13 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
                 {
-                    b.HasOne("FinserveNew.Models.ApplicationUser", "Employee")
+                    b.HasOne("FinserveNew.Models.Employee", "Employee")
                         .WithMany()
                         .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
-                {
-                    b.HasOne("FinserveNew.Models.LeaveModel", "Leave")
-                        .WithMany("LeaveDetails")
-                        .HasForeignKey("LeaveID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FinserveNew.Models.LeaveTypeModel", "LeaveType")
-                        .WithMany("LeaveDetails")
-                        .HasForeignKey("LeaveTypeID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Leave");
-
-                    b.Navigation("LeaveType");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
@@ -987,6 +914,11 @@ namespace FinserveNew.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
+                {
+                    b.Navigation("Claims");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
                 {
                     b.Navigation("Employees");
@@ -1004,6 +936,8 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Employee", b =>
                 {
+                    b.Navigation("Approvals");
+
                     b.Navigation("Claims");
 
                     b.Navigation("EmployeeDocuments");
@@ -1016,21 +950,9 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employees");
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
-                {
-                    b.Navigation("LeaveDetails");
-                });
-
             modelBuilder.Entity("FinserveNew.Models.LeaveTypeModel", b =>
                 {
-                    b.Navigation("LeaveDetails");
-
                     b.Navigation("Leaves");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Role", b =>
-                {
-                    b.Navigation("Employees");
                 });
 #pragma warning restore 612, 618
         }
