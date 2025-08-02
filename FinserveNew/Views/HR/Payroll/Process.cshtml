@@ -305,13 +305,17 @@
 
             // Calculate employer contributions
             $('#EmployerEpf').val((basicSalary * 0.13).toFixed(2));
-            $('#EmployerSocso').val((basicSalary * 0.02).toFixed(2)); // Example rate
-            $('#EmployerEis').val((basicSalary * 0.005).toFixed(2)); // Example rate
+
+            // TODO: Use manual entry for now, may implement the calculation logic here
+            $('#EmployerSocso').val((basicSalary * 0.02).toFixed(2));  // Example rate
+            $('#EmployerEis').val((basicSalary * 0.005).toFixed(2));   // Example rate
 
             // Calculate employee deductions
             $('#EmployeeEpf').val((basicSalary * 0.11).toFixed(2));
-            $('#EmployeeSocso').val((basicSalary * 0.01).toFixed(2)); // Example rate
-            $('#EmployeeEis').val((basicSalary * 0.002).toFixed(2)); // Example rate
+
+            // TODO: Use manual entry for now, may implement the calculation logic here
+            $('#EmployeeSocso').val((basicSalary * 0.01).toFixed(2));  // Example rate
+            $('#EmployeeEis').val((basicSalary * 0.002).toFixed(2));   // Example rate
 
             // Recalculate totals
             calculateTotals();

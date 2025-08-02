@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace FinserveNew.Models.ViewModels
 {
@@ -113,16 +114,12 @@ namespace FinserveNew.Models.ViewModels
         [Display(Name = "Offer Letter")]
         public IFormFile? OfferLetterFile { get; set; }
 
-        // 6. System Login
-        //[Required]
-        //[StringLength(50)]
-        //public string Username { get; set; } = string.Empty;
-        //[Required]
-        //[StringLength(100, MinimumLength = 8)]
-        //[DataType(DataType.Password)]
-        //public string Password { get; set; } = string.Empty;
-        //[Required, Compare("Password")]
-        //public string ConfirmPassword { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Role is required")]
+        [Display(Name = "Role")]
+        public int RoleID { get; set; }
+
+        public List<SelectListItem> AvailableRoles { get; set; } = new List<SelectListItem>();
+
 
         // Dropdowns
         public string[] Nationalities { get; set; } = Array.Empty<string>();

@@ -56,7 +56,7 @@
                         <i class="fas fa-chevron-down ms-1"></i>
                     </div>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="@Url.Action("Profile", "Account")"><i class="fas fa-user me-2"></i>Profile</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("Profile", "Accounts")"><i class="fas fa-user me-2"></i>Profile</a></li>
                         <li><a class="dropdown-item" href="@Url.Action("Settings", "Account")"><i class="fas fa-cog me-2"></i>Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
@@ -97,6 +97,19 @@
                         <a href="@Url.Action("InvoiceRecord", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
                             <i class="fas fa-file-invoice menu-icon"></i>
                             Invoice Management
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                            <i class="fas fa-check-circle menu-icon"></i>
+                            <span>Approve Payrolls</span>
+                            @{
+                                var pendingCount = await Component.InvokeAsync("PendingPayrollCount");
+                                if (pendingCount != null && int.TryParse(pendingCount.ToString(), out int count) && count > 0)
+                                {
+                                    <span class="badge bg-danger ms-2">@count</span>
+                                }
+                            }
                         </a>
                     </li>
                 }
@@ -144,6 +157,17 @@
                         <a href="@Url.Action("LeaveRecords", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
                             <i class="fas fa-calendar-alt menu-icon"></i>
                             My Leaves
+                        </a>
+                    </li>
+
+                    <!-- Payroll Section - Employee Only -->
+                    <li class="menu-section">
+                        <div class="menu-section-title">SALARY</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("Payslips", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                            <i class="fas fa-receipt menu-icon"></i>
+                            My Payslips
                         </a>
                     </li>
 

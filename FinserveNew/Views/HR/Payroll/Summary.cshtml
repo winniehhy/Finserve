@@ -49,7 +49,7 @@
                         <i class="fas fa-search"></i>
                     </button>
                 </div>
-                <button type="button" class="btn btn-outline-success d-flex align-items-center">
+                <button type="button" class="btn btn-outline-success d-flex align-items-center" onclick="exportToExcel()">
                     <i class="fas fa-file-excel me-1"></i>
                     <span>Export</span>
                 </button>
@@ -82,27 +82,56 @@
                                     <td>RM @entry.BasicSalary.ToString("N2")</td>
                                     <td>RM @entry.TotalWages.ToString("N2")</td>
                                     <td>RM @entry.TotalEmployerCost.ToString("N2")</td>
-                                    <td>
-                                        <span class="badge bg-secondary">@entry.PaymentStatus</span>
-                                        @if (entry.PaymentStatus == "Pending")
-                                        {
-                                            <button class="btn btn-sm btn-warning ms-2" onclick="sendApprovalRequest('@entry.PayrollID')">Send for Approval</button>
-                                        }
-                                        else if (entry.PaymentStatus == "Pending Approval" && User.IsInRole("Admin"))
-                                        {
-                                            <button class="btn btn-sm btn-success ms-2" onclick="approvePayroll('@entry.PayrollID')">Approve</button>
-                                        }
-                                        else if (entry.PaymentStatus == "Approved" && User.IsInRole("HR"))
-                                        {
-                                            <button class="btn btn-sm btn-primary ms-2" onclick="markAsPaid('@entry.PayrollID')">Mark as Paid</button>
-                                        }
-                                    </td>
+                                    @* <td> *@
+                                    @*     <span class="badge bg-secondary">@entry.PaymentStatus</span> *@
+                                    @*     @if (entry.PaymentStatus == "Pending") *@
+                                    @*     { *@
+                                    @*         <button class="btn btn-sm btn-warning ms-2" onclick="sendApprovalRequest('@entry.PayrollID')">Send for Approval</button> *@
+                                    @*     } *@
+                                    @*     else if (entry.PaymentStatus == "Pending Approval" && User.IsInRole("Admin")) *@
+                                    @*     { *@
+                                    @*         <button class="btn btn-sm btn-success ms-2" onclick="approvePayroll('@entry.PayrollID')">Approve</button> *@
+                                    @*     } *@
+                                    @*     else if (entry.PaymentStatus == "Approved" && User.IsInRole("HR")) *@
+                                    @*     { *@
+                                    @*         <button class="btn btn-sm btn-primary ms-2" onclick="markAsPaid('@entry.PayrollID')">Mark as Paid</button> *@
+                                    @*     } *@
+                                    @* </td> *@
+
+                                    @* <td> *@
+                                    @*     <a asp-action="Process"  *@
+                                    @*        asp-route-month="@Model.Month"  *@
+                                    @*        asp-route-year="@Model.Year"  *@
+                                    @*        asp-route-employeeId="@entry.EmployeeID"  *@
+                                    @*        class="btn btn-sm btn-outline-primary"> *@
+                                    @*         <i class="fas fa-edit"></i> Edit *@
+                                    @*     </a> *@
+                                    @* </td> *@
 
                                     <td>
-                                        <a asp-action="Process" 
-                                           asp-route-month="@Model.Month" 
-                                           asp-route-year="@Model.Year" 
-                                           asp-route-employeeId="@entry.EmployeeID" 
+                                        <span class="badge bg-@GetStatusBadgeColor(entry.PaymentStatus)">@entry.PaymentStatus</span>
+                                    </td>
+                                    <td>
+                                        @if (entry.PaymentStatus == "Pending")
+                                        {
+                                            <form asp-action="SendApprovalRequest" asp-route-payrollId="@entry.PayrollID" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-paper-plane me-1"></i> Send for Approval
+                                                </button>
+                                            </form>
+                                        }
+                                        else if (entry.PaymentStatus == "Approved")
+                                        {
+                                            <form asp-action="MarkAsPaid" asp-route-payrollId="@entry.PayrollID" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-success">
+                                                    <i class="fas fa-check-circle me-1"></i> Mark as Paid
+                                                </button>
+                                            </form>
+                                        }
+                                        <a asp-action="Process"
+                                           asp-route-month="@entry.Month"
+                                           asp-route-year="@entry.Year"
+                                           asp-route-employeeId="@entry.EmployeeID"
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-edit"></i> Edit
                                         </a>
@@ -115,6 +144,7 @@
                                 <td colspan="4">Totals</td>
                                 <td>RM @totalNetWages.ToString("N2")</td>
                                 <td>RM @totalEmployerCost.ToString("N2")</td>
+                                <td></td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -159,6 +189,21 @@
         </div>
     </div>
 </div>
+
+@functions {
+    string GetStatusBadgeColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "secondary",
+            "Pending Approval" => "warning",
+            "Approved" => "info",
+            "Rejected" => "danger",
+            "Completed" => "success",
+            _ => "secondary"
+        };
+    }
+}
 
 @section Scripts {
     <script>

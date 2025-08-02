@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using FinserveNew.Controllers;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FinserveNew.Controllers
 {
@@ -17,11 +18,16 @@ namespace FinserveNew.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IEmailSender _emailSender;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public PayrollController(AppDbContext context, IEmailSender emailSender)
+        public PayrollController(
+            AppDbContext context,
+            IEmailSender emailSender,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _emailSender = emailSender;
+            _userManager = userManager;
         }
 
         // GET: /Payroll - Main entry point (Process page as default)
@@ -31,6 +37,7 @@ namespace FinserveNew.Controllers
         }
 
         // GET: /Payroll/Process
+        [Authorize(Roles = "Admin,HR")]
         public async Task<IActionResult> Process(int month = 0, int year = 0, string employeeId = null)
         {
             if (month == 0) month = DateTime.Now.Month;
@@ -224,8 +231,7 @@ namespace FinserveNew.Controllers
             var entries = await _context.Payrolls
                 .Include(p => p.Employee)
                 .Where(p => p.Month == month && p.Year == year)
-                .OrderBy(p => p.Employee.FirstName)
-                .ThenBy(p => p.Employee.LastName)
+                .OrderBy(p => p.EmployeeID)
                 .ToListAsync();
 
             var viewModel = new PayrollProcessViewModel
@@ -238,65 +244,327 @@ namespace FinserveNew.Controllers
             return View("~/Views/HR/Payroll/History.cshtml", viewModel);
         }
 
-        // POST: /Payroll/SendApprovalRequest
+
+        // POST: Payroll/SendApprovalRequest
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SendApprovalRequest(int payrollId)
         {
-            var payroll = await _context.Payrolls.Include(p => p.Employee).FirstOrDefaultAsync(p => p.PayrollID == payrollId);
-            if (payroll == null) return NotFound();
+            var payroll = await _context.Payrolls
+                .Include(p => p.Employee)
+                .FirstOrDefaultAsync(p => p.PayrollID == payrollId);
 
+            if (payroll == null)
+            {
+                return NotFound();
+            }
+
+            // Update status to pending approval
             payroll.PaymentStatus = "Pending Approval";
             await _context.SaveChangesAsync();
 
-            // TODO: Send email to admin for approval 
-            var adminEmail = "admin@yourcompany.com";
-            var subject = $"Payroll Approval Needed for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
-            var body = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} ({payroll.EmployeeID}) is pending approval.<br/>" +
-                       $"<a href='https://yourdomain.com/Admin/Payroll/Approve?payrollId={payroll.PayrollID}'>Approve Now</a>";
+            // Notify admins of the approval request
+            var adminUsers = await _userManager.GetUsersInRoleAsync("Admin");
+            foreach (var adminUser in adminUsers)
+            {
+                if (!string.IsNullOrEmpty(adminUser.Email))
+                {
+                    var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
+                    var subject = $"Payroll Approval Request for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+                    var body = $@"
+                <h2>Payroll Approval Request</h2>
+                <p>A new payroll entry requires your approval:</p>
+                <ul>
+                    <li><strong>Employee:</strong> {payroll.Employee.FirstName} {payroll.Employee.LastName}</li>
+                    <li><strong>Period:</strong> {monthName} {payroll.Year}</li>
+                    <li><strong>Basic Salary:</strong> RM {payroll.BasicSalary:N2}</li>
+                    <li><strong>Net Salary:</strong> RM {payroll.TotalWages:N2}</li>
+                    <li><strong>Total Cost:</strong> RM {payroll.TotalEmployerCost:N2}</li>
+                </ul>
+                <p><a href='{Url.Action("PayrollDetails", "Admin", new { id = payroll.PayrollID }, Request.Scheme)}'>Click here to review this payroll</a></p>";
 
-            await _emailSender.SendEmailAsync(adminEmail, subject, body);
+                    await _emailSender.SendEmailAsync(adminUser.Email, subject, body);
+                }
+            }
 
-
-            return Json(new { success = true });
+            TempData["Success"] = "Payroll has been sent for approval.";
+            return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
         }
 
-        // POST: /Payroll/ApprovePayroll
+        // POST: Payroll/MarkAsPaid
         [HttpPost]
-        public async Task<IActionResult> ApprovePayroll(int payrollId)
-        {
-            var payroll = await _context.Payrolls.Include(p => p.Employee).FirstOrDefaultAsync(p => p.PayrollID == payrollId);
-            if (payroll == null) return NotFound();
-
-            payroll.PaymentStatus = "Approved";
-            await _context.SaveChangesAsync();
-
-            // TODO: Send email to HR to proceed with payment
-            var hrEmail = "hr@yourcompany.com";
-            var subject = $"Payroll Approved for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
-            var body = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been approved. You may now proceed with payment.";
-
-            await _emailSender.SendEmailAsync(hrEmail, subject, body);
-
-            return Json(new { success = true });
-        }
-
-        // POST: /Payroll/MarkAsPaid
-        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> MarkAsPaid(int payrollId)
         {
-            var payroll = await _context.Payrolls.Include(p => p.Employee).FirstOrDefaultAsync(p => p.PayrollID == payrollId);
-            if (payroll == null) return NotFound();
+            var payroll = await _context.Payrolls
+                .Include(p => p.Employee)
+                .FirstOrDefaultAsync(p => p.PayrollID == payrollId);
 
+            if (payroll == null)
+            {
+                return NotFound();
+            }
+
+            if (payroll.PaymentStatus != "Approved")
+            {
+                TempData["Error"] = "Only approved payrolls can be marked as paid.";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            }
+
+            // Update status to completed
             payroll.PaymentStatus = "Completed";
             await _context.SaveChangesAsync();
 
-            // TODO: Send email to employee about payment
-            var subject = "Your Payroll Has Been Paid";
-            var body = $"Dear {payroll.Employee.FirstName},<br/>Your salary for {payroll.Month}/{payroll.Year} has been paid. You can now view your payslip in the employee portal.";
-            await _emailSender.SendEmailAsync(payroll.Employee.Email, subject, body);
+            // Notify employee
+            if (!string.IsNullOrEmpty(payroll.Employee?.Email))
+            {
+                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
+                var subject = $"Your Salary for {monthName} {payroll.Year} Has Been Paid";
+                var body = $@"
+            <h2>Salary Payment Notification</h2>
+            <p>Dear {payroll.Employee.FirstName},</p>
+            <p>Your salary for {monthName} {payroll.Year} has been paid to your bank account.</p>
+            <ul>
+                <li><strong>Net Amount:</strong> RM {payroll.TotalWages:N2}</li>
+                <li><strong>Period:</strong> {monthName} {payroll.Year}</li>
+            </ul>
+            <p>You can now view your payslip online.</p>";
 
-            return Json(new { success = true });
+                await _emailSender.SendEmailAsync(payroll.Employee.Email, subject, body);
+            }
+
+            TempData["Success"] = "Payroll has been marked as paid.";
+            return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
         }
 
+
+        // GET: Payroll/ApprovePayrolls
+        public async Task<IActionResult> ApprovePayrolls()
+        {
+            try
+            {
+                var payrolls = await _context.Payrolls
+                    .Include(p => p.Employee)
+                    .OrderByDescending(p => p.Year)
+                    .ThenByDescending(p => p.Month)
+                    .ToListAsync();
+
+                // Specify the exact path to the view
+                return View("~/Views/Admins/Payroll/ApprovePayrolls.cshtml", payrolls);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                Console.WriteLine($"Error in ApprovePayrolls: {ex.Message}");
+
+                // Return an error view or redirect
+                TempData["Error"] = "An error occurred while loading payroll approvals.";
+                return RedirectToAction("Index", "Home");
+            }
+        }
+
+        // GET: Payroll/PayrollDetails/{id}
+        public async Task<IActionResult> PayrollDetails(int id)
+        {
+            var payroll = await _context.Payrolls
+                .Include(p => p.Employee)
+                .FirstOrDefaultAsync(p => p.PayrollID == id);
+
+            if (payroll == null)
+            {
+                return NotFound();
+            }
+
+            // Specify the exact path to the view
+            return View("~/Views/Admins/Payroll/PayrollDetails.cshtml", payroll);
+        }
+
+
+
+        // POST: Payroll/ApprovePayroll/{id}
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApprovePayroll(int id, string comments)
+        {
+            var payroll = await _context.Payrolls
+                .Include(p => p.Employee)
+                .FirstOrDefaultAsync(p => p.PayrollID == id);
+
+            if (payroll == null)
+            {
+                return NotFound();
+            }
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            string approverName = currentUser != null
+                ? $"{currentUser.FirstName} {currentUser.LastName}"
+                : User.Identity.Name;
+
+            // Update status to approved
+            payroll.PaymentStatus = "Approved";
+            await _context.SaveChangesAsync();
+
+            // Notify HR
+            var hrUsers = await _userManager.GetUsersInRoleAsync("HR");
+            foreach (var hrUser in hrUsers)
+            {
+                if (!string.IsNullOrEmpty(hrUser.Email))
+                {
+                    var subject = $"Payroll Approved for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+                    var message = $@"
+                        <h2>Payroll Approval Notification</h2>
+                        <p>The payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} for {GetMonthName(payroll.Month)} {payroll.Year} has been approved.</p>
+                        <p>You may now proceed with payment.</p>
+                        <p><a href='{Url.Action("Summary", "Payroll", new { month = payroll.Month, year = payroll.Year }, Request.Scheme)}'>View Payroll Summary</a></p>";
+
+                    await _emailSender.SendEmailAsync(hrUser.Email, subject, message);
+                }
+            }
+
+            TempData["Success"] = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been approved successfully.";
+            return RedirectToAction(nameof(ApprovePayrolls));
+        }
+
+        // POST: Payroll/RejectPayroll/{id}
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectPayroll(int id, string reason)
+        {
+            if (string.IsNullOrEmpty(reason))
+            {
+                TempData["Error"] = "Rejection reason is required.";
+                return RedirectToAction(nameof(PayrollDetails), new { id });
+            }
+
+            var payroll = await _context.Payrolls
+                .Include(p => p.Employee)
+                .FirstOrDefaultAsync(p => p.PayrollID == id);
+
+            if (payroll == null)
+            {
+                return NotFound();
+            }
+
+            // Update status to rejected
+            payroll.PaymentStatus = "Rejected";
+            await _context.SaveChangesAsync();
+
+            // Notify HR
+            var hrUsers = await _userManager.GetUsersInRoleAsync("HR");
+            foreach (var hrUser in hrUsers)
+            {
+                if (!string.IsNullOrEmpty(hrUser.Email))
+                {
+                    var subject = $"Payroll Rejected for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+                    var message = $@"
+                        <h2>Payroll Rejection Notification</h2>
+                        <p>The payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} for {GetMonthName(payroll.Month)} {payroll.Year} has been rejected.</p>
+                        <p><strong>Reason:</strong> {reason}</p>
+                        <p><a href='{Url.Action("Process", "Payroll", new { month = payroll.Month, year = payroll.Year, employeeId = payroll.EmployeeID }, Request.Scheme)}'>Edit Payroll Entry</a></p>";
+
+                    await _emailSender.SendEmailAsync(hrUser.Email, subject, message);
+                }
+            }
+
+            TempData["Success"] = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been rejected.";
+            return RedirectToAction(nameof(ApprovePayrolls));
+        }
+
+        // Helper method
+        private string GetMonthName(int month)
+        {
+            return System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month);
+        }
+
+
+
+        // GET: /Payroll/Payslips
+        [Authorize] // Ensure users are logged in
+        public async Task<IActionResult> Payslips(int? year)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null || string.IsNullOrEmpty(user.EmployeeID))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            if (!year.HasValue)
+            {
+                year = DateTime.Now.Year;
+            }
+
+            var payslips = await _context.Payrolls
+                .Where(p => p.EmployeeID == user.EmployeeID &&
+                       p.Year == year &&
+                       p.PaymentStatus == "Completed")
+                .OrderByDescending(p => p.Year)
+                .ThenByDescending(p => p.Month)
+                .ToListAsync();
+
+            var availableYears = await _context.Payrolls
+                .Where(p => p.EmployeeID == user.EmployeeID && p.PaymentStatus == "Completed")
+                .Select(p => p.Year)
+                .Distinct()
+                .OrderByDescending(y => y)
+                .ToListAsync();
+
+            ViewBag.SelectedYear = year;
+            ViewBag.AvailableYears = availableYears;
+
+            return View("~/Views/Employee/Payslips/Index.cshtml", payslips);
+        }
+
+        // GET: /Payroll/ViewPayslip/{id}
+        [Authorize]
+        public async Task<IActionResult> ViewPayslip(int id)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null || string.IsNullOrEmpty(user.EmployeeID))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            var payslip = await _context.Payrolls
+                .Include(p => p.Employee)
+                .FirstOrDefaultAsync(p => p.PayrollID == id && p.EmployeeID == user.EmployeeID);
+
+            if (payslip == null)
+            {
+                return NotFound();
+            }
+
+            // Only allow viewing of completed payrolls
+            if (payslip.PaymentStatus != "Completed")
+            {
+                return RedirectToAction(nameof(Payslips));
+            }
+
+            return View("~/Views/Employee/Payslips/ViewPayslip.cshtml", payslip);
+        }
+
+        // ========================== Employee Actions ========================== //
+        // GET: /Payroll/DownloadPayslip/{id}
+        [Authorize]
+        public async Task<IActionResult> DownloadPayslip(int id)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null || string.IsNullOrEmpty(user.EmployeeID))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            var payslip = await _context.Payrolls
+                .Include(p => p.Employee)
+                .FirstOrDefaultAsync(p => p.PayrollID == id && p.EmployeeID == user.EmployeeID);
+
+            if (payslip == null || payslip.PaymentStatus != "Completed")
+            {
+                return NotFound();
+            }
+
+            // This would generate PDF - here we return the view for now
+            // In a real implementation, you would use a PDF library
+            return View("~/Views/Employee/Payslips/PayslipPdf.cshtml", payslip);
+        }
     }
 } 

@@ -1,0 +1,190 @@
+﻿@model FinserveNew.Models.Payroll
+@{
+    Layout = null; // No layout for PDF generation
+    var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(Model.Month);
+    var totalDeductions = Model.EmployeeEpf + Model.EmployeeSocso + Model.EmployeeEis + Model.EmployeeTax;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payslip - @Model.Employee.FirstName @Model.Employee.LastName - @monthName @Model.Year</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .header {
+            background-color: #4a6fdc;
+            color: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table.info td {
+            padding: 5px 0;
+        }
+        table.details {
+            border: 1px solid #ddd;
+        }
+        table.details th, table.details td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        table.details th {
+            background-color: #f5f5f5;
+            text-align: left;
+        }
+        .text-end {
+            text-align: right;
+        }
+        .table-secondary {
+            background-color: #e2e3e5;
+        }
+        .table-success {
+            background-color: #d1e7dd;
+        }
+        .footer {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>PAYSLIP</h2>
+            <h3>@monthName @Model.Year</h3>
+        </div>
+
+        <h3>Employee Information</h3>
+        <table class="info">
+            <tr>
+                <td width="30%">Employee Name:</td>
+                <td><strong>@Model.Employee.FirstName @Model.Employee.LastName</strong></td>
+            </tr>
+            <tr>
+                <td>Employee ID:</td>
+                <td>@Model.EmployeeID</td>
+            </tr>
+            <tr>
+                <td>Position:</td>
+                <td>@Model.Employee.Position</td>
+            </tr>
+        </table>
+
+        <h3>Payment Information</h3>
+        <table class="info">
+            <tr>
+                <td width="30%">Payment Date:</td>
+                <td>@Model.CreatedDate.ToString("dd MMMM yyyy")</td>
+            </tr>
+            <tr>
+                <td>Payment Status:</td>
+                <td>@Model.PaymentStatus</td>
+            </tr>
+            <tr>
+                <td>Project:</td>
+                <td>@Model.ProjectName</td>
+            </tr>
+        </table>
+
+        <h3>Salary Details</h3>
+        <table class="details">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-end">Amount (RM)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Basic Salary</td>
+                    <td class="text-end">@Model.BasicSalary.ToString("N2")</td>
+                </tr>
+                <tr class="table-secondary">
+                    <td><strong>Gross Salary</strong></td>
+                    <td class="text-end"><strong>@Model.BasicSalary.ToString("N2")</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Deductions</h3>
+        <table class="details">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-end">Amount (RM)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>EPF (11%)</td>
+                    <td class="text-end">@Model.EmployeeEpf.ToString("N2")</td>
+                </tr>
+                <tr>
+                    <td>SOCSO</td>
+                    <td class="text-end">@Model.EmployeeSocso.ToString("N2")</td>
+                </tr>
+                <tr>
+                    <td>EIS</td>
+                    <td class="text-end">@Model.EmployeeEis.ToString("N2")</td>
+                </tr>
+                <tr>
+                    <td>Income Tax</td>
+                    <td class="text-end">@Model.EmployeeTax.ToString("N2")</td>
+                </tr>
+                <tr class="table-secondary">
+                    <td><strong>Total Deductions</strong></td>
+                    <td class="text-end"><strong>@totalDeductions.ToString("N2")</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Summary</h3>
+        <table class="details">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="text-end">Amount (RM)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Gross Salary</td>
+                    <td class="text-end">@Model.BasicSalary.ToString("N2")</td>
+                </tr>
+                <tr>
+                    <td>Total Deductions</td>
+                    <td class="text-end">@totalDeductions.ToString("N2")</td>
+                </tr>
+                <tr class="table-success">
+                    <td><strong>Net Salary</strong></td>
+                    <td class="text-end"><strong>@Model.TotalWages.ToString("N2")</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>This is an electronic payslip and does not require a signature. Generated on @DateTime.Now.ToString("dd MMM yyyy HH:mm")</p>
+        </div>
+    </div>
+</body>
+</html>

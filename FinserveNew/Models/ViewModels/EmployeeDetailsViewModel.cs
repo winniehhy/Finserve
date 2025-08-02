@@ -25,6 +25,12 @@ namespace FinserveNew.Models.ViewModels
         public DateOnly? ResignationDate { get; set; }
         public string ConfirmationStatus { get; set; } = string.Empty;
 
+        [Display(Name = "Role")]
+        public string RoleName { get; set; }
+
+        [Display(Name = "System Access")]
+        public string SystemRole { get; set; }
+
         // Bank Info
         public string BankName { get; set; } = string.Empty;
         public string BankType { get; set; } = string.Empty;

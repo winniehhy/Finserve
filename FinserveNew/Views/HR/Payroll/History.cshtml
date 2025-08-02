@@ -13,13 +13,16 @@
             <a asp-action="Process" class="btn btn-primary">
                 <i class="fas fa-chevron-left me-2"></i>Back to Payroll Processing
             </a>
+            <a asp-action="Summary" class="btn btn-outline-secondary">
+                <i class="fas fa-table me-2"></i>Summary
+            </a>
         </div>
     </div>
-    
+
     <div class="card mb-4">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h4 class="card-title mb-0">Payroll Records - @Model.MonthName @Model.Year</h4>
-            
+
             <div class="d-flex">
                 <div class="input-group me-2">
                     <select id="historyMonth" class="form-select" style="max-width: 150px;">
@@ -38,9 +41,11 @@
                             </option>
                         }
                     </select>
-                    <button type="button" id="viewHistory" class="btn btn-outline-secondary">View</button>
+                    <button type="button" id="viewHistory" class="btn btn-outline-secondary">
+                        <i class="fas fa-search"></i>
+                    </button>
                 </div>
-                <button type="button" class="btn btn-outline-success d-flex align-items-center">
+                <button type="button" class="btn btn-outline-success d-flex align-items-center" onclick="exportToExcel()">
                     <i class="fas fa-file-excel me-1"></i>
                     <span>Export</span>
                 </button>
@@ -50,48 +55,67 @@
             @if (Model.Payrolls.Any())
             {
                 <div class="table-responsive">
-                    <table class="table table-hover" id="payrollTable">
-                        <thead>
+                    <table class="table table-bordered table-hover" id="payrollTable">
+                        <thead class="bg-light">
                             <tr>
-                                <th>Employee ID</th>
-                                <th>Employee Name</th>
-                                <th>Project</th>
-                                <th>Basic Salary</th>
-                                <th>Employee EPF</th>
-                                <th>Employee SOCSO</th>
-                                <th>Employee EIS</th>
-                                <th>Employee Tax</th>
-                                <th>Total Wages</th>
-                                <th>Total Cost</th>
+                                <th rowspan="2" class="text-center align-middle">No</th>
+                                <th colspan="3" class="text-center">Employee Details</th>
+                                <th colspan="4" class="text-center">Employer Contribution</th>
+                                <th colspan="4" class="text-center">Employee Contribution</th>
+                                <th rowspan="2" class="text-center align-middle">Net Salary</th>
+                            </tr>
+                            <tr>
+                                <th>Emp Code</th>
+                                <th>Emp Name</th>
+                                <th>Gross Salary</th>
+                                <th>EPF (13%)</th>
+                                <th>Socso</th>
+                                <th>EIS</th>
+                                <th>PCB</th>
+                                <th>EPF (11%)</th>
+                                <th>Socso</th>
+                                <th>EIS</th>
+                                <th>PCB</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @{
+                                var count = 1;
+                            }
                             @foreach (var entry in Model.Payrolls)
                             {
                                 <tr>
+                                    <td class="text-center">@count</td>
                                     <td>@entry.EmployeeID</td>
                                     <td>@entry.Employee.FirstName @entry.Employee.LastName</td>
-                                    <td>@entry.ProjectName</td>
-                                    <td>RM @entry.BasicSalary.ToString("N2")</td>
-                                    <td>RM @entry.EmployeeEpf.ToString("N2")</td>
-                                    <td>RM @entry.EmployeeSocso.ToString("N2")</td>
-                                    <td>RM @entry.EmployeeEis.ToString("N2")</td>
-                                    <td>RM @entry.EmployeeTax.ToString("N2")</td>
-                                    <td>RM @entry.TotalWages.ToString("N2")</td>
-                                    <td>RM @entry.TotalEmployerCost.ToString("N2")</td>
+                                    <td class="text-end">@entry.BasicSalary.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerEpf.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerSocso.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerEis.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployerTax.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeEpf.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeSocso.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeEis.ToString("N2")</td>
+                                    <td class="text-end">@entry.EmployeeTax.ToString("N2")</td>
+                                    <td class="text-end">@entry.TotalWages.ToString("N2")</td>
                                 </tr>
+                                count++;
                             }
                         </tbody>
                         <tfoot>
-                            <tr class="table-light fw-bold">
-                                <td colspan="3">Totals</td>
-                                <td>RM @Model.Payrolls.Sum(e => e.BasicSalary).ToString("N2")</td>
-                                <td>RM @Model.Payrolls.Sum(e => e.EmployeeEpf).ToString("N2")</td>
-                                <td>RM @Model.Payrolls.Sum(e => e.EmployeeSocso).ToString("N2")</td>
-                                <td>RM @Model.Payrolls.Sum(e => e.EmployeeEis).ToString("N2")</td>
-                                <td>RM @Model.Payrolls.Sum(e => e.EmployeeTax).ToString("N2")</td>
-                                <td>RM @Model.Payrolls.Sum(e => e.TotalWages).ToString("N2")</td>
-                                    <td>RM @Model.Payrolls.Sum(e => e.TotalEmployerCost).ToString("N2")</td>
+                            <tr class="fw-bold">
+                                <td colspan="2"></td>
+                                <td>Total</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.BasicSalary).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerEpf).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerSocso).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerEis).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerTax).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeEpf).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeSocso).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeEis).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeTax).ToString("N2")</td>
+                                <td class="text-end">@Model.Payrolls.Sum(e => e.TotalWages).ToString("N2")</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -107,6 +131,23 @@
     </div>
 </div>
 
+<style>
+    /* Custom styling for the table */
+    #payrollTable thead th {
+        vertical-align: middle;
+        background-color: #f8f9fa;
+    }
+
+    #payrollTable th, #payrollTable td {
+        white-space: nowrap;
+        padding: 0.5rem;
+    }
+
+    #payrollTable tfoot {
+        border-top: 2px solid #dee2e6;
+    }
+</style>
+
 @section Scripts {
     <script>
         $(function() {
@@ -116,26 +157,26 @@
                 window.location.href = '@Url.Action("HistoryByMonth")' + '?month=' + month + '&year=' + year;
             });
         });
-        
+
         function exportToExcel() {
             // Check if table has data
             if ($('#payrollTable tbody tr').length === 0) {
                 alert('No data to export');
                 return;
             }
-            
+
             // Create a workbook with a worksheet
             let wb = XLSX.utils.book_new();
             let ws = XLSX.utils.table_to_sheet(document.getElementById('payrollTable'));
-            
+
             // Add the worksheet to the workbook
             XLSX.utils.book_append_sheet(wb, ws, 'Payroll @Model.MonthName @Model.Year');
-            
+
             // Generate file and trigger download
             XLSX.writeFile(wb, 'Payroll_@(Model.MonthName)@(Model.Year).xlsx');
         }
     </script>
-    
+
     <!-- Include SheetJS for Excel export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 }
