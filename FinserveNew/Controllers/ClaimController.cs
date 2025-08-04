@@ -478,7 +478,9 @@ namespace FinserveNew.Controllers
                 {
                     EmployeeID = employeeId,
                     ClaimDate = DateTime.Now,
-                    Status = "Draft" // Temporary status for OCR processing
+                    Status = "Draft",
+                    ClaimAmount = 0, // Default value
+                    ClaimType = "Not specified" // Default value
                 };
 
                 // Try to get claim data from TempData first
@@ -488,55 +490,84 @@ namespace FinserveNew.Controllers
                     {
                         var claimDataJson = TempData["ClaimData"].ToString();
                         _logger.LogInformation($"Found TempData ClaimData with length: {claimDataJson.Length}");
+                        _logger.LogInformation($"ClaimData content: {claimDataJson}");
 
-                        // Use JsonDocument for better parsing
+                        // Use JsonDocument for better parsing with more detailed error handling
                         using var document = System.Text.Json.JsonDocument.Parse(claimDataJson);
                         var root = document.RootElement;
 
-                        // Populate claim from TempData with proper type conversion
+                        // Populate claim from TempData with proper type conversion and logging
                         if (root.TryGetProperty("ClaimType", out var claimTypeElement))
                         {
-                            claim.ClaimType = claimTypeElement.GetString() ?? "";
-                            _logger.LogInformation($"Set ClaimType: {claim.ClaimType}");
+                            claim.ClaimType = claimTypeElement.GetString() ?? "Not specified";
+                            _logger.LogInformation($"✅ Set ClaimType: {claim.ClaimType}");
+                        }
+                        else
+                        {
+                            _logger.LogWarning("❌ ClaimType property not found in JSON");
                         }
 
                         if (root.TryGetProperty("ClaimAmount", out var claimAmountElement))
                         {
-                            if (decimal.TryParse(claimAmountElement.GetString(), out var amount))
+                            var amountStr = claimAmountElement.GetString();
+                            _logger.LogInformation($"ClaimAmount string from JSON: '{amountStr}'");
+
+                            if (decimal.TryParse(amountStr, out var amount))
                             {
                                 claim.ClaimAmount = amount;
-                                _logger.LogInformation($"Set ClaimAmount: {claim.ClaimAmount}");
+                                _logger.LogInformation($"✅ Set ClaimAmount: {claim.ClaimAmount}");
                             }
+                            else
+                            {
+                                _logger.LogWarning($"❌ Failed to parse ClaimAmount: '{amountStr}'");
+                                claim.ClaimAmount = 0;
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("❌ ClaimAmount property not found in JSON");
                         }
 
                         if (root.TryGetProperty("ClaimDate", out var claimDateElement))
                         {
-                            if (DateTime.TryParse(claimDateElement.GetString(), out var date))
+                            var dateStr = claimDateElement.GetString();
+                            _logger.LogInformation($"ClaimDate string from JSON: '{dateStr}'");
+
+                            if (DateTime.TryParse(dateStr, out var date))
                             {
                                 claim.ClaimDate = date;
-                                _logger.LogInformation($"Set ClaimDate: {claim.ClaimDate}");
+                                _logger.LogInformation($"✅ Set ClaimDate: {claim.ClaimDate}");
                             }
+                            else
+                            {
+                                _logger.LogWarning($"❌ Failed to parse ClaimDate: '{dateStr}'");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("❌ ClaimDate property not found in JSON");
                         }
 
                         if (root.TryGetProperty("Description", out var descriptionElement))
                         {
-                            claim.Description = descriptionElement.GetString();
-                            _logger.LogInformation($"Set Description: {claim.Description}");
+                            claim.Description = descriptionElement.GetString() ?? "";
+                            _logger.LogInformation($"✅ Set Description: {claim.Description}");
                         }
 
                         // Store currency information in ViewBag
                         if (root.TryGetProperty("OriginalCurrency", out var originalCurrencyElement))
                         {
                             ViewBag.OriginalCurrency = originalCurrencyElement.GetString();
-                            _logger.LogInformation($"Set OriginalCurrency: {ViewBag.OriginalCurrency}");
+                            _logger.LogInformation($"✅ Set OriginalCurrency: {ViewBag.OriginalCurrency}");
                         }
 
                         if (root.TryGetProperty("OriginalAmount", out var originalAmountElement))
                         {
-                            if (decimal.TryParse(originalAmountElement.GetString(), out var origAmount))
+                            var origAmountStr = originalAmountElement.GetString();
+                            if (decimal.TryParse(origAmountStr, out var origAmount))
                             {
                                 ViewBag.OriginalAmount = origAmount;
-                                _logger.LogInformation($"Set OriginalAmount: {ViewBag.OriginalAmount}");
+                                _logger.LogInformation($"✅ Set OriginalAmount: {ViewBag.OriginalAmount}");
                             }
                         }
 
@@ -544,44 +575,53 @@ namespace FinserveNew.Controllers
                         if (root.TryGetProperty("Files", out var filesElement))
                         {
                             ViewBag.UploadedFiles = filesElement.GetRawText();
-                            _logger.LogInformation($"Set UploadedFiles count: {filesElement.GetArrayLength()}");
+                            var fileCount = filesElement.GetArrayLength();
+                            _logger.LogInformation($"✅ Set UploadedFiles count: {fileCount}");
                         }
 
-                        _logger.LogInformation($"Successfully parsed claim data - Type: {claim.ClaimType}, Amount: {claim.ClaimAmount}");
+                        _logger.LogInformation($"✅ Successfully parsed claim data - Type: '{claim.ClaimType}', Amount: {claim.ClaimAmount}, Date: {claim.ClaimDate}");
+                    }
+                    catch (System.Text.Json.JsonException jsonEx)
+                    {
+                        _logger.LogError(jsonEx, "❌ JSON parsing failed for claim data");
+                        _logger.LogError($"❌ Raw JSON content: {TempData["ClaimData"]}");
+                        TempData["Error"] = "Failed to parse claim data (JSON error). Please try again.";
+                        return RedirectToAction("Create");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to parse claim data from TempData");
+                        _logger.LogError(ex, "❌ General error parsing claim data from TempData");
+                        _logger.LogError($"❌ Raw TempData content: {TempData["ClaimData"]}");
                         TempData["Error"] = "Failed to load claim data. Please try again.";
                         return RedirectToAction("Create");
                     }
                 }
                 else
                 {
-                    _logger.LogWarning("No TempData found for ClaimData, checking alternative sources");
-
-                    // ENHANCED: Try alternative data sources
-                    bool dataFound = false;
+                    _logger.LogWarning("❌ No TempData found for ClaimData, checking alternative sources");
 
                     // Check if there's data in session (client-side fallback)
                     if (Request.Headers.ContainsKey("Referer"))
                     {
-                        _logger.LogInformation("OCR accessed via redirect, data should be in client sessionStorage");
-                        dataFound = true; // Let client-side handle it
+                        _logger.LogInformation("📱 OCR accessed via redirect, data should be in client sessionStorage");
+                        // Let client-side handle it - the JavaScript will load from sessionStorage
                     }
-
-                    if (!dataFound)
+                    else
                     {
+                        _logger.LogError("❌ No claim data found anywhere");
                         TempData["Error"] = "No claim data found. Please start from the Create form.";
                         return RedirectToAction("Create");
                     }
                 }
 
+                // Add debug information to help troubleshoot
+                ViewBag.DebugInfo = $"ClaimType: {claim.ClaimType}, Amount: {claim.ClaimAmount}, EmployeeID: {claim.EmployeeID}";
+
                 return View("~/Views/Employee/Claim/OCR.cshtml", claim);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading OCR page");
+                _logger.LogError(ex, "❌ Error loading OCR page");
                 TempData["Error"] = "An error occurred while loading the OCR page.";
                 return RedirectToAction("Create");
             }
@@ -596,27 +636,69 @@ namespace FinserveNew.Controllers
             {
                 _logger.LogInformation($"OCRWithData called with data length: {ClaimDataJson?.Length ?? 0}");
 
-                if (!string.IsNullOrEmpty(ClaimDataJson))
+                if (string.IsNullOrEmpty(ClaimDataJson))
                 {
-                    // Store the claim data in TempData so OCR action can access it
-                    TempData["ClaimData"] = ClaimDataJson;
-                    _logger.LogInformation("Successfully stored ClaimData in TempData");
-
-                    // IMPORTANT: Keep TempData for the next request
-                    TempData.Keep("ClaimData");
-
-                    return Json(new { success = true });
-                }
-                else
-                {
-                    _logger.LogWarning("ClaimDataJson is null or empty");
+                    _logger.LogWarning("❌ ClaimDataJson is null or empty");
                     return Json(new { success = false, error = "No data provided" });
                 }
+
+                // Log the received JSON for debugging
+                _logger.LogInformation($"📝 Received JSON: {ClaimDataJson}");
+
+                // Validate JSON structure before storing
+                try
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(ClaimDataJson);
+                    var root = document.RootElement;
+
+                    // Log key properties for debugging
+                    if (root.TryGetProperty("ClaimType", out var claimTypeElement))
+                    {
+                        _logger.LogInformation($"✅ JSON contains ClaimType: {claimTypeElement.GetString()}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("❌ JSON missing ClaimType property");
+                    }
+
+                    if (root.TryGetProperty("ClaimAmount", out var claimAmountElement))
+                    {
+                        _logger.LogInformation($"✅ JSON contains ClaimAmount: {claimAmountElement.GetString()}");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("❌ JSON missing ClaimAmount property");
+                    }
+                }
+                catch (System.Text.Json.JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "❌ Invalid JSON structure received");
+                    return Json(new { success = false, error = "Invalid JSON format" });
+                }
+
+                // Store the claim data in TempData so OCR action can access it
+                TempData["ClaimData"] = ClaimDataJson;
+                _logger.LogInformation("✅ Successfully stored ClaimData in TempData");
+
+                // IMPORTANT: Keep TempData for the next request
+                TempData.Keep("ClaimData");
+
+                return Json(new
+                {
+                    success = true,
+                    message = "Data stored successfully",
+                    dataLength = ClaimDataJson.Length
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error storing claim data for OCR");
-                return Json(new { success = false, error = ex.Message });
+                _logger.LogError(ex, "❌ Error storing claim data for OCR");
+                return Json(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    details = ex.ToString()
+                });
             }
         }
 

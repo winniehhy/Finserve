@@ -314,63 +314,131 @@
 
 
             // FIXED: Improved file initialization with better error handling
-            function initializeUploadedFiles() {
-                console.log('=== INITIALIZING UPLOADED FILES ===');
-                showLoadingStatus('Loading documents...');
+                    function initializeUploadedFiles() {
+            console.log('=== INITIALIZING UPLOADED FILES ===');
+            showLoadingStatus('Loading documents...');
 
-                try {
-                    // First try to get files from ViewBag (server-side) - FASTEST
-                    console.log('Checking ViewBag for server-side file data...');
+            try {
+                // First try to get files from ViewBag (server-side) - FASTEST
+                console.log('Checking ViewBag for server-side file data...');
 
-                    // FIXED: Check if server data exists (this will be replaced by your Razor syntax)
-                    let serverFileData = [];
-                    if (typeof window.serverUploadedFiles !== 'undefined') {
-                        serverFileData = window.serverUploadedFiles;
-                    }
-
-                    console.log('Server file data:', serverFileData);
-
-                    if (serverFileData && serverFileData.length > 0) {
-                        console.log(`✅ Found ${serverFileData.length} files from server`);
-                        uploadedFiles = serverFileData;
-                        updateFileCounter();
-                        loadDocument(0);
-                        showReadyState();
-                        return;
-                    }
-
-                    // Fallback to sessionStorage (client-side)
-                    console.log('No server files found, checking sessionStorage...');
-                    const claimDataStr = sessionStorage.getItem('claimData');
-                    console.log('Session storage claimData:', claimDataStr ? 'Found' : 'Not found');
-
-                    if (claimDataStr) {
-                        try {
-                            console.log('Parsing claim data from sessionStorage...');
-                            const claimData = JSON.parse(claimDataStr);
-                            console.log('Parsed claim data:', claimData);
-
-                            if (claimData.Files && claimData.Files.length > 0) {
-                                console.log(`✅ Found ${claimData.Files.length} files in sessionStorage`);
-                                processFilesInChunks(claimData.Files);
-                                return;
-                            } else {
-                                console.log('❌ No files found in claimData.Files');
-                            }
-                        } catch (e) {
-                            console.error('❌ Failed to parse claim data from sessionStorage:', e);
-                        }
-                    }
-
-                    // If no files found, show message immediately
-                    console.log('❌ No files found anywhere, showing no files message');
-                    handleNoFiles();
-
-                } catch (error) {
-                    console.error('❌ Error during file initialization:', error);
-                    handleNoFiles();
+                // Check if server data exists (this will be replaced by your Razor syntax)
+                let serverFileData = [];
+                if (typeof window.serverUploadedFiles !== 'undefined') {
+                    serverFileData = window.serverUploadedFiles;
                 }
+
+                console.log('Server file data:', serverFileData);
+
+                if (serverFileData && serverFileData.length > 0) {
+                    console.log(`✅ Found ${serverFileData.length} files from server`);
+                    uploadedFiles = serverFileData;
+                    updateFileCounter();
+                    loadDocument(0);
+                    showReadyState();
+                    return;
+                }
+
+                // Fallback to sessionStorage (client-side)
+                console.log('No server files found, checking sessionStorage...');
+                const claimDataStr = sessionStorage.getItem('claimData');
+                console.log('Session storage claimData:', claimDataStr ? 'Found' : 'Not found');
+
+                if (claimDataStr) {
+                    try {
+                        console.log('Parsing claim data from sessionStorage...');
+                        const claimData = JSON.parse(claimDataStr);
+                        console.log('Parsed claim data:', claimData);
+
+                        // ENHANCED: Log the claim details we're interested in
+                        console.log(`📋 Claim Details from sessionStorage:`);
+                        console.log(`   - ClaimType: ${claimData.ClaimType}`);
+                        console.log(`   - ClaimAmount: ${claimData.ClaimAmount}`);
+                        console.log(`   - OriginalAmount: ${claimData.OriginalAmount}`);
+                        console.log(`   - OriginalCurrency: ${claimData.OriginalCurrency}`);
+                        console.log(`   - ClaimDate: ${claimData.ClaimDate}`);
+                        console.log(`   - Files count: ${claimData.Files?.length || 0}`);
+
+                        // ENHANCED: Update the claim information display on the page
+                        updateClaimInfoFromSessionStorage(claimData);
+
+                        if (claimData.Files && claimData.Files.length > 0) {
+                            console.log(`✅ Found ${claimData.Files.length} files in sessionStorage`);
+                            processFilesInChunks(claimData.Files);
+                            return;
+                        } else {
+                            console.log('❌ No files found in claimData.Files');
+                            // Still show the claim info even if no files
+                            showReadyState();
+                            handleNoFiles();
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('❌ Failed to parse claim data from sessionStorage:', e);
+                    }
+                }
+
+                // If no files found, show message immediately
+                console.log('❌ No files found anywhere, showing no files message');
+                handleNoFiles();
+
+            } catch (error) {
+                console.error('❌ Error during file initialization:', error);
+                handleNoFiles();
             }
+        }
+
+                function updateClaimInfoFromSessionStorage(claimData) {
+            console.log('🔄 Updating claim info display from sessionStorage...');
+
+            try {
+                // Update claim type
+                const claimTypeElement = document.querySelector('.info-value .badge');
+                if (claimTypeElement && claimData.ClaimType) {
+                    claimTypeElement.textContent = claimData.ClaimType;
+                    console.log(`✅ Updated ClaimType display: ${claimData.ClaimType}`);
+                }
+
+                // Update claim amount
+                const claimAmountElement = document.querySelector('.info-value .text-success');
+                if (claimAmountElement && claimData.OriginalAmount && claimData.OriginalCurrency) {
+                    if (claimData.OriginalCurrency === 'USD') {
+                        claimAmountElement.innerHTML = `$${claimData.OriginalAmount}`;
+                        // Add conversion info
+                        const conversionElement = claimAmountElement.parentElement.querySelector('small');
+                        if (conversionElement) {
+                            conversionElement.innerHTML = `<br><small class="text-muted">≈ RM ${claimData.ClaimAmount} (Converted)</small>`;
+                        }
+                    } else {
+                        claimAmountElement.textContent = `RM ${claimData.ClaimAmount}`;
+                    }
+                    console.log(`✅ Updated ClaimAmount display: ${claimData.OriginalCurrency} ${claimData.OriginalAmount}`);
+                }
+
+                // Update claim date
+                const claimDateElements = document.querySelectorAll('.info-value');
+                claimDateElements.forEach((element, index) => {
+                    if (element.textContent.includes('/') && claimData.ClaimDate) {
+                        const date = new Date(claimData.ClaimDate);
+                        element.textContent = date.toLocaleDateString('en-GB');
+                        console.log(`✅ Updated ClaimDate display: ${element.textContent}`);
+                    }
+                });
+
+                // Update file count
+                if (claimData.Files && claimData.Files.length > 0) {
+                    const fileCountElement = document.getElementById('fileCount');
+                    if (fileCountElement) {
+                        fileCountElement.textContent = `${claimData.Files.length} file${claimData.Files.length !== 1 ? 's' : ''}`;
+                        console.log(`✅ Updated file count display: ${claimData.Files.length} files`);
+                    }
+                }
+
+                console.log('✅ Successfully updated claim info display');
+            } catch (error) {
+                console.error('❌ Error updating claim info display:', error);
+            }
+        }
 
             // Process files in non-blocking chunks
             function processFilesInChunks(files) {

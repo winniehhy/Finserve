@@ -197,7 +197,8 @@
             updateConversion();
 
             // UPDATED FORM SUBMISSION HANDLER
-                    form.addEventListener('submit', async function (e) {
+                    // UPDATED FORM SUBMISSION HANDLER - Replace the existing one in Create.cshtml
+        form.addEventListener('submit', async function (e) {
             e.preventDefault();
             console.log('Form submission started...');
 
@@ -225,6 +226,8 @@
             let originalAmount = finalAmount;
             let originalCurrency = selectedCurrency;
 
+            console.log(`Original values - Type: ${claimType}, Amount: ${originalAmount}, Currency: ${originalCurrency}`);
+
             // Convert to MYR if needed
             if (selectedCurrency === 'USD') {
                 finalAmount = finalAmount * exchangeRates.USD_TO_MYR;
@@ -235,18 +238,21 @@
                 EmployeeId: employeeId,
                 ClaimType: claimType,
                 ClaimDate: claimDate,
-                ClaimAmount: finalAmount.toFixed(2), // Converted amount in MYR
-                Description: description,
-                Currency: 'MYR', // Always store as MYR
-                OriginalAmount: originalAmount, // Original amount entered
-                OriginalCurrency: originalCurrency, // Original currency selected
+                ClaimAmount: finalAmount.toFixed(2),
+                Description: description || '',
+                Currency: 'MYR',
+                OriginalAmount: originalAmount.toString(),
+                OriginalCurrency: originalCurrency,
                 Files: []
             };
+
+            console.log('Prepared claim data:', claimData);
 
             // Process files
             const files = Array.from(fileInput.files);
             if (files.length > 0) {
                 try {
+                    console.log(`Processing ${files.length} files...`);
                     for (const file of files) {
                         const base64String = await convertFileToBase64(file);
                         claimData.Files.push({
@@ -256,6 +262,7 @@
                             data: base64String
                         });
                     }
+                    console.log(`Successfully processed ${claimData.Files.length} files`);
                 } catch (error) {
                     console.error('File conversion failed:', error);
                     submitBtn.disabled = false;
@@ -265,37 +272,55 @@
                 }
             }
 
-            // Store in session storage AND send via form
+            // Store in session storage for fallback
             sessionStorage.setItem('claimData', JSON.stringify(claimData));
+            console.log('Data stored in sessionStorage');
 
-            // FIXED: Send data via fetch with proper headers
+            // FIXED: Send data via fetch with proper headers and error handling
             try {
                 const formData = new FormData();
                 formData.append('ClaimDataJson', JSON.stringify(claimData));
 
                 // Get the anti-forgery token
-                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+                if (!tokenInput) {
+                    throw new Error('Anti-forgery token not found');
+                }
+                const token = tokenInput.value;
 
+                console.log('Sending data to server...');
                 const response = await fetch('@Url.Action("OCRWithData", "Claim")', {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'RequestVerificationToken': token
+                        'X-Requested-With': 'XMLHttpRequest',
+                        '__RequestVerificationToken': token  // ✅ Fixed header name
                     }
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const result = await response.json();
+                console.log('Server response:', result);
 
                 if (result.success) {
-                    console.log('Data sent successfully, redirecting to OCR page');
+                    console.log('✅ Data sent successfully, redirecting to OCR page');
                     window.location.href = '@Url.Action("OCR", "Claim")';
                 } else {
-                    throw new Error(result.error || 'Failed to send data to server');
+                    throw new Error(result.error || 'Server returned failure');
                 }
             } catch (error) {
-                console.warn('Server data transfer failed, using client-side fallback:', error);
-                // Fallback to redirect with sessionStorage
-                window.location.href = '@Url.Action("OCR", "Claim")';
+                console.warn('⚠️ Server data transfer failed, using client-side fallback:', error);
+
+                // Show user what's happening
+                console.log('Redirecting with sessionStorage fallback...');
+
+                // Add a small delay to ensure sessionStorage is written
+                setTimeout(() => {
+                    window.location.href = '@Url.Action("OCR", "Claim")';
+                }, 100);
             }
         });
 
