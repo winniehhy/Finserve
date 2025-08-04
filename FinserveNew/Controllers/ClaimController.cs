@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using FinserveNew.Data;
+﻿using FinserveNew.Data;
 using FinserveNew.Models;
+using FinserveNew.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FinserveNew.Controllers
 {
@@ -13,13 +15,15 @@ namespace FinserveNew.Controllers
         private readonly IWebHostEnvironment _environment;
         private readonly ILogger<ClaimController> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IOcrService _ocrService;
 
-        public ClaimController(AppDbContext context, IWebHostEnvironment environment, ILogger<ClaimController> logger, UserManager<ApplicationUser> userManager)
+        public ClaimController(AppDbContext context, IWebHostEnvironment environment, ILogger<ClaimController> logger, UserManager<ApplicationUser> userManager, IOcrService ocrService)
         {
             _context = context;
             _environment = environment;
             _logger = logger;
             _userManager = userManager;
+            _ocrService = ocrService;
         }
 
         // ================== EMPLOYEE ACTIONS ==================
@@ -59,6 +63,7 @@ namespace FinserveNew.Controllers
             }
 
             var claim = await _context.Claims
+                .Include(c => c.ClaimDetails) // Include claim details
                 .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeID == employeeId);
 
             if (claim == null)
@@ -82,8 +87,13 @@ namespace FinserveNew.Controllers
                 }
             }
 
-            // Check if there's a supporting document
-            if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
+            // Check for documents in ClaimDetails first, then fallback to main claim
+            var documents = claim.ClaimDetails?.ToList() ?? new List<ClaimDetails>();
+            ViewBag.Documents = documents;
+            ViewBag.DocumentCount = documents.Count;
+
+            // Backward compatibility - check main claim document
+            if (documents.Count == 0 && !string.IsNullOrEmpty(claim.SupportingDocumentPath))
             {
                 ViewBag.HasSupportingDocument = true;
                 ViewBag.SupportingDocumentFileName = claim.SupportingDocumentName ?? Path.GetFileName(claim.SupportingDocumentPath);
@@ -109,7 +119,7 @@ namespace FinserveNew.Controllers
             }
             else
             {
-                ViewBag.HasSupportingDocument = false;
+                ViewBag.HasSupportingDocument = documents.Count > 0;
             }
 
             // Calculate processing time
@@ -137,10 +147,12 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Create(Claim claim, IFormFile? supportingDocument)
+        public async Task<IActionResult> Create(Claim claim, List<IFormFile> UploadedFiles) // Changed parameter name to match form
         {
             try
             {
+                _logger.LogInformation($"Create POST action called with {UploadedFiles?.Count ?? 0} files");
+
                 // Get current employee ID
                 var employeeId = await GetCurrentEmployeeId();
 
@@ -151,22 +163,11 @@ namespace FinserveNew.Controllers
                     return View("~/Views/Employee/Claim/Create.cshtml", claim);
                 }
 
-                // Upload document if provided
-                if (supportingDocument != null && supportingDocument.Length > 0)
+                // Validate model
+                if (!ModelState.IsValid)
                 {
-                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
-                    Directory.CreateDirectory(uploadsFolder);
-
-                    var uniqueFileName = $"{Guid.NewGuid()}_{supportingDocument.FileName}";
-                    var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await supportingDocument.CopyToAsync(fileStream);
-                    }
-
-                    claim.SupportingDocumentName = supportingDocument.FileName;
-                    claim.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
+                    await PopulateViewBagData();
+                    return View("~/Views/Employee/Claim/Create.cshtml", claim);
                 }
 
                 // Set default claim values with correct employee ID
@@ -179,8 +180,77 @@ namespace FinserveNew.Controllers
                 claim.ApprovedBy = null;
                 claim.ApprovalRemarks = null;
 
+                // Save the claim first to get the ID
                 _context.Claims.Add(claim);
                 await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Claim saved with ID: {claim.Id}");
+
+                // Handle multiple file uploads if provided
+                if (UploadedFiles != null && UploadedFiles.Count > 0)
+                {
+                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
+                    Directory.CreateDirectory(uploadsFolder);
+
+                    _logger.LogInformation($"Processing {UploadedFiles.Count} files for claim {claim.Id}");
+
+                    // Get the first ClaimType ID (you might need to adjust this based on your requirements)
+                    var claimTypeId = await GetClaimTypeId(claim.ClaimType);
+
+                    foreach (var file in UploadedFiles)
+                    {
+                        if (file != null && file.Length > 0)
+                        {
+                            // Validate file size (5MB limit)
+                            if (file.Length > 5 * 1024 * 1024)
+                            {
+                                _logger.LogWarning($"File {file.FileName} exceeds size limit");
+                                continue;
+                            }
+
+                            // Generate unique filename
+                            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+                            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                            // Save file to disk
+                            using (var fileStream = new FileStream(filePath, FileMode.Create))
+                            {
+                                await file.CopyToAsync(fileStream);
+                            }
+
+                            // Create ClaimDetails record for each file
+                            var claimDetail = new ClaimDetails
+                            {
+                                ClaimID = claim.Id,
+                                ClaimTypeID = claimTypeId,
+                                Comment = $"Supporting document: {file.FileName}",
+                                DocumentPath = $"/uploads/claims/{uniqueFileName}",
+                                OriginalFileName = file.FileName,
+                                FileSize = file.Length,
+                                UploadDate = DateTime.Now
+                            };
+
+                            _context.ClaimDetails.Add(claimDetail);
+
+                            _logger.LogInformation($"File saved: {file.FileName} -> {uniqueFileName}");
+                        }
+                    }
+
+                    // If we have files, also update the main claim record for backward compatibility
+                    if (UploadedFiles.Any(f => f != null && f.Length > 0))
+                    {
+                        var firstFile = UploadedFiles.First(f => f != null && f.Length > 0);
+                        var firstUniqueFileName = $"{Guid.NewGuid()}_{firstFile.FileName}";
+
+                        claim.SupportingDocumentName = firstFile.FileName;
+                        claim.SupportingDocumentPath = $"/uploads/claims/{firstUniqueFileName}";
+                    }
+
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"All files processed and saved for claim {claim.Id}");
+
+                    TempData["FileUploadStatus"] = $"Successfully uploaded {UploadedFiles.Count(f => f != null && f.Length > 0)} file(s)";
+                }
 
                 TempData["Success"] = "Claim submitted successfully!";
                 return RedirectToAction(nameof(Index));
@@ -196,6 +266,7 @@ namespace FinserveNew.Controllers
             {
                 _logger.LogError(ex, "Unexpected error while creating claim");
                 ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+                TempData["Error"] = $"Error: {ex.Message}";
                 await PopulateViewBagData();
                 return View("~/Views/Employee/Claim/Create.cshtml", claim);
             }
@@ -230,15 +301,17 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Edit(int id, IFormFile? supportingDocument)
+        public async Task<IActionResult> Edit(int id, List<IFormFile>? UploadedFiles)
         {
             var employeeId = await GetCurrentEmployeeId();
             if (string.IsNullOrEmpty(employeeId))
                 return NotFound();
 
-            var claimToUpdate = await _context.Claims.FindAsync(id);
+            var claimToUpdate = await _context.Claims
+                .Include(c => c.ClaimDetails)
+                .FirstOrDefaultAsync(c => c.Id == id && c.EmployeeID == employeeId);
 
-            if (claimToUpdate == null || claimToUpdate.EmployeeID != employeeId)
+            if (claimToUpdate == null)
                 return NotFound();
 
             // Only allow editing if status is Pending
@@ -249,34 +322,60 @@ namespace FinserveNew.Controllers
             }
 
             if (await TryUpdateModelAsync(claimToUpdate, "",
-                c => c.ClaimType, c => c.ClaimAmount, c => c.Description))
+                c => c.ClaimType, c => c.ClaimAmount, c => c.Description, c => c.ClaimDate))
             {
                 try
                 {
-                    // Handle new document upload
-                    if (supportingDocument != null && supportingDocument.Length > 0)
+                    // Handle new document uploads
+                    if (UploadedFiles != null && UploadedFiles.Count > 0 && UploadedFiles.Any(f => f != null && f.Length > 0))
                     {
                         var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
                         Directory.CreateDirectory(uploadsFolder);
 
-                        var uniqueFileName = $"{Guid.NewGuid()}_{supportingDocument.FileName}";
-                        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                        var claimTypeId = await GetClaimTypeId(claimToUpdate.ClaimType);
 
-                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        // Delete old ClaimDetails files
+                        var oldClaimDetails = claimToUpdate.ClaimDetails?.ToList() ?? new List<ClaimDetails>();
+                        foreach (var oldDetail in oldClaimDetails)
                         {
-                            await supportingDocument.CopyToAsync(fileStream);
-                        }
-
-                        // Delete old file if exists
-                        if (!string.IsNullOrEmpty(claimToUpdate.SupportingDocumentPath))
-                        {
-                            var oldPath = Path.Combine(_environment.WebRootPath, claimToUpdate.SupportingDocumentPath.TrimStart('/'));
+                            var oldPath = Path.Combine(_environment.WebRootPath, oldDetail.DocumentPath.TrimStart('/'));
                             if (System.IO.File.Exists(oldPath))
                                 System.IO.File.Delete(oldPath);
+
+                            _context.ClaimDetails.Remove(oldDetail);
                         }
 
-                        claimToUpdate.SupportingDocumentName = supportingDocument.FileName;
-                        claimToUpdate.SupportingDocumentPath = $"/uploads/claims/{uniqueFileName}";
+                        // Add new files
+                        foreach (var file in UploadedFiles.Where(f => f != null && f.Length > 0))
+                        {
+                            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+                            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                            using (var fileStream = new FileStream(filePath, FileMode.Create))
+                            {
+                                await file.CopyToAsync(fileStream);
+                            }
+
+                            var claimDetail = new ClaimDetails
+                            {
+                                ClaimID = claimToUpdate.Id,
+                                ClaimTypeID = claimTypeId,
+                                Comment = $"Supporting document: {file.FileName}",
+                                DocumentPath = $"/uploads/claims/{uniqueFileName}",
+                                OriginalFileName = file.FileName,
+                                FileSize = file.Length,
+                                UploadDate = DateTime.Now
+                            };
+
+                            _context.ClaimDetails.Add(claimDetail);
+                        }
+
+                        // Update main claim for backward compatibility
+                        var firstFile = UploadedFiles.First(f => f != null && f.Length > 0);
+                        var firstUniqueFileName = $"{Guid.NewGuid()}_{firstFile.FileName}";
+
+                        claimToUpdate.SupportingDocumentName = firstFile.FileName;
+                        claimToUpdate.SupportingDocumentPath = $"/uploads/claims/{firstUniqueFileName}";
                     }
 
                     claimToUpdate.TotalAmount = claimToUpdate.ClaimAmount;
@@ -356,6 +455,328 @@ namespace FinserveNew.Controllers
             }
 
             return RedirectToAction(nameof(Index));
+        }
+
+        // Add this OCR action method to your existing ClaimController class
+
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> OCR()
+        {
+            try
+            {
+                // Get current employee ID
+                var employeeId = await GetCurrentEmployeeId();
+
+                if (string.IsNullOrEmpty(employeeId))
+                {
+                    TempData["Error"] = "Employee record not found.";
+                    return RedirectToAction("Create");
+                }
+
+                // Create a new claim model with default values for the OCR page
+                var claim = new Claim
+                {
+                    EmployeeID = employeeId,
+                    ClaimDate = DateTime.Now,
+                    Status = "Draft" // Temporary status for OCR processing
+                };
+
+                // Try to get claim data from TempData if it was passed from Create form
+                if (TempData["ClaimData"] != null)
+                {
+                    try
+                    {
+                        var claimDataJson = TempData["ClaimData"].ToString();
+                        var claimData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(claimDataJson);
+
+                        // Populate claim from TempData
+                        if (claimData.ContainsKey("claimType"))
+                            claim.ClaimType = claimData["claimType"].ToString();
+
+                        if (claimData.ContainsKey("claimAmount"))
+                            claim.ClaimAmount = Convert.ToDecimal(claimData["claimAmount"]);
+
+                        if (claimData.ContainsKey("claimDate"))
+                            claim.ClaimDate = Convert.ToDateTime(claimData["claimDate"]);
+
+                        if (claimData.ContainsKey("description"))
+                            claim.Description = claimData["description"].ToString();
+
+                        // Store file information in ViewBag
+                        if (claimData.ContainsKey("files"))
+                        {
+                            ViewBag.UploadedFiles = claimData["files"];
+                        }
+
+                        // Store currency information in ViewBag
+                        if (claimData.ContainsKey("originalCurrency"))
+                            ViewBag.OriginalCurrency = claimData["originalCurrency"].ToString();
+
+                        if (claimData.ContainsKey("originalAmount"))
+                            ViewBag.OriginalAmount = Convert.ToDecimal(claimData["originalAmount"]);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to parse claim data from TempData");
+                        TempData["Error"] = "Failed to load claim data. Please try again.";
+                        return RedirectToAction("Create");
+                    }
+                }
+
+                return View("~/Views/Employee/Claim/OCR.cshtml", claim);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading OCR page");
+                TempData["Error"] = "An error occurred while loading the OCR page.";
+                return RedirectToAction("Create");
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> ProcessOCRAndSubmit(Claim claim, List<IFormFile> UploadedFiles, string ocrResults = "")
+        {
+            try
+            {
+                _logger.LogInformation($"ProcessOCRAndSubmit called with {UploadedFiles?.Count ?? 0} files");
+
+                // Get current employee ID
+                var employeeId = await GetCurrentEmployeeId();
+
+                if (string.IsNullOrEmpty(employeeId))
+                {
+                    ModelState.AddModelError("", "Employee record not found. Please contact administrator.");
+                    return View("~/Views/Employee/Claim/OCR.cshtml", claim);
+                }
+
+                // Validate model
+                if (!ModelState.IsValid)
+                {
+                    return View("~/Views/Employee/Claim/OCR.cshtml", claim);
+                }
+
+                // Set claim values
+                claim.EmployeeID = employeeId;
+                claim.CreatedDate = DateTime.Now;
+                claim.SubmissionDate = DateTime.Now;
+                claim.Status = "Pending";
+                claim.TotalAmount = claim.ClaimAmount;
+                claim.ApprovalDate = null;
+                claim.ApprovedBy = null;
+                claim.ApprovalRemarks = null;
+
+                // If OCR results are provided, append them to the description
+                if (!string.IsNullOrEmpty(ocrResults))
+                {
+                    if (!string.IsNullOrEmpty(claim.Description))
+                    {
+                        claim.Description += "\n\n--- OCR Extracted Information ---\n" + ocrResults;
+                    }
+                    else
+                    {
+                        claim.Description = "--- OCR Extracted Information ---\n" + ocrResults;
+                    }
+                }
+
+                // Save the claim first to get the ID
+                _context.Claims.Add(claim);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Claim saved with ID: {claim.Id}");
+
+                // Handle multiple file uploads if provided
+                if (UploadedFiles != null && UploadedFiles.Count > 0)
+                {
+                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
+                    Directory.CreateDirectory(uploadsFolder);
+
+                    _logger.LogInformation($"Processing {UploadedFiles.Count} files for claim {claim.Id}");
+
+                    var claimTypeId = await GetClaimTypeId(claim.ClaimType);
+
+                    foreach (var file in UploadedFiles)
+                    {
+                        if (file != null && file.Length > 0)
+                        {
+                            // Validate file size (5MB limit)
+                            if (file.Length > 5 * 1024 * 1024)
+                            {
+                                _logger.LogWarning($"File {file.FileName} exceeds size limit");
+                                continue;
+                            }
+
+                            // Generate unique filename
+                            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+                            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                            // Save file to disk
+                            using (var fileStream = new FileStream(filePath, FileMode.Create))
+                            {
+                                await file.CopyToAsync(fileStream);
+                            }
+
+                            // Create ClaimDetails record for each file
+                            var claimDetail = new ClaimDetails
+                            {
+                                ClaimID = claim.Id,
+                                ClaimTypeID = claimTypeId,
+                                Comment = $"Supporting document: {file.FileName} (OCR Processed)",
+                                DocumentPath = $"/uploads/claims/{uniqueFileName}",
+                                OriginalFileName = file.FileName,
+                                FileSize = file.Length,
+                                UploadDate = DateTime.Now
+                            };
+
+                            _context.ClaimDetails.Add(claimDetail);
+
+                            _logger.LogInformation($"File saved: {file.FileName} -> {uniqueFileName}");
+                        }
+                    }
+
+                    // Update main claim record for backward compatibility
+                    if (UploadedFiles.Any(f => f != null && f.Length > 0))
+                    {
+                        var firstFile = UploadedFiles.First(f => f != null && f.Length > 0);
+                        var firstUniqueFileName = $"{Guid.NewGuid()}_{firstFile.FileName}";
+
+                        claim.SupportingDocumentName = firstFile.FileName;
+                        claim.SupportingDocumentPath = $"/uploads/claims/{firstUniqueFileName}";
+                    }
+
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"All files processed and saved for claim {claim.Id}");
+
+                    TempData["FileUploadStatus"] = $"Successfully uploaded {UploadedFiles.Count(f => f != null && f.Length > 0)} file(s) with OCR processing";
+                }
+
+                TempData["Success"] = "Claim submitted successfully with OCR verification!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error while saving claim with OCR");
+                ModelState.AddModelError("", "An error occurred while saving the claim. Please try again.");
+                return View("~/Views/Employee/Claim/OCR.cshtml", claim);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while processing OCR claim");
+                ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+                TempData["Error"] = $"Error: {ex.Message}";
+                return View("~/Views/Employee/Claim/OCR.cshtml", claim);
+            }
+        }
+
+        // Add this helper method for handling file uploads from OCR page
+        [HttpPost]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> UploadFilesForOCR(List<IFormFile> files)
+        {
+            try
+            {
+                var results = new List<object>();
+
+                if (files != null && files.Count > 0)
+                {
+                    var tempFolder = Path.Combine(_environment.WebRootPath, "temp", "ocr");
+                    Directory.CreateDirectory(tempFolder);
+
+                    foreach (var file in files)
+                    {
+                        if (file != null && file.Length > 0)
+                        {
+                            // Validate file size (5MB limit)
+                            if (file.Length > 5 * 1024 * 1024)
+                            {
+                                results.Add(new
+                                {
+                                    fileName = file.FileName,
+                                    success = false,
+                                    error = "File size exceeds 5MB limit"
+                                });
+                                continue;
+                            }
+
+                            // Generate unique filename for temporary storage
+                            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+                            var filePath = Path.Combine(tempFolder, uniqueFileName);
+
+                            // Save file temporarily
+                            using (var fileStream = new FileStream(filePath, FileMode.Create))
+                            {
+                                await file.CopyToAsync(fileStream);
+                            }
+
+                            // Convert to base64 for client-side OCR processing
+                            byte[] fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                            string base64String = Convert.ToBase64String(fileBytes);
+
+                            results.Add(new
+                            {
+                                fileName = file.FileName,
+                                originalName = file.FileName,
+                                fileSize = file.Length,
+                                fileType = file.ContentType,
+                                base64Data = $"data:{file.ContentType};base64,{base64String}",
+                                success = true,
+                                tempPath = uniqueFileName
+                            });
+
+                            // Clean up temp file after converting to base64
+                            System.IO.File.Delete(filePath);
+                        }
+                    }
+                }
+
+                return Json(new { success = true, files = results });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading files for OCR");
+                return Json(new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> ProcessOCRServer(IFormFile file)
+        {
+            try
+            {
+                if (file == null || file.Length == 0)
+                    return Json(new { success = false, error = "No file provided" });
+
+                // Validate file type
+                var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "application/pdf" };
+                if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                    return Json(new { success = false, error = "Only JPG, PNG, and PDF files are supported" });
+
+                // Validate file size (5MB limit)
+                if (file.Length > 5 * 1024 * 1024)
+                    return Json(new { success = false, error = "File size must be less than 5MB" });
+
+                using var memoryStream = new MemoryStream();
+                await file.CopyToAsync(memoryStream);
+                var imageData = memoryStream.ToArray();
+
+                var result = await _ocrService.ProcessImageAsync(imageData);
+
+                return Json(new
+                {
+                    success = result.Success,
+                    text = result.Text,
+                    confidence = result.Confidence,
+                    wordCount = result.WordCount,
+                    error = result.ErrorMessage
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Server OCR processing failed");
+                return Json(new { success = false, error = "OCR processing failed. Please try again." });
+            }
         }
 
         // ================== HR ACTIONS ==================
@@ -592,6 +1013,30 @@ namespace FinserveNew.Controllers
         {
             // Implementation for sending email notification to employee
             // when claim is approved/rejected
+        }
+
+        private async Task<int> GetClaimTypeId(string claimTypeName)
+        {
+            var claimType = await _context.ClaimTypes
+                .FirstOrDefaultAsync(ct => ct.Name == claimTypeName);
+
+            if (claimType == null)
+            {
+                // Create new claim type if it doesn't exist
+                claimType = new ClaimType
+                {
+                    Name = claimTypeName,
+                    Description = $"Auto-created claim type for {claimTypeName}",
+                    RequiresApproval = true,
+                    IsActive = true,
+                    CreatedDate = DateTime.Now
+                };
+
+                _context.ClaimTypes.Add(claimType);
+                await _context.SaveChangesAsync();
+            }
+
+            return claimType.Id;
         }
     }
 }

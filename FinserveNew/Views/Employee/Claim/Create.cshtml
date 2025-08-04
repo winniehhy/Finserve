@@ -1,10 +1,9 @@
 ﻿@model FinserveNew.Models.Claim
 @{
-    ViewData["Title"] = "Create New Claim"; // Set the page title
+    ViewData["Title"] = "Create New Claim";
 }
 <div class="page-title">Create New Claim</div>
 
-@* Display success message if available *@
 @if (TempData["Success"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -13,7 +12,6 @@
     </div>
 }
 
-@* Display error message if available *@
 @if (TempData["Error"] != null)
 {
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -22,7 +20,6 @@
     </div>
 }
 
-@* Display file upload status if available *@
 @if (TempData["FileUploadStatus"] != null)
 {
     <div class="alert alert-info alert-dismissible fade show" role="alert">
@@ -31,7 +28,6 @@
     </div>
 }
 
-@* Display debug info if available *@
 @if (TempData["DebugInfo"] != null)
 {
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
@@ -41,15 +37,10 @@
 }
 
 <div class="form-container">
-    @* Claim form starts here *@
     <form asp-action="Create" method="post" enctype="multipart/form-data" id="claimForm">
-        @* Display model validation errors *@
         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-
-        @* Hidden input for EmployeeId (default: "EM001" if model is null) *@
         <input type="hidden" name="EmployeeId" value="@(Model?.EmployeeID ?? "EM001")" />
 
-        @* Claim Type dropdown selection *@
         <div class="mb-3">
             <label asp-for="ClaimType" class="form-label">Claim Type</label>
             <select asp-for="ClaimType" class="form-select" required>
@@ -64,39 +55,70 @@
             <span asp-validation-for="ClaimType" class="text-danger"></span>
         </div>
 
-        @* Claim Amount input with currency prefix *@
         <div class="mb-3">
-            <label asp-for="ClaimAmount" class="form-label">Claim Amount</label>
-            <div class="input-group">
-                <span class="input-group-text">RM</span>
-                <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" placeholder="0.00" required />
-            </div>
-            <span asp-validation-for="ClaimAmount" class="text-danger"></span>
+            <label asp-for="ClaimDate" class="form-label">Claim Date</label>
+            <input asp-for="ClaimDate" class="form-control" type="date" required />
+            <span asp-validation-for="ClaimDate" class="text-danger"></span>
+            <small class="form-text text-muted">Date when the expense occurred</small>
         </div>
 
-        @* File upload for supporting documents *@
-        <div class="mb-4">
-            <label class="form-label">Upload Supporting Document</label>
-            <div class="input-group">
-                <input type="file" name="supportingDocument" id="fileInput" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-                <label class="input-group-text" id="file-label">Choose file...</label>
+        <div class="mb-3">
+            <label asp-for="ClaimAmount" class="form-label">Claim Amount</label>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="input-group">
+                        <select id="currencySelect" class="input-group-text" style="border-right: none; background-color: #e9ecef;">
+                            <option value="MYR">RM</option>
+                            <option value="USD">$</option>
+                        </select>
+                        <input asp-for="ClaimAmount" id="claimAmountInput" class="form-control" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+                    </div>
+                    <span asp-validation-for="ClaimAmount" class="text-danger"></span>
+                </div>
+                <div class="col-md-4">
+                    <div id="conversionDisplay" class="alert alert-info mb-0 py-2" style="display: none;">
+                        <small id="conversionText"></small>
+                    </div>
+                </div>
             </div>
-            <small class="form-text text-muted">Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 5MB)</small>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <span id="exchangeRateInfo">Exchange rate will be displayed when amount is entered</span>
+                </small>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Upload Supporting Documents</label>
+            <div class="input-group">
+                <input type="file" name="UploadedFiles" id="fileInput" class="form-control" multiple
+                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelection(this)">
+                <label class="input-group-text" id="file-label">Choose files...</label>
+            </div>
+            <small class="form-text text-muted">
+                Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 5MB per file, Maximum 10 files)
+            </small>
+            <div id="fileList" class="mt-2" style="display: none;">
+                <div class="card">
+                    <div class="card-header py-2">
+                        <small class="fw-bold">Selected Files:</small>
+                    </div>
+                    <div class="card-body py-2" id="fileListContent"></div>
+                </div>
+            </div>
             <div id="fileDebugInfo" class="mt-2 text-muted" style="display: none;"></div>
         </div>
 
-        @* Optional description field *@
         <div class="mb-3">
             <label asp-for="Description" class="form-label">Description (Optional)</label>
             <textarea asp-for="Description" class="form-control" rows="3" placeholder="Enter additional details about your claim..."></textarea>
             <span asp-validation-for="Description" class="text-danger"></span>
         </div>
 
-        @* Submit and cancel buttons *@
         <div class="d-grid gap-2 d-md-flex justify-content-md-start">
             <button type="submit" class="btn btn-primary" id="submitBtn">
                 <i class="fas fa-paper-plane me-2"></i>
-                <span id="submitText">Submit Claim</span>
+                <span id="submitText">Add</span>
             </button>
             <a asp-action="Index" class="btn btn-outline-secondary">
                 <i class="fas fa-times me-2"></i>
@@ -108,114 +130,273 @@
 
 @section Scripts {
     @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial"); // Load jQuery validation
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
     <script>
+        // Exchange rates
+        const exchangeRates = {
+            USD_TO_MYR: 4.29,
+            MYR_TO_USD: 0.233
+        };
+
         document.addEventListener('DOMContentLoaded', function () {
-            // Initialize variables for form and input elements
             const fileInput = document.getElementById('fileInput');
             const fileLabel = document.getElementById('file-label');
+            const fileList = document.getElementById('fileList');
+            const fileListContent = document.getElementById('fileListContent');
             const fileDebugInfo = document.getElementById('fileDebugInfo');
             const form = document.getElementById('claimForm');
             const submitBtn = document.getElementById('submitBtn');
             const submitText = document.getElementById('submitText');
+            const currencySelect = document.getElementById('currencySelect');
+            const claimAmountInput = document.getElementById('claimAmountInput');
+            const conversionDisplay = document.getElementById('conversionDisplay');
+            const conversionText = document.getElementById('conversionText');
+            const exchangeRateInfo = document.getElementById('exchangeRateInfo');
+            const claimDateInput = document.querySelector('[name="ClaimDate"]');
 
-            // Log employee ID field for debugging
-            const employeeIdInput = document.querySelector('[name="EmployeeId"]');
-            console.log('EmployeeId input found:', employeeIdInput ? 'Yes' : 'No');
-            console.log('EmployeeId value:', employeeIdInput?.value || 'Not set');
+            // Set default date to today
+            if (claimDateInput && !claimDateInput.value) {
+                claimDateInput.value = new Date().toISOString().split('T')[0];
+            }
 
-            // Handle file input changes
-            fileInput.addEventListener('change', function (e) {
-                const file = e.target.files[0];
+            // Currency conversion
+            function updateConversion() {
+                const amount = parseFloat(claimAmountInput.value);
+                const selectedCurrency = currencySelect.value;
 
-                if (file) {
-                    // Show file name and details
-                    fileLabel.textContent = file.name;
-                    const debugInfo = `
-                        <strong>File Selected:</strong><br>
-                        • Name: ${file.name}<br>
-                        • Size: ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
-                        • Type: ${file.type}<br>
-                        • Last Modified: ${new Date(file.lastModified).toLocaleString()}
-                    `;
-                    fileDebugInfo.innerHTML = debugInfo;
-                    fileDebugInfo.style.display = 'block';
+                if (amount && amount > 0) {
+                    let convertedAmount, fromCurrency, toCurrency, rate;
 
-                    // Check for max file size (5MB)
-                    const maxSize = 5 * 1024 * 1024;
-                    if (file.size > maxSize) {
-                        alert(`File size (${(file.size / 1024 / 1024).toFixed(2)} MB) exceeds the maximum limit of 5MB`);
-                        fileInput.value = '';
-                        fileLabel.textContent = 'Choose file...';
-                        fileDebugInfo.style.display = 'none';
+                    if (selectedCurrency === 'USD') {
+                        convertedAmount = (amount * exchangeRates.USD_TO_MYR).toFixed(2);
+                        fromCurrency = 'USD';
+                        toCurrency = 'MYR';
+                        rate = exchangeRates.USD_TO_MYR;
+                        conversionText.innerHTML = `<strong>≈ RM ${convertedAmount}</strong>`;
+                    } else {
+                        convertedAmount = (amount * exchangeRates.MYR_TO_USD).toFixed(2);
+                        fromCurrency = 'MYR';
+                        toCurrency = 'USD';
+                        rate = exchangeRates.MYR_TO_USD;
+                        conversionText.innerHTML = `<strong>≈ $${convertedAmount}</strong>`;
                     }
 
-                    // Log file details to console
-                    console.log('File selected:', {
-                        name: file.name,
-                        size: file.size,
-                        type: file.type,
-                        lastModified: file.lastModified
-                    });
+                    conversionDisplay.style.display = 'block';
+                    exchangeRateInfo.textContent = `Exchange rate: 1 ${fromCurrency} = ${rate} ${toCurrency} (indicative)`;
                 } else {
-                    // Reset UI if no file selected
-                    fileLabel.textContent = 'Choose file...';
-                    fileDebugInfo.style.display = 'none';
+                    conversionDisplay.style.display = 'none';
+                    exchangeRateInfo.textContent = 'Exchange rate will be displayed when amount is entered';
                 }
-            });
+            }
 
-            // Handle form submission
-            form.addEventListener('submit', function (e) {
+            claimAmountInput.addEventListener('input', updateConversion);
+            currencySelect.addEventListener('change', updateConversion);
+
+            // Initialize currency conversion
+            updateConversion();
+
+            // UPDATED FORM SUBMISSION HANDLER
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
                 console.log('Form submission started...');
 
-                // Disable button and change text to avoid double submission
                 submitBtn.disabled = true;
-                submitText.textContent = 'Submitting...';
+                submitText.textContent = 'Processing...';
 
-                // Log form data
-                const formData = new FormData(form);
-                console.log('Form data being submitted:');
-                for (let [key, value] of formData.entries()) {
-                    if (key === 'supportingDocument' && value instanceof File) {
-                        console.log(`${key}:`, {
-                            name: value.name,
-                            size: value.size,
-                            type: value.type
-                        });
-                    } else {
-                        console.log(`${key}: ${value}`);
-                    }
-                }
-
-                // Validate required fields before submission
                 const claimType = document.querySelector('[name="ClaimType"]').value;
-                const claimAmount = document.querySelector('[name="ClaimAmount"]').value;
+                const claimAmount = claimAmountInput.value;
+                const claimDate = claimDateInput.value;
                 const employeeId = document.querySelector('[name="EmployeeId"]').value;
+                const description = document.querySelector('[name="Description"]').value;
 
-                console.log('Validation check:', {
-                    claimType: claimType,
-                    claimAmount: claimAmount,
-                    hasFile: fileInput.files.length > 0,
-                    employeeId: employeeId
-                });
-
-                // Stop submission if fields are missing
-                if (!claimType || !claimAmount || !employeeId) {
+                // Validation
+                if (!claimType || !claimAmount || !claimDate || !employeeId) {
                     console.error('Validation failed: Missing required fields');
                     submitBtn.disabled = false;
-                    submitText.textContent = 'Submit Claim';
+                    submitText.textContent = 'Add';
+                    alert('Please fill in all required fields');
                     return false;
                 }
 
-                console.log('Form validation passed, submitting...');
-                return true;
+                // Prepare claim data
+                const claimData = {
+                    EmployeeId: employeeId,
+                    ClaimType: claimType,
+                    ClaimDate: claimDate,
+                    ClaimAmount: claimAmount,
+                    Description: description,
+                    Currency: currencySelect.value,
+                    Files: []
+                };
+
+                // Process files
+                const files = Array.from(fileInput.files);
+                if (files.length > 0) {
+                    try {
+                        for (const file of files) {
+                            const base64String = await convertFileToBase64(file);
+                            claimData.Files.push({
+                                name: file.name,
+                                type: file.type,
+                                size: file.size,
+                                data: base64String
+                            });
+                        }
+                    } catch (error) {
+                        console.error('File conversion failed:', error);
+                        submitBtn.disabled = false;
+                        submitText.textContent = 'Add';
+                        alert('Failed to process files. Please try again.');
+                        return false;
+                    }
+                } else {
+                    if (!confirm('No files uploaded. Proceed without OCR processing?')) {
+                        submitBtn.disabled = false;
+                        submitText.textContent = 'Add';
+                        return false;
+                    }
+                }
+
+                // Store in session storage
+                sessionStorage.setItem('claimData', JSON.stringify(claimData));
+
+                // Redirect to OCR page
+                window.location.href = '@Url.Action("OCR", "Claim")';
             });
 
-            // Debug on page load
-            console.log('Employee claim form page loaded successfully');
-            console.log('Form element found:', form ? 'Yes' : 'No');
-            console.log('File input found:', fileInput ? 'Yes' : 'No');
+            // File to Base64 conversion
+            function convertFileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = error => reject(error);
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            console.log('Employee claim form initialized');
         });
+
+        // Handle file selection UI
+        function handleFileSelection(input) {
+            const files = input.files;
+            const fileLabel = document.getElementById('file-label');
+            const fileList = document.getElementById('fileList');
+            const fileListContent = document.getElementById('fileListContent');
+            const fileDebugInfo = document.getElementById('fileDebugInfo');
+            const maxFiles = 10;
+            const maxSize = 5 * 1024 * 1024;
+
+            if (files.length === 0) {
+                fileLabel.textContent = 'Choose files...';
+                fileList.style.display = 'none';
+                fileDebugInfo.style.display = 'none';
+                return;
+            }
+
+            if (files.length > maxFiles) {
+                alert(`Maximum ${maxFiles} files allowed.`);
+                input.value = '';
+                fileLabel.textContent = 'Choose files...';
+                fileList.style.display = 'none';
+                return;
+            }
+
+            const validFiles = [];
+            const invalidFiles = [];
+            let totalSize = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                totalSize += file.size;
+
+                if (file.size > maxSize) {
+                    invalidFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                } else {
+                    validFiles.push(file);
+                }
+            }
+
+            if (invalidFiles.length > 0) {
+                alert(`Files exceed 5MB limit:\n${invalidFiles.join('\n')}`);
+                input.value = '';
+                fileLabel.textContent = 'Choose files...';
+                fileList.style.display = 'none';
+                return;
+            }
+
+            fileLabel.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
+
+            let fileListHTML = '';
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                fileListHTML += `
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                        <div>
+                            <small class="fw-bold">${file.name}</small><br>
+                            <small class="text-muted">${fileSize} MB • ${file.type || 'Unknown'}</small>
+                        </div>
+                        <span class="badge bg-success">Valid</span>
+                    </div>
+                `;
+            }
+
+            fileListContent.innerHTML = fileListHTML;
+            fileList.style.display = 'block';
+
+            fileDebugInfo.innerHTML = `
+                <strong>Files Selected:</strong><br>
+                • Count: ${files.length}/${maxFiles}<br>
+                • Total Size: ${(totalSize / 1024 / 1024).toFixed(2)} MB
+            `;
+            fileDebugInfo.style.display = 'block';
+        }
     </script>
+
+    <style>
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .alert {
+            border-radius: 8px;
+        }
+
+        .form-control, .form-select {
+            border-radius: 6px;
+        }
+
+        .btn {
+            border-radius: 6px;
+        }
+
+        .card {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        #conversionDisplay {
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #currencySelect {
+            min-width: 60px;
+            cursor: pointer;
+        }
+
+        .border-bottom:last-child {
+            border-bottom: none !important;
+        }
+    </style>
 }

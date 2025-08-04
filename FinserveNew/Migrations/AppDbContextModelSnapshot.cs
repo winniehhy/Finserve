@@ -153,6 +153,9 @@ namespace FinserveNew.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTime>("ClaimDate")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("ClaimType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -160,6 +163,13 @@ namespace FinserveNew.Migrations
 
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)")
+                        .HasDefaultValue("MYR");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -169,6 +179,18 @@ namespace FinserveNew.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
+
+                    b.Property<decimal?>("ExchangeRate")
+                        .HasPrecision(10, 6)
+                        .HasColumnType("decimal(10,6)");
+
+                    b.Property<decimal?>("OriginalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("OriginalCurrency")
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -201,6 +223,12 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
                 {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
                     b.Property<int>("ClaimID")
                         .HasColumnType("int");
 
@@ -214,10 +242,22 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("DocumentPath")
                         .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<long?>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OriginalFileName")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.HasKey("ClaimID", "ClaimTypeID");
+                    b.Property<DateTime>("UploadDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClaimID");
 
                     b.HasIndex("ClaimTypeID");
 
@@ -226,21 +266,39 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
                 {
-                    b.Property<int>("ClaimTypeID")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ClaimTypeID"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("MaxAmount")
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
+                    b.Property<decimal?>("MaxAmount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("TypeName")
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
-                    b.HasKey("ClaimTypeID");
+                    b.Property<bool>("RequiresApproval")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
+                    b.HasKey("Id");
 
                     b.ToTable("ClaimTypes");
                 });
@@ -812,7 +870,7 @@ namespace FinserveNew.Migrations
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
                 {
                     b.HasOne("FinserveNew.Models.Claim", "Claim")
-                        .WithMany()
+                        .WithMany("ClaimDetails")
                         .HasForeignKey("ClaimID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -820,7 +878,7 @@ namespace FinserveNew.Migrations
                     b.HasOne("FinserveNew.Models.ClaimType", "ClaimType")
                         .WithMany("ClaimDetails")
                         .HasForeignKey("ClaimTypeID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Claim");
@@ -968,6 +1026,11 @@ namespace FinserveNew.Migrations
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
                 {
                     b.Navigation("Employees");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.Claim", b =>
+                {
+                    b.Navigation("ClaimDetails");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
