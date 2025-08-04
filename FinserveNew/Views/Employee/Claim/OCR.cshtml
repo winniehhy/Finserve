@@ -155,7 +155,6 @@
                                 @if (ViewBag.OriginalCurrency == "USD")
                                 {
                                     <br>
-                                
                                     <small class="text-muted">≈ RM @(Model?.ClaimAmount ?? 0) (Converted)</small>
                                 }
                             </div>
@@ -174,17 +173,6 @@
                             <div class="info-value">
                                 <span id="fileCount" class="badge bg-secondary">0 files</span>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- OCR Suggestions -->
-                    <div class="mt-4 border-top pt-3">
-                        <h6 class="text-info">
-                            <i class="fas fa-lightbulb me-1"></i>
-                            OCR Suggestions
-                        </h6>
-                        <div id="ocrSuggestions" class="alert alert-light">
-                            <small class="text-muted">OCR suggestions will appear here after processing...</small>
                         </div>
                     </div>
                 </div>
@@ -209,7 +197,7 @@
                             </a>
                             <button type="button" id="approveAndSubmit" class="btn btn-success" disabled>
                                 <i class="fas fa-check me-2"></i>
-                                Approve & Submit Claim
+                                 Submit Claim
                             </button>
                         </div>
                     </div>
@@ -218,13 +206,30 @@
         </div>
     </div>
 </div>
+
+<!-- Hidden form for final submission -->
+<form id="finalSubmissionForm" method="post" action="@Url.Action("ProcessOCRAndSubmit", "Claim")" style="display: none;">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="EmployeeID" value="@Model.EmployeeID" />
+    <input type="hidden" name="ClaimType" value="@Model.ClaimType" />
+    <input type="hidden" name="ClaimDate" value="@Model.ClaimDate.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="ClaimAmount" value="@Model.ClaimAmount" />
+    <input type="hidden" name="Description" value="@Model.Description" />
+    <input type="hidden" name="ocrResults" id="ocrResultsField" />
+</form>
 @section Scripts {
-        <script src="https://unpkg.com/tesseract.js@v5.0.0/dist/tesseract.min.js"></script>
-    
+    <script src="https://unpkg.com/tesseract.js@v5.0.0/dist/tesseract.min.js"></script>
+    <script>
+        // Make server file data available to client-side JavaScript
+        @if (ViewBag.UploadedFiles != null)
+        {
+                <text>window.serverUploadedFiles = @Html.Raw(ViewBag.UploadedFiles);</text>
+        }
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             console.log('=== OCR PAGE INITIALIZATION STARTED ===');
-            
+
             // Initialize variables
             let uploadedFiles = [];
             let currentDocIndex = 0;
@@ -245,18 +250,18 @@
                     showError('Tesseract.js library is not available. Please refresh the page.');
                     return null;
                 }
-                
+
                 console.log('=== INIT OCR WORKER CALLED ===');
-                
+
                 if (isOCRInitialized && ocrWorker) {
                     console.log('OCR Worker already initialized, returning existing worker');
                     return ocrWorker;
                 }
-                
+
                 try {
                     console.log('Starting OCR Worker initialization...');
                     showLoadingStatus('Initializing OCR engine...');
-                    
+
                     // Clean up any existing worker first
                     if (ocrWorker) {
                         try {
@@ -265,64 +270,64 @@
                             console.log('Previous worker cleanup completed');
                         }
                     }
-                    
+
                     console.log('Creating new Tesseract worker...');
-                    
+
                     // FIXED: Create worker without logger to avoid DataCloneError
                     ocrWorker = await Tesseract.createWorker();
-                    
+
                     console.log('Loading language...');
                     updateOCRProgress(20, 'Loading language...');
-                    
+
                     // Initialize the worker with language
                     await ocrWorker.loadLanguage('eng');
-                    
+
                     console.log('Initializing worker...');
                     updateOCRProgress(40, 'Initializing...');
-                    
+
                     await ocrWorker.initialize('eng');
-                    
+
                     console.log('Setting parameters...');
                     updateOCRProgress(60, 'Configuring...');
-                    
+
                     // Set parameters to improve OCR accuracy
                     await ocrWorker.setParameters({
                         tessedit_pageseg_mode: Tesseract.PSM.AUTO,
                         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,/$:- \n\r\t',
                     });
-                    
+
                     updateOCRProgress(80, 'Ready!');
-                    
+
                     isOCRInitialized = true;
                     console.log('✅ OCR Worker initialized successfully');
                     return ocrWorker;
-                    
+
                 } catch (error) {
                     console.error('❌ Failed to initialize OCR worker:', error);
                     isOCRInitialized = false;
                     ocrWorker = null;
-                    
+
                     showError('Failed to initialize OCR processing. This might be due to browser compatibility issues. Please try refreshing the page or use a different browser.');
                     return null;
                 }
             }
-            
+
 
             // FIXED: Improved file initialization with better error handling
             function initializeUploadedFiles() {
                 console.log('=== INITIALIZING UPLOADED FILES ===');
                 showLoadingStatus('Loading documents...');
-                
+
                 try {
                     // First try to get files from ViewBag (server-side) - FASTEST
                     console.log('Checking ViewBag for server-side file data...');
-                    
+
                     // FIXED: Check if server data exists (this will be replaced by your Razor syntax)
                     let serverFileData = [];
                     if (typeof window.serverUploadedFiles !== 'undefined') {
                         serverFileData = window.serverUploadedFiles;
                     }
-                    
+
                     console.log('Server file data:', serverFileData);
 
                     if (serverFileData && serverFileData.length > 0) {
@@ -338,13 +343,13 @@
                     console.log('No server files found, checking sessionStorage...');
                     const claimDataStr = sessionStorage.getItem('claimData');
                     console.log('Session storage claimData:', claimDataStr ? 'Found' : 'Not found');
-                    
+
                     if (claimDataStr) {
                         try {
                             console.log('Parsing claim data from sessionStorage...');
                             const claimData = JSON.parse(claimDataStr);
                             console.log('Parsed claim data:', claimData);
-                            
+
                             if (claimData.Files && claimData.Files.length > 0) {
                                 console.log(`✅ Found ${claimData.Files.length} files in sessionStorage`);
                                 processFilesInChunks(claimData.Files);
@@ -360,7 +365,7 @@
                     // If no files found, show message immediately
                     console.log('❌ No files found anywhere, showing no files message');
                     handleNoFiles();
-                    
+
                 } catch (error) {
                     console.error('❌ Error during file initialization:', error);
                     handleNoFiles();
@@ -372,14 +377,14 @@
                 console.log(`=== PROCESSING ${files.length} FILES IN CHUNKS ===`);
                 const chunkSize = 3; // Reduced chunk size for better performance
                 let processed = 0;
-                
+
                 function processChunk() {
                     console.log(`Processing chunk: ${processed} to ${Math.min(processed + chunkSize, files.length)}`);
                     const chunk = files.slice(processed, processed + chunkSize);
-                    
+
                     chunk.forEach((file, index) => {
                         console.log(`Processing file ${processed + index + 1}: ${file.name} (${file.type}, ${file.size} bytes)`);
-                        
+
                         // FIXED: Better validation of file data
                         if (file.name && file.type && file.data) {
                             uploadedFiles.push({
@@ -393,11 +398,11 @@
                             console.warn(`⚠️ Skipping invalid file:`, file);
                         }
                     });
-                    
+
                     processed += chunk.length;
                     console.log(`Chunk processed. Total files processed: ${processed}/${files.length}`);
                     updateFileCounter();
-                    
+
                     if (processed < files.length) {
                         console.log('More chunks to process, scheduling next chunk...');
                         setTimeout(processChunk, 50); // Slightly longer delay
@@ -411,14 +416,14 @@
                         }
                     }
                 }
-                
+
                 processChunk();
             }
 
             // FIXED: Improved document loading with better error handling
             function loadDocument(index) {
                 console.log(`=== LOADING DOCUMENT ${index + 1}/${uploadedFiles.length} ===`);
-                
+
                 if (index < 0 || index >= uploadedFiles.length) {
                     console.log('❌ Invalid document index');
                     return;
@@ -427,7 +432,7 @@
                 currentDocIndex = index;
                 const file = uploadedFiles[index];
                 console.log(`Loading file: ${file.name} (${file.type})`);
-                
+
                 const documentViewer = document.getElementById('documentViewer');
                 const currentDocName = document.getElementById('currentDocName');
 
@@ -446,10 +451,10 @@
                                 <div class="spinner-border text-primary mb-2" role="status"></div>
                                 <p class="text-muted">Loading image...</p>
                             </div>
-                            <img src="${file.url}" 
-                                 class="img-fluid d-none" 
-                                 style="max-height: 500px; max-width: 100%;" 
-                                 alt="${file.name}" 
+                            <img src="${file.url}"
+                                 class="img-fluid d-none"
+                                 style="max-height: 500px; max-width: 100%;"
+                                 alt="${file.name}"
                                  id="currentImage"
                                  onload="this.classList.remove('d-none'); this.previousElementSibling.style.display='none'; console.log('✅ Image loaded successfully');"
                                  onerror="this.previousElementSibling.innerHTML='<i class=\\'fas fa-exclamation-triangle text-warning\\'>Image failed to load</i>'; console.error('❌ Image failed to load');">
@@ -477,7 +482,7 @@
                 }
 
                 updateFileCounter();
-                
+
                 if (ocrResults[index]) {
                     console.log('✅ OCR result already exists, displaying...');
                     displayOCRResult(index);
@@ -485,7 +490,7 @@
                     console.log('⏳ No OCR result yet, showing pending state');
                     showOCRPending();
                 }
-                
+
                 console.log('✅ Document loaded successfully');
             }
 
@@ -493,7 +498,7 @@
             async function processCurrentDocumentOCR() {
                 console.log('=== PROCESSING CURRENT DOCUMENT OCR ===');
                 const index = currentDocIndex;
-                
+
                 if (ocrResults[index]) {
                     console.log('OCR result already exists, displaying existing result');
                     displayOCRResult(index);
@@ -502,7 +507,7 @@
 
                 const file = uploadedFiles[index];
                 console.log(`Processing file: ${file.name} (${file.type})`);
-                
+
                 if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
                     console.log('❌ File type not supported for OCR');
                     showOCRNotSupported();
@@ -511,7 +516,7 @@
 
                 // Show processing state immediately
                 showLoadingStatus('Initializing OCR...');
-                
+
                 console.log('Initializing OCR worker...');
                 const worker = await initOCRWorker();
                 if (!worker) {
@@ -533,7 +538,7 @@
              async function processDocumentOCR(index) {
                 console.log(`=== PROCESSING DOCUMENT OCR FOR INDEX ${index} ===`);
                 const file = uploadedFiles[index];
-                
+
                 const startTime = performance.now();
                 console.log(`Starting OCR for: ${file.name}`);
                 updateOCRProgress(0, 'Starting OCR...');
@@ -541,37 +546,37 @@
                 try {
                     let imageData = file.data || file.url;
                     console.log(`Image data length: ${imageData.length} characters`);
-                    
+
                     if (imageData.startsWith('data:')) {
                         console.log('Processing real image data...');
                         updateOCRProgress(10, 'Optimizing image...');
-                        
+
                         const optimizeStart = performance.now();
                         console.log('Starting image optimization...');
                         imageData = await optimizeImageForOCR(imageData);
                         const optimizeEnd = performance.now();
                         console.log(`✅ Image optimization completed in ${(optimizeEnd - optimizeStart).toFixed(2)}ms`);
-                        
+
                         updateOCRProgress(30, 'Processing with OCR...');
-                        
+
                         const ocrStart = performance.now();
                         console.log('Starting Tesseract OCR recognition...');
-                        
+
                         // FIXED: Add manual progress updates during OCR
                         const progressInterval = setInterval(() => {
                             updateOCRProgress(Math.min(90, 30 + Math.random() * 50), 'Processing...');
                         }, 1000);
-                        
+
                         // FIXED: Add timeout and retry logic
                         const result = await Promise.race([
                             ocrWorker.recognize(imageData),
-                            new Promise((_, reject) => 
+                            new Promise((_, reject) =>
                                 setTimeout(() => reject(new Error('OCR timeout after 30 seconds')), 30000)
                             )
                         ]);
-                        
+
                         clearInterval(progressInterval);
-                        
+
                         const ocrEnd = performance.now();
                         console.log(`✅ OCR recognition completed in ${(ocrEnd - ocrStart).toFixed(2)}ms`);
                         console.log('OCR Result:', result.data);
@@ -596,14 +601,13 @@
 
                     const totalTime = performance.now() - startTime;
                     console.log(`✅ Total OCR processing time: ${totalTime.toFixed(2)}ms`);
-                    
+
                     displayOCRResult(index);
-                    checkAllProcessed();
 
                 } catch (error) {
                     const totalTime = performance.now() - startTime;
                     console.error(`❌ OCR processing failed after ${totalTime.toFixed(2)}ms:`, error);
-                    
+
                     // FIXED: Better error handling with retry option
                     ocrResults[index] = {
                         text: `OCR processing failed: ${error.message}. This might be due to image quality or browser compatibility issues.`,
@@ -613,7 +617,7 @@
                     };
                     updateOCRProgress(0, 'OCR Failed');
                     displayOCRResult(index);
-                    
+
                     // Reset worker for retry
                     isOCRInitialized = false;
                     if (ocrWorker) {
@@ -631,26 +635,26 @@
             async function optimizeImageForOCR(imageDataUrl) {
                 console.log('=== OPTIMIZING IMAGE FOR OCR ===');
                 const startTime = performance.now();
-                
+
                 return new Promise((resolve) => {
                     const img = new Image();
                     img.onload = function() {
                         try {
                             console.log(`Original image size: ${img.width}x${img.height}`);
-                            
+
                             const canvas = document.createElement('canvas');
                             const ctx = canvas.getContext('2d');
-                            
+
                             if (!ctx) {
                                 console.warn('Canvas context not available, using original image');
                                 resolve(imageDataUrl);
                                 return;
                             }
-                            
+
                             // FIXED: Better sizing logic for OCR
                             const maxSize = 1200; // Increased for better OCR accuracy
                             let { width, height } = img;
-                            
+
                             if (width > maxSize || height > maxSize) {
                                 const ratio = Math.min(maxSize / width, maxSize / height);
                                 width = Math.round(width * ratio);
@@ -659,50 +663,50 @@
                             } else {
                                 console.log('Image size is within limits, no resizing needed');
                             }
-                            
+
                             canvas.width = width;
                             canvas.height = height;
-                            
+
                             // FIXED: Improved image processing for better OCR
                             ctx.fillStyle = 'white';
                             ctx.fillRect(0, 0, width, height);
                             ctx.drawImage(img, 0, 0, width, height);
-                            
+
                             // Apply slight contrast enhancement
                             const imageData = ctx.getImageData(0, 0, width, height);
                             const data = imageData.data;
-                            
+
                             for (let i = 0; i < data.length; i += 4) {
                                 // Simple contrast enhancement
                                 const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
                                 const factor = 1.2; // Slight contrast boost
-                                
+
                                 data[i] = Math.min(255, Math.max(0, (data[i] - avg) * factor + avg));
                                 data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - avg) * factor + avg));
                                 data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - avg) * factor + avg));
                             }
-                            
+
                             ctx.putImageData(imageData, 0, 0);
-                            
+
                             // Return optimized image with high quality
                             const optimizedData = canvas.toDataURL('image/png'); // PNG for better OCR
-                            
+
                             const endTime = performance.now();
                             console.log(`✅ Image optimization completed in ${(endTime - startTime).toFixed(2)}ms`);
                             console.log(`Optimized image size: ${optimizedData.length} characters`);
-                            
+
                             resolve(optimizedData);
                         } catch (error) {
                             console.error('❌ Image optimization failed:', error);
                             resolve(imageDataUrl); // Return original if optimization fails
                         }
                     };
-                    
+
                     img.onerror = function() {
                         console.error('❌ Failed to load image for optimization');
                         resolve(imageDataUrl); // Return original if loading fails
                     };
-                    
+
                     console.log('Loading image for optimization...');
                     img.src = imageDataUrl;
                 });
@@ -806,14 +810,6 @@
                 showOCRNotSupported();
             }
 
-            function checkAllProcessed() {
-                const processedCount = ocrResults.filter(r => r && !r.error).length;
-                console.log(`✅ Checked processed files: ${processedCount}/${uploadedFiles.length}`);
-                if (processedCount > 0) {
-                    generateOCRSuggestions();
-                }
-            }
-
             function updateFileCounter() {
                 const fileCount = document.getElementById('fileCount');
                 const docCounter = document.getElementById('docCounter');
@@ -821,17 +817,17 @@
                 if (fileCount) {
                     fileCount.textContent = `${uploadedFiles.length} file${uploadedFiles.length !== 1 ? 's' : ''}`;
                 }
-                
+
                 if (docCounter) {
                     docCounter.textContent = uploadedFiles.length > 0 ? `${currentDocIndex + 1} / ${uploadedFiles.length}` : '0 / 0';
                 }
 
                 const prevBtn = document.getElementById('prevDoc');
                 const nextBtn = document.getElementById('nextDoc');
-                
+
                 if (prevBtn) prevBtn.disabled = currentDocIndex === 0;
                 if (nextBtn) nextBtn.disabled = currentDocIndex === uploadedFiles.length - 1;
-                
+
                 console.log(`📊 File counter updated: ${uploadedFiles.length} files, current: ${currentDocIndex + 1}`);
             }
 
@@ -841,18 +837,18 @@
 
                 if (confidenceBar) {
                     confidenceBar.style.width = `${progress}%`;
-                    
+
                     if (progress === 100) {
                         confidenceBar.classList.remove('progress-bar-animated');
                     } else {
                         confidenceBar.classList.add('progress-bar-animated');
                     }
                 }
-                
+
                 if (confidenceText) {
                     confidenceText.textContent = message;
                 }
-                
+
                 console.log(`📈 Progress updated: ${progress}% - ${message}`);
             }
 
@@ -861,7 +857,7 @@
                 console.log(`📄 Displaying OCR result for index ${index}`);
                 const ocrResultsDiv = document.getElementById('ocrResults');
                 if (!ocrResultsDiv) return;
-                
+
                 const result = ocrResults[index];
 
                 if (!result) {
@@ -905,52 +901,32 @@
                 updateOCRProgress(result.confidence || 0, `Confidence: ${result.confidence || 0}%`);
             }
 
-            function generateOCRSuggestions() {
-                console.log('💡 Generating OCR suggestions...');
-                const suggestions = [];
-                let totalAmount = 0;
-                let detectedDates = [];
+            // Handle Approve & Submit button
+            const approveAndSubmitBtn = document.getElementById('approveAndSubmit');
+            if (approveAndSubmitBtn) {
+                approveAndSubmitBtn.addEventListener('click', async () => {
+                    console.log('📤 Approve & Submit clicked');
 
-                ocrResults.forEach((result, index) => {
-                    if (result && !result.error) {
-                        console.log(`Analyzing OCR result ${index + 1}`);
-                        const amountMatches = result.text.match(/\$?(\d+\.?\d*)/g);
-                        if (amountMatches) {
-                            console.log(`Found amounts in result ${index + 1}:`, amountMatches);
-                            amountMatches.forEach(match => {
-                                const amount = parseFloat(match.replace('$', ''));
-                                if (amount > 0) totalAmount += amount;
-                            });
-                        }
+                    if (ocrResults.length === 0) {
+                        alert('Please process at least one document with OCR before submitting.');
+                        return;
+                    }
 
-                        const dateMatches = result.text.match(/\d{1,2}\/\d{1,2}\/\d{4}/g);
-                        if (dateMatches) {
-                            console.log(`Found dates in result ${index + 1}:`, dateMatches);
-                            detectedDates = detectedDates.concat(dateMatches);
-                        }
+                    // Collect all OCR results
+                    const allOcrText = ocrResults
+                        .filter(result => result && !result.error)
+                        .map((result, index) => `Document ${index + 1}:\n${result.text}`)
+                        .join('\n\n---\n\n');
+
+                    // Set OCR results in hidden form
+                    document.getElementById('ocrResultsField').value = allOcrText;
+
+                    // Show simple confirmation
+                    if (confirm('Submit your claim with OCR verification?')) {
+                        // Submit the form
+                        document.getElementById('finalSubmissionForm').submit();
                     }
                 });
-
-                if (totalAmount > 0) {
-                    suggestions.push(`<strong>Detected total amount:</strong> $${totalAmount.toFixed(2)}`);
-                    console.log(`💰 Total amount detected: $${totalAmount.toFixed(2)}`);
-                }
-
-                if (detectedDates.length > 0) {
-                    suggestions.push(`<strong>Detected dates:</strong> ${detectedDates.join(', ')}`);
-                    console.log(`📅 Dates detected:`, detectedDates);
-                }
-
-                if (suggestions.length === 0) {
-                    suggestions.push('No specific suggestions available. Please review the OCR text manually.');
-                    console.log('ℹ️ No suggestions generated');
-                }
-
-                const suggestionsDiv = document.getElementById('ocrSuggestions');
-                if (suggestionsDiv) {
-                    suggestionsDiv.innerHTML = suggestions.join('<br>');
-                }
-                console.log('✅ OCR suggestions updated');
             }
 
             function showError(message) {
@@ -1057,105 +1033,84 @@
                 }
             });
 
-            // FIXED: Add check for required dependencies
-            // function checkDependencies() {
-            //     if (typeof Tesseract === 'undefined') {
-            //         showError('Tesseract.js library is not loaded. Please refresh the page.');
-            //         return false;
-            //     }
-                
-            //     if (typeof Worker === 'undefined') {
-            //         showError('Your browser does not support Web Workers required for OCR processing.');
-            //         return false;
-            //     }
-                
-            //     return true;
-            // }
-
-            // Initialize dependency check
-            // if (!checkDependencies()) {
-            //     console.error('❌ Required dependencies not available');
-            //     return;
-            // }
-
             console.log('✅ OCR page initialized successfully');
             console.log('=== INITIALIZATION COMPLETE ===');
         });
     </script>
 }
-    <style>
-        .page-title {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e2e8f0;
+<style>
+    .page-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2d3748;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .document-viewer {
+        min-height: 400px;
+        max-height: 500px;
+        overflow: auto;
+        background-color: #f8f9fa;
+    }
+
+    .document-nav {
+        background-color: #f8f9fa;
+    }
+
+    .info-group {
+        padding: 0.75rem;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+    }
+
+    .info-value {
+        margin-top: 0.25rem;
+        font-weight: 500;
+    }
+
+    .card-header {
+        font-weight: 600;
+    }
+
+    .btn-group .btn {
+        border-radius: 6px;
+    }
+
+        .btn-group .btn:not(:last-child) {
+            margin-right: 0.5rem;
         }
 
-        .document-viewer {
-            min-height: 400px;
-            max-height: 500px;
-            overflow: auto;
-            background-color: #f8f9fa;
-        }
+    .ocr-text-container {
+        font-size: 0.9rem;
+    }
 
-        .document-nav {
-            background-color: #f8f9fa;
-        }
+    .progress {
+        border-radius: 4px;
+    }
 
-        .info-group {
-            padding: 0.75rem;
-            border-radius: 6px;
-            background-color: #f8f9fa;
-        }
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
 
-        .info-value {
-            margin-top: 0.25rem;
-            font-weight: 500;
-        }
 
-        .card-header {
-            font-weight: 600;
-        }
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
 
-        .btn-group .btn {
-            border-radius: 6px;
-        }
+    .card-header {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
 
-            .btn-group .btn:not(:last-child) {
-                margin-right: 0.5rem;
-            }
+    .badge {
+        font-size: 0.75em;
+    }
 
-        .ocr-text-container {
-            font-size: 0.9rem;
-        }
-
-        .progress {
-            border-radius: 4px;
-        }
-
-        .progress-bar {
-            transition: width 0.3s ease;
-        }
-
-       
-        .card {
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-            border: 1px solid rgba(0, 0, 0, 0.125);
-        }
-
-        .card-header {
-            border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-        }
-
-        .badge {
-            font-size: 0.75em;
-        }
-
-        .spinner-border {
-            width: 2rem;
-            height: 2rem;
-        }
-    </style>
+    .spinner-border {
+        width: 2rem;
+        height: 2rem;
+    }
+</style>
 }
