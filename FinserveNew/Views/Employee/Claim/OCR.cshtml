@@ -239,78 +239,112 @@
 
             console.log('Variables initialized');
 
+            if (!testTesseractAvailability()) {
+            showError('Tesseract.js library is not properly loaded. Please refresh the page.');
+            return;
+        }
+
             // Get uploaded files from session storage or URL parameters
             initializeUploadedFiles();
 
+            function testTesseractAvailability() {
+            console.log('=== TESTING TESSERACT AVAILABILITY ===');
+
+            if (typeof Tesseract === 'undefined') {
+                console.error('❌ Tesseract is not defined');
+                return false;
+            }
+
+            if (typeof Tesseract.createWorker !== 'function') {
+                console.error('❌ Tesseract.createWorker is not a function');
+                return false;
+            }
+
+            console.log('✅ Tesseract is available');
+            console.log('Tesseract version:', Tesseract.version || 'Unknown');
+            return true;
+        }
             // FIXED: Proper OCR worker initialization with error handling
             async function initOCRWorker() {
+            console.log('=== INIT OCR WORKER CALLED ===');
+
+            if (isOCRInitialized && ocrWorker) {
+                console.log('OCR Worker already initialized, returning existing worker');
+                return ocrWorker;
+            }
+
+            try {
                 // Check if Tesseract is available
                 if (typeof Tesseract === 'undefined') {
                     console.error('❌ Tesseract.js is not loaded');
-                    showError('Tesseract.js library is not available. Please refresh the page.');
-                    return null;
+                    throw new Error('Tesseract.js library is not available. Please refresh the page.');
                 }
 
-                console.log('=== INIT OCR WORKER CALLED ===');
+                console.log('Starting OCR Worker initialization...');
+                showLoadingStatus('Initializing OCR engine...');
 
-                if (isOCRInitialized && ocrWorker) {
-                    console.log('OCR Worker already initialized, returning existing worker');
-                    return ocrWorker;
+                // Clean up any existing worker first
+                if (ocrWorker) {
+                    try {
+                        await ocrWorker.terminate();
+                        console.log('Previous worker terminated');
+                    } catch (e) {
+                        console.log('Previous worker cleanup completed');
+                    }
                 }
 
-                try {
-                    console.log('Starting OCR Worker initialization...');
-                    showLoadingStatus('Initializing OCR engine...');
+                console.log('Creating new Tesseract worker...');
+                updateOCRProgress(20, 'Loading language...');
 
-                    // Clean up any existing worker first
-                    if (ocrWorker) {
-                        try {
-                            await ocrWorker.terminate();
-                        } catch (e) {
-                            console.log('Previous worker cleanup completed');
+                // FIXED: Create worker with proper error handling
+                ocrWorker = await Tesseract.createWorker('eng', 1, {
+                    logger: m => {
+                        // Optional: Add progress logging
+                        if (m.status === 'recognizing text') {
+                            const progress = Math.round(m.progress * 100);
+                            updateOCRProgress(30 + (progress * 0.6), `Processing: ${progress}%`);
                         }
                     }
+                });
 
-                    console.log('Creating new Tesseract worker...');
+                console.log('✅ OCR Worker created successfully');
+                updateOCRProgress(80, 'Configuring...');
 
-                    // FIXED: Create worker without logger to avoid DataCloneError
-                    ocrWorker = await Tesseract.createWorker();
-
-                    console.log('Loading language...');
-                    updateOCRProgress(20, 'Loading language...');
-
-                    // Initialize the worker with language
-                    await ocrWorker.loadLanguage('eng');
-
-                    console.log('Initializing worker...');
-                    updateOCRProgress(40, 'Initializing...');
-
-                    await ocrWorker.initialize('eng');
-
-                    console.log('Setting parameters...');
-                    updateOCRProgress(60, 'Configuring...');
-
-                    // Set parameters to improve OCR accuracy
+                // FIXED: Set parameters with error handling
+                try {
                     await ocrWorker.setParameters({
                         tessedit_pageseg_mode: Tesseract.PSM.AUTO,
                         tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.,/$:- \n\r\t',
                     });
-
-                    updateOCRProgress(80, 'Ready!');
-
-                    isOCRInitialized = true;
-                    console.log('✅ OCR Worker initialized successfully');
-                    return ocrWorker;
-
-                } catch (error) {
-                    console.error('❌ Failed to initialize OCR worker:', error);
-                    isOCRInitialized = false;
-                    ocrWorker = null;
-
-                    showError('Failed to initialize OCR processing. This might be due to browser compatibility issues. Please try refreshing the page or use a different browser.');
-                    return null;
+                    console.log('✅ OCR parameters set successfully');
+                } catch (paramError) {
+                    console.warn('⚠️ Failed to set OCR parameters, using defaults:', paramError);
+                    // Continue anyway, parameters are optional
                 }
+
+                updateOCRProgress(100, 'Ready!');
+                isOCRInitialized = true;
+                console.log('✅ OCR Worker initialized successfully');
+                return ocrWorker;
+
+            } catch (error) {
+                console.error('❌ Failed to initialize OCR worker:', error);
+                isOCRInitialized = false;
+
+                // FIXED: Properly clean up failed worker
+                if (ocrWorker) {
+                    try {
+                        await ocrWorker.terminate();
+                    } catch (e) {
+                        // Ignore cleanup errors
+                    }
+                    ocrWorker = null;
+                }
+
+                // Throw error to be handled by caller
+                throw new Error(`OCR initialization failed: ${error.message}`);
             }
+        }
 
 
             // FIXED: Improved file initialization with better error handling
@@ -698,6 +732,507 @@
                     }
                 }
             }
+
+                    // Add this function after the existing processDocumentOCR function
+                async function processDocumentOCRWithPriceExtraction(index) {
+            console.log(`=== PROCESSING DOCUMENT OCR WITH PRICE EXTRACTION FOR INDEX ${index} ===`);
+            const file = uploadedFiles[index];
+
+            const startTime = performance.now();
+            console.log(`Starting OCR with price extraction for: ${file.name}`);
+            updateOCRProgress(0, 'Starting OCR...');
+
+            try {
+                let imageData = file.data || file.url;
+                console.log(`Image data length: ${imageData.length} characters`);
+
+                if (!imageData.startsWith('data:')) {
+                    console.log('No real image data, using simulation...');
+                    await simulateOCRProcessingWithPrices(index);
+                    return;
+                }
+
+                console.log('Processing real image data...');
+                updateOCRProgress(10, 'Optimizing image...');
+
+                const optimizeStart = performance.now();
+                console.log('Starting image optimization...');
+                imageData = await optimizeImageForOCR(imageData);
+                const optimizeEnd = performance.now();
+                console.log(`✅ Image optimization completed in ${(optimizeEnd - optimizeStart).toFixed(2)}ms`);
+
+                updateOCRProgress(25, 'Initializing OCR...');
+
+                // FIXED: Proper worker initialization with error handling
+                console.log('Initializing OCR worker...');
+                let worker;
+                try {
+                    worker = await initOCRWorker();
+                    if (!worker) {
+                        throw new Error('OCR worker initialization returned null');
+                    }
+                } catch (initError) {
+                    console.error('❌ OCR worker initialization failed:', initError);
+                    throw new Error(`Failed to initialize OCR: ${initError.message}`);
+                }
+
+                updateOCRProgress(30, 'Processing with OCR...');
+
+                const ocrStart = performance.now();
+                console.log('Starting Tesseract OCR recognition...');
+
+                // FIXED: Add manual progress updates during OCR
+                const progressInterval = setInterval(() => {
+                    updateOCRProgress(Math.min(90, 30 + Math.random() * 50), 'Processing...');
+                }, 1000);
+
+                let result;
+                try {
+                    // FIXED: Add timeout and retry logic with proper worker reference
+                    result = await Promise.race([
+                        worker.recognize(imageData), // Use the verified worker instance
+                        new Promise((_, reject) =>
+                            setTimeout(() => reject(new Error('OCR timeout after 45 seconds')), 45000)
+                        )
+                    ]);
+                } finally {
+                    // Always clear the progress interval
+                    clearInterval(progressInterval);
+                }
+
+                const ocrEnd = performance.now();
+                console.log(`✅ OCR recognition completed in ${(ocrEnd - ocrStart).toFixed(2)}ms`);
+                console.log('OCR Result:', result.data);
+
+                // FIXED: Better result validation
+                if (!result || !result.data || typeof result.data.text !== 'string') {
+                    throw new Error('Invalid OCR result structure');
+                }
+
+                // Extract prices using regex
+                const extractedPrices = extractPricesFromText(result.data.text);
+                const calculatedAmount = calculateTotalAmount(extractedPrices);
+                const detectedCurrency = detectCurrency(result.data.text);
+
+                ocrResults[index] = {
+                    text: result.data.text.trim() || 'No text detected',
+                    confidence: Math.round(result.data.confidence || 0),
+                    words: result.data.words?.length || 0,
+                    extractedPrices: extractedPrices,
+                    calculatedAmount: calculatedAmount,
+                    currency: detectedCurrency
+                };
+
+                console.log(`✅ OCR result with price extraction saved: ${result.data.text.length} characters, ${result.data.confidence}% confidence`);
+                console.log(`💰 Extracted ${extractedPrices.length} prices, calculated total: ${detectedCurrency} ${calculatedAmount}`);
+
+                // Auto-populate the claim amount if a valid amount is found
+                if (calculatedAmount > 0) {
+                    updateClaimAmountFromOCR(calculatedAmount, detectedCurrency);
+                }
+
+                updateOCRProgress(100, 'OCR Complete');
+
+                const totalTime = performance.now() - startTime;
+                console.log(`✅ Total OCR processing time: ${totalTime.toFixed(2)}ms`);
+
+                displayOCRResultWithPrices(index);
+
+            } catch (error) {
+                const totalTime = performance.now() - startTime;
+                console.error(`❌ OCR processing failed after ${totalTime.toFixed(2)}ms:`, error);
+
+                // FIXED: Better error handling with specific error types
+                let errorMessage = 'OCR processing failed';
+                let canRetry = true;
+
+                if (error.message.includes('Tesseract')) {
+                    errorMessage = 'OCR engine not available. Please refresh the page.';
+                    canRetry = false;
+                } else if (error.message.includes('timeout')) {
+                    errorMessage = 'OCR processing timed out. Try with a smaller or clearer image.';
+                } else if (error.message.includes('initialize')) {
+                    errorMessage = 'Failed to initialize OCR engine. Please refresh the page.';
+                    canRetry = false;
+                } else {
+                    errorMessage = `OCR processing failed: ${error.message}`;
+                }
+
+                ocrResults[index] = {
+                    text: errorMessage,
+                    confidence: 0,
+                    error: true,
+                    canRetry: canRetry,
+                    originalError: error.message
+                };
+
+                updateOCRProgress(0, 'OCR Failed');
+                displayOCRResultWithPrices(index);
+
+                // FIXED: Reset worker state on error for retry
+                if (canRetry) {
+                    isOCRInitialized = false;
+                    if (ocrWorker) {
+                        try {
+                            await ocrWorker.terminate();
+                        } catch (e) {
+                            console.log('Worker cleanup completed');
+                        }
+                        ocrWorker = null;
+                    }
+                }
+            }
+        }
+
+        // Price extraction function using JavaScript regex
+        function extractPricesFromText(text) {
+            const extractedPrices = [];
+
+            try {
+                const pricePatterns = [
+                    // USD patterns
+                    { pattern: /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'USD' },
+                    { pattern: /USD\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'USD' },
+                    { pattern: /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*USD/gi, currency: 'USD' },
+
+                    // MYR patterns
+                    { pattern: /RM\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'MYR' },
+                    { pattern: /MYR\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'MYR' },
+                    { pattern: /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*MYR/gi, currency: 'MYR' },
+
+                    // Total patterns
+                    { pattern: /(?:total|amount|subtotal|sub-total|grand\s*total)[\s:]*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'AUTO', type: 'Total' },
+                    { pattern: /(?:total|amount|subtotal|sub-total|grand\s*total)[\s:]*RM\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'MYR', type: 'Total' },
+
+                    // Tax patterns
+                    { pattern: /(?:tax|vat|gst|sst)[\s:]*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'AUTO', type: 'Tax' },
+                    { pattern: /(?:tax|vat|gst|sst)[\s:]*RM\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, currency: 'MYR', type: 'Tax' },
+
+                    // Generic number patterns (fallback)
+                    { pattern: /\b(\d{1,3}(?:,\d{3})*\.\d{2})\b/g, currency: 'AUTO', type: 'Amount' }
+                ];
+
+                pricePatterns.forEach(({ pattern, currency, type = 'Amount' }) => {
+                    let match;
+                    while ((match = pattern.exec(text)) !== null) {
+                        const priceText = match[1].replace(/,/g, '');
+                        const amount = parseFloat(priceText);
+
+                        if (!isNaN(amount) && amount > 0) {
+                            const finalCurrency = currency === 'AUTO' ? detectCurrencyFromContext(match[0]) : currency;
+                            const confidence = calculateMatchConfidence(match[0], type);
+
+                            const extractedPrice = {
+                                amount: amount,
+                                currency: finalCurrency,
+                                type: determinePriceType(match[0]),
+                                originalText: match[0],
+                                confidence: confidence
+                            };
+
+                            // Avoid duplicates
+                            if (!extractedPrices.some(p => Math.abs(p.amount - amount) < 0.01 && p.currency === finalCurrency)) {
+                                extractedPrices.push(extractedPrice);
+                            }
+                        }
+                    }
+                });
+
+                // Sort by confidence and relevance
+                extractedPrices.sort((a, b) => {
+                    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+                    return b.amount - a.amount;
+                });
+
+                console.log(`💰 Extracted ${extractedPrices.length} prices:`, extractedPrices);
+            } catch (error) {
+                console.error('❌ Error extracting prices:', error);
+            }
+
+            return extractedPrices;
+        }
+
+        function detectCurrencyFromContext(matchText) {
+            if (matchText.includes('$') || matchText.toUpperCase().includes('USD')) {
+                return 'USD';
+            }
+            if (matchText.toUpperCase().includes('RM') || matchText.toUpperCase().includes('MYR')) {
+                return 'MYR';
+            }
+            return 'MYR'; // Default for Malaysian context
+        }
+
+        function determinePriceType(matchText) {
+            const upperMatch = matchText.toUpperCase();
+
+            if (upperMatch.includes('TOTAL') || upperMatch.includes('GRAND')) return 'Total';
+            if (upperMatch.includes('SUBTOTAL') || upperMatch.includes('SUB-TOTAL')) return 'Subtotal';
+            if (upperMatch.includes('TAX') || upperMatch.includes('GST') || upperMatch.includes('SST') || upperMatch.includes('VAT')) return 'Tax';
+            if (upperMatch.includes('SERVICE') || upperMatch.includes('S/C')) return 'Service Charge';
+
+            return 'Amount';
+        }
+
+        function calculateMatchConfidence(matchText, type) {
+            let confidence = 50; // Base confidence
+            const upperMatch = matchText.toUpperCase();
+
+            // Higher confidence for explicit keywords
+            if (upperMatch.includes('TOTAL')) confidence += 30;
+            if (upperMatch.includes('AMOUNT')) confidence += 25;
+            if (upperMatch.includes('SUBTOTAL')) confidence += 20;
+            if (upperMatch.includes('TAX')) confidence += 15;
+            if (upperMatch.includes('$') || upperMatch.includes('RM')) confidence += 10;
+            if (type === 'Total') confidence += 20;
+
+            return Math.min(confidence, 100);
+        }
+
+        function calculateTotalAmount(extractedPrices) {
+            if (!extractedPrices.length) return 0;
+
+            // Try to find the highest confidence "Total" amount first
+            const totalPrice = extractedPrices.find(p => p.type === 'Total' && p.confidence > 70);
+            if (totalPrice) {
+                console.log(`💰 Using explicit total: ${totalPrice.currency} ${totalPrice.amount}`);
+                return totalPrice.amount;
+            }
+
+            // If no explicit total, try to calculate from components
+            const subtotal = extractedPrices.find(p => p.type === 'Subtotal')?.amount || 0;
+            const tax = extractedPrices.filter(p => p.type === 'Tax').reduce((sum, p) => sum + p.amount, 0);
+            const serviceCharge = extractedPrices.filter(p => p.type === 'Service Charge').reduce((sum, p) => sum + p.amount, 0);
+
+            if (subtotal > 0) {
+                const calculatedTotal = subtotal + tax + serviceCharge;
+                console.log(`💰 Calculated total: ${calculatedTotal} (Subtotal: ${subtotal} + Tax: ${tax} + Service: ${serviceCharge})`);
+                return calculatedTotal;
+            }
+
+            // Fallback to the highest amount
+            const highestAmount = extractedPrices.reduce((prev, current) => (prev.amount > current.amount) ? prev : current);
+            if (highestAmount) {
+                console.log(`💰 Using highest amount as total: ${highestAmount.currency} ${highestAmount.amount}`);
+                return highestAmount.amount;
+            }
+
+            return 0;
+        }
+
+        function detectCurrency(text) {
+            const upperText = text.toUpperCase();
+
+            // Count currency indicators
+            const usdCount = (text.match(/\$|USD/gi) || []).length;
+            const myrCount = (text.match(/RM|MYR/gi) || []).length;
+
+            return usdCount > myrCount ? 'USD' : 'MYR';
+        }
+
+        function updateClaimAmountFromOCR(amount, currency) {
+            console.log(`💰 Auto-populating claim amount: ${currency} ${amount}`);
+
+            // Update the claim info display
+            const claimAmountElement = document.querySelector('.info-value .text-success');
+            if (claimAmountElement) {
+                if (currency === 'USD') {
+                    // Convert USD to MYR (you can make this exchange rate configurable)
+                    const exchangeRate = 4.7; // Example rate
+                    const convertedAmount = amount * exchangeRate;
+
+                    claimAmountElement.innerHTML = `$${amount.toFixed(2)}`;
+
+                    // Add conversion info
+                    const conversionElement = claimAmountElement.parentElement.querySelector('small');
+                    if (conversionElement) {
+                        conversionElement.innerHTML = `<br><small class="text-muted">≈ RM ${convertedAmount.toFixed(2)} (Auto-converted)</small>`;
+                    }
+
+                    // Update the hidden form field with converted amount
+                    const claimAmountField = document.querySelector('input[name="ClaimAmount"]');
+                    if (claimAmountField) {
+                        claimAmountField.value = convertedAmount.toFixed(2);
+                    }
+                } else {
+                    claimAmountElement.textContent = `RM ${amount.toFixed(2)}`;
+
+                    // Update the hidden form field
+                    const claimAmountField = document.querySelector('input[name="ClaimAmount"]');
+                    if (claimAmountField) {
+                        claimAmountField.value = amount.toFixed(2);
+                    }
+                }
+
+                // Show success message
+                showAutoPopulateMessage(amount, currency);
+            }
+        }
+
+        function showAutoPopulateMessage(amount, currency) {
+            // Create and show a temporary success message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'alert alert-success alert-dismissible fade show mt-2';
+            messageDiv.innerHTML = `
+                <i class="fas fa-magic me-2"></i>
+                <strong>Auto-populated!</strong> Detected amount: ${currency} ${amount.toFixed(2)}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            const claimInfoSection = document.querySelector('.claim-info');
+            if (claimInfoSection) {
+                claimInfoSection.prepend(messageDiv);
+
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.remove();
+                    }
+                }, 5000);
+            }
+        }
+
+        // Enhanced OCR result display with price breakdown
+        function displayOCRResultWithPrices(index) {
+            console.log(`📄 Displaying OCR result with prices for index ${index}`);
+            const ocrResultsDiv = document.getElementById('ocrResults');
+            if (!ocrResultsDiv) return;
+
+            const result = ocrResults[index];
+
+            if (!result) {
+                console.log('❌ No OCR result available');
+                showOCRPending();
+                return;
+            }
+
+            if (result.error) {
+                console.log('❌ Displaying OCR error result');
+                ocrResultsDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>OCR Processing Failed</strong><br>
+                        ${result.text}
+                        <hr>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-danger" onclick="processCurrentDocumentOCR()">
+                                <i class="fas fa-redo me-1"></i> Retry OCR
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                                <i class="fas fa-refresh me-1"></i> Refresh Page
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                console.log(`✅ Displaying successful OCR result with prices: ${result.text.length} characters, ${result.confidence}% confidence`);
+
+                let pricesHtml = '';
+                if (result.extractedPrices && result.extractedPrices.length > 0) {
+                    pricesHtml = `
+                        <div class="alert alert-info mt-2">
+                            <h6><i class="fas fa-calculator me-2"></i>Extracted Prices:</h6>
+                            <div class="price-breakdown">
+                    `;
+
+                    result.extractedPrices.forEach(price => {
+                        pricesHtml += `
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                                <span class="badge bg-secondary me-2">${price.type}</span>
+                                <span>${price.currency} ${price.amount.toFixed(2)}</span>
+                                <small class="text-muted">${price.confidence}%</small>
+                            </div>
+                        `;
+                    });
+
+                    if (result.calculatedAmount > 0) {
+                        pricesHtml += `
+                            <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2 fw-bold">
+                                <span class="text-success">Calculated Total:</span>
+                                <span class="text-success">${result.currency} ${result.calculatedAmount.toFixed(2)}</span>
+                            </div>
+                        `;
+                    }
+
+                    // pricesHtml += `
+                    //         </div>
+                    //         <button class="btn btn-sm btn-success mt-2" onclick="updateClaimAmountFromOCR(${result.calculatedAmount}, '${result.currency}')">
+                    //             <i class="fas fa-magic me-1"></i> Use This Amount
+                    //         </button>
+                    //     </div>
+                    // `;
+                }
+
+                ocrResultsDiv.innerHTML = `
+                    <div class="ocr-text-container">
+                        <div class="alert alert-success">
+                            <small><strong>Confidence:</strong> ${result.confidence}% | <strong>Words:</strong> ${result.words || 'N/A'}</small>
+                        </div>
+                        ${pricesHtml}
+                        <div class="border rounded p-3" style="background-color: #f8f9fa; max-height: 300px; overflow-y: auto;">
+                            <pre style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 12px; margin: 0;">${result.text}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+
+            updateOCRProgress(result.confidence || 0, `Confidence: ${result.confidence || 0}%`);
+        }
+
+        // Update the main OCR processing function to use price extraction
+        function processCurrentDocumentOCR() {
+            processDocumentOCRWithPriceExtraction(currentDocIndex);
+        }
+
+        // Enhanced simulation with prices
+        async function simulateOCRProcessingWithPrices(index) {
+            console.log('=== SIMULATING OCR PROCESSING WITH PRICES ===');
+            const sampleResults = [
+                {
+                    text: `RECEIPT\nABC Restaurant\nDate: ${new Date().toLocaleDateString()}\nItem: Business Lunch\nSubtotal: $42.50\nTax (8%): $3.40\nService Charge: $4.25\nTotal: $50.15\nPayment: Credit Card\nThank you!`,
+                    confidence: 85,
+                    words: 20,
+                    extractedPrices: [
+                        { amount: 42.50, currency: 'USD', type: 'Subtotal', originalText: 'Subtotal: $42.50', confidence: 85 },
+                        { amount: 3.40, currency: 'USD', type: 'Tax', originalText: 'Tax (8%): $3.40', confidence: 80 },
+                        { amount: 4.25, currency: 'USD', type: 'Service Charge', originalText: 'Service Charge: $4.25', confidence: 75 },
+                        { amount: 50.15, currency: 'USD', type: 'Total', originalText: 'Total: $50.15', confidence: 95 }
+                    ],
+                    calculatedAmount: 50.15,
+                    currency: 'USD'
+                },
+                {
+                    text: `INVOICE #INV-2024-001\nVendor: Tech Solutions Ltd\nDate: ${new Date().toLocaleDateString()}\nDescription: Software License\nAmount: RM 299.00\nTax (GST 6%): RM 17.94\nTotal: RM 316.94\nPayment Terms: Net 30`,
+                    confidence: 92,
+                    words: 25,
+                    extractedPrices: [
+                        { amount: 299.00, currency: 'MYR', type: 'Amount', originalText: 'Amount: RM 299.00', confidence: 90 },
+                        { amount: 17.94, currency: 'MYR', type: 'Tax', originalText: 'Tax (GST 6%): RM 17.94', confidence: 85 },
+                        { amount: 316.94, currency: 'MYR', type: 'Total', originalText: 'Total: RM 316.94', confidence: 95 }
+                    ],
+                    calculatedAmount: 316.94,
+                    currency: 'MYR'
+                }
+            ];
+
+            // Simulate progress
+            for (let i = 0; i <= 100; i += 25) {
+                console.log(`Demo OCR progress: ${i}%`);
+                updateOCRProgress(i, `Demo processing: ${i}%`);
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            const selectedResult = sampleResults[index % sampleResults.length];
+            ocrResults[index] = selectedResult;
+
+            // Auto-populate amount from simulation
+            if (selectedResult.calculatedAmount > 0) {
+                setTimeout(() => {
+                    updateClaimAmountFromOCR(selectedResult.calculatedAmount, selectedResult.currency);
+                }, 500);
+            }
+
+            console.log('✅ Demo OCR simulation with prices completed');
+        }
 
             // FIXED: More robust image optimization
             async function optimizeImageForOCR(imageDataUrl) {
@@ -1179,6 +1714,31 @@
     .spinner-border {
         width: 2rem;
         height: 2rem;
+    }
+
+    .price-breakdown {
+        max-height: 200px;
+        overflow-y: auto;
+        font-size: 0.9rem;
+    }
+
+        .price-breakdown .badge {
+            min-width: 80px;
+        }
+
+    .auto-populate-message {
+        animation: fadeInOut 0.3s ease-in-out;
+    }
+
+    .calculated-amount {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #28a745;
+    }
+
+    .price-confidence {
+        font-size: 0.8rem;
+        color: #6c757d;
     }
 </style>
 }

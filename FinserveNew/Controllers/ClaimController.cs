@@ -163,6 +163,12 @@ namespace FinserveNew.Controllers
                     return View("~/Views/Employee/Claim/Create.cshtml", claim);
                 }
 
+                // ADDED: Validate claim date is not in the future
+                if (claim.ClaimDate > DateTime.Today)
+                {
+                    ModelState.AddModelError("ClaimDate", "Claim date cannot be in the future.");
+                }
+
                 // Validate model
                 if (!ModelState.IsValid)
                 {
@@ -477,7 +483,6 @@ namespace FinserveNew.Controllers
                 var claim = new Claim
                 {
                     EmployeeID = employeeId,
-                    ClaimDate = DateTime.Now,
                     Status = "Draft",
                     ClaimAmount = 0, // Default value
                     ClaimType = "Not specified" // Default value

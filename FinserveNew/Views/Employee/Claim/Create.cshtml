@@ -133,8 +133,7 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
     <script>
-        // Exchange rates
-        const exchangeRates = {
+                const exchangeRates = {
             USD_TO_MYR: 4.29,
             MYR_TO_USD: 0.233
         };
@@ -155,10 +154,8 @@
             const exchangeRateInfo = document.getElementById('exchangeRateInfo');
             const claimDateInput = document.querySelector('[name="ClaimDate"]');
 
-            // Set default date to today
-            if (claimDateInput && !claimDateInput.value) {
-                claimDateInput.value = new Date().toISOString().split('T')[0];
-            }
+            // REMOVED: Auto-setting date to today - let user choose their own date
+            // The date input will now be empty, requiring user to select a date
 
             // Currency conversion
             function updateConversion() {
@@ -197,132 +194,149 @@
             updateConversion();
 
             // UPDATED FORM SUBMISSION HANDLER
-                    // UPDATED FORM SUBMISSION HANDLER - Replace the existing one in Create.cshtml
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            console.log('Form submission started...');
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                console.log('Form submission started...');
 
-            submitBtn.disabled = true;
-            submitText.textContent = 'Processing...';
+                submitBtn.disabled = true;
+                submitText.textContent = 'Processing...';
 
-            const claimType = document.querySelector('[name="ClaimType"]').value;
-            const claimAmount = claimAmountInput.value;
-            const claimDate = claimDateInput.value;
-            const employeeId = document.querySelector('[name="EmployeeId"]').value;
-            const description = document.querySelector('[name="Description"]').value;
+                const claimType = document.querySelector('[name="ClaimType"]').value;
+                const claimAmount = claimAmountInput.value;
+                const claimDate = claimDateInput.value;
+                const employeeId = document.querySelector('[name="EmployeeId"]').value;
+                const description = document.querySelector('[name="Description"]').value;
 
-            // Validation
-            if (!claimType || !claimAmount || !claimDate || !employeeId) {
-                console.error('Validation failed: Missing required fields');
-                submitBtn.disabled = false;
-                submitText.textContent = 'Add';
-                alert('Please fill in all required fields');
-                return false;
-            }
-
-            // Calculate converted amount for storage
-            const selectedCurrency = currencySelect.value;
-            let finalAmount = parseFloat(claimAmount);
-            let originalAmount = finalAmount;
-            let originalCurrency = selectedCurrency;
-
-            console.log(`Original values - Type: ${claimType}, Amount: ${originalAmount}, Currency: ${originalCurrency}`);
-
-            // Convert to MYR if needed
-            if (selectedCurrency === 'USD') {
-                finalAmount = finalAmount * exchangeRates.USD_TO_MYR;
-            }
-
-            // Prepare claim data
-            const claimData = {
-                EmployeeId: employeeId,
-                ClaimType: claimType,
-                ClaimDate: claimDate,
-                ClaimAmount: finalAmount.toFixed(2),
-                Description: description || '',
-                Currency: 'MYR',
-                OriginalAmount: originalAmount.toString(),
-                OriginalCurrency: originalCurrency,
-                Files: []
-            };
-
-            console.log('Prepared claim data:', claimData);
-
-            // Process files
-            const files = Array.from(fileInput.files);
-            if (files.length > 0) {
-                try {
-                    console.log(`Processing ${files.length} files...`);
-                    for (const file of files) {
-                        const base64String = await convertFileToBase64(file);
-                        claimData.Files.push({
-                            name: file.name,
-                            type: file.type,
-                            size: file.size,
-                            data: base64String
-                        });
-                    }
-                    console.log(`Successfully processed ${claimData.Files.length} files`);
-                } catch (error) {
-                    console.error('File conversion failed:', error);
+                // Validation - including date validation
+                if (!claimType || !claimAmount || !claimDate || !employeeId) {
+                    console.error('Validation failed: Missing required fields');
                     submitBtn.disabled = false;
                     submitText.textContent = 'Add';
-                    alert('Failed to process files. Please try again.');
+
+                    // Show specific validation message for missing date
+                    if (!claimDate) {
+                        alert('Please select a claim date');
+                    } else {
+                        alert('Please fill in all required fields');
+                    }
                     return false;
                 }
-            }
 
-            // Store in session storage for fallback
-            sessionStorage.setItem('claimData', JSON.stringify(claimData));
-            console.log('Data stored in sessionStorage');
+                // Validate that claim date is not in the future
+                const selectedDate = new Date(claimDate);
+                const today = new Date();
+                today.setHours(23, 59, 59, 999); // Set to end of day for comparison
 
-            // FIXED: Send data via fetch with proper headers and error handling
-            try {
-                const formData = new FormData();
-                formData.append('ClaimDataJson', JSON.stringify(claimData));
-
-                // Get the anti-forgery token
-                const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-                if (!tokenInput) {
-                    throw new Error('Anti-forgery token not found');
+                if (selectedDate > today) {
+                    alert('Claim date cannot be in the future. Please select a valid date.');
+                    submitBtn.disabled = false;
+                    submitText.textContent = 'Add';
+                    return false;
                 }
-                const token = tokenInput.value;
 
-                console.log('Sending data to server...');
-                const response = await fetch('@Url.Action("OCRWithData", "Claim")', {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        '__RequestVerificationToken': token  // ✅ Fixed header name
+                // Calculate converted amount for storage
+                const selectedCurrency = currencySelect.value;
+                let finalAmount = parseFloat(claimAmount);
+                let originalAmount = finalAmount;
+                let originalCurrency = selectedCurrency;
+
+                console.log(`Original values - Type: ${claimType}, Amount: ${originalAmount}, Currency: ${originalCurrency}, Date: ${claimDate}`);
+
+                // Convert to MYR if needed
+                if (selectedCurrency === 'USD') {
+                    finalAmount = finalAmount * exchangeRates.USD_TO_MYR;
+                }
+
+                // Prepare claim data
+                const claimData = {
+                    EmployeeId: employeeId,
+                    ClaimType: claimType,
+                    ClaimDate: claimDate,
+                    ClaimAmount: finalAmount.toFixed(2),
+                    Description: description || '',
+                    Currency: 'MYR',
+                    OriginalAmount: originalAmount.toString(),
+                    OriginalCurrency: originalCurrency,
+                    Files: []
+                };
+
+                console.log('Prepared claim data:', claimData);
+
+                // Process files
+                const files = Array.from(fileInput.files);
+                if (files.length > 0) {
+                    try {
+                        console.log(`Processing ${files.length} files...`);
+                        for (const file of files) {
+                            const base64String = await convertFileToBase64(file);
+                            claimData.Files.push({
+                                name: file.name,
+                                type: file.type,
+                                size: file.size,
+                                data: base64String
+                            });
+                        }
+                        console.log(`Successfully processed ${claimData.Files.length} files`);
+                    } catch (error) {
+                        console.error('File conversion failed:', error);
+                        submitBtn.disabled = false;
+                        submitText.textContent = 'Add';
+                        alert('Failed to process files. Please try again.');
+                        return false;
                     }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const result = await response.json();
-                console.log('Server response:', result);
+                // Store in session storage for fallback
+                sessionStorage.setItem('claimData', JSON.stringify(claimData));
+                console.log('Data stored in sessionStorage');
 
-                if (result.success) {
-                    console.log('✅ Data sent successfully, redirecting to OCR page');
-                    window.location.href = '@Url.Action("OCR", "Claim")';
-                } else {
-                    throw new Error(result.error || 'Server returned failure');
+                // Send data via fetch with proper headers and error handling
+                try {
+                    const formData = new FormData();
+                    formData.append('ClaimDataJson', JSON.stringify(claimData));
+
+                    // Get the anti-forgery token
+                    const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+                    if (!tokenInput) {
+                        throw new Error('Anti-forgery token not found');
+                    }
+                    const token = tokenInput.value;
+
+                    console.log('Sending data to server...');
+                    const response = await fetch('@Url.Action("OCRWithData", "Claim")', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            '__RequestVerificationToken': token
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    console.log('Server response:', result);
+
+                    if (result.success) {
+                        console.log('✅ Data sent successfully, redirecting to OCR page');
+                        window.location.href = '@Url.Action("OCR", "Claim")';
+                    } else {
+                        throw new Error(result.error || 'Server returned failure');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Server data transfer failed, using client-side fallback:', error);
+
+                    // Show user what's happening
+                    console.log('Redirecting with sessionStorage fallback...');
+
+                    // Add a small delay to ensure sessionStorage is written
+                    setTimeout(() => {
+                        window.location.href = '@Url.Action("OCR", "Claim")';
+                    }, 100);
                 }
-            } catch (error) {
-                console.warn('⚠️ Server data transfer failed, using client-side fallback:', error);
-
-                // Show user what's happening
-                console.log('Redirecting with sessionStorage fallback...');
-
-                // Add a small delay to ensure sessionStorage is written
-                setTimeout(() => {
-                    window.location.href = '@Url.Action("OCR", "Claim")';
-                }, 100);
-            }
-        });
+            });
 
             // File to Base64 conversion
             function convertFileToBase64(file) {

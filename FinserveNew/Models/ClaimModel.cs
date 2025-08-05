@@ -15,11 +15,11 @@ namespace FinserveNew.Models
         [MaxLength(50)]
         public string ClaimType { get; set; } = string.Empty;
 
-        // NEW: Date when the expense/claim occurred
+        // FIXED: Date when the expense/claim occurred - Remove default value
         [Required(ErrorMessage = "Claim date is required")]
         [Display(Name = "Claim Date")]
         [DataType(DataType.Date)]
-        public DateTime ClaimDate { get; set; } = DateTime.Today;
+        public DateTime ClaimDate { get; set; }
 
         // The amount being claimed
         [Required(ErrorMessage = "Claim amount is required")]
@@ -28,22 +28,22 @@ namespace FinserveNew.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal ClaimAmount { get; set; }
 
-        // NEW: Currency used for the claim amount
+        // Currency used for the claim amount
         [Display(Name = "Currency")]
         [MaxLength(3)]
         public string Currency { get; set; } = "MYR";
 
-        // NEW: Original amount in the selected currency (before any conversion)
+        // Original amount in the selected currency (before any conversion)
         [Display(Name = "Original Amount")]
         [Column(TypeName = "decimal(18,2)")]
         public decimal? OriginalAmount { get; set; }
 
-        // NEW: Original currency if different from base currency
+        // Original currency if different from base currency
         [Display(Name = "Original Currency")]
         [MaxLength(3)]
         public string? OriginalCurrency { get; set; }
 
-        // NEW: Exchange rate used for conversion (if applicable)
+        // Exchange rate used for conversion (if applicable)
         [Display(Name = "Exchange Rate")]
         [Column(TypeName = "decimal(10,6)")]
         public decimal? ExchangeRate { get; set; }

@@ -10,10 +10,15 @@ namespace FinserveNew.Services
 
     public class OcrResult
     {
-        public string Text { get; set; } = string.Empty;
-        public float Confidence { get; set; }
         public bool Success { get; set; }
-        public string ErrorMessage { get; set; } = string.Empty;
+        public string Text { get; set; } = "";
+        public float Confidence { get; set; }
         public int WordCount { get; set; }
+        public string? ErrorMessage { get; set; }
+
+        // New properties for price extraction
+        public List<ExtractedPrice> ExtractedPrices { get; set; } = new List<ExtractedPrice>();
+        public decimal CalculatedAmount { get; set; }
+        public string Currency { get; set; } = "MYR";
     }
 }
