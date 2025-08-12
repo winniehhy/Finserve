@@ -44,7 +44,7 @@ namespace FinserveNew.Models
 
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "Draft";
+        public string Status { get; set; } = "Pending"; // Default to Pending instead of Draft
 
         [Required]
         public int Year { get; set; }
@@ -62,21 +62,20 @@ namespace FinserveNew.Models
         [Display(Name = "Created By")]
         public string? CreatedBy { get; set; }
 
-        //If you want to link to Employee, add these properties:
-        [Display(Name = "Employee ID")]
-        public string? EmployeeID { get; set; }
+        // Soft delete flag - invoices are never physically deleted
+        public bool IsDeleted { get; set; } = false;
 
-        //Navigation property(if you have Employee model)
-        [ForeignKey("EmployeeID")]
-        public virtual ApplicationUser? Employee { get; set; }
+        [Display(Name = "Deleted Date")]
+        public DateTime? DeletedDate { get; set; }
 
-        //Computed Properties for Display
+        [Display(Name = "Deleted By")]
+        public string? DeletedBy { get; set; }
+
+        // Computed Properties for Display
         public string StatusBadgeClass => Status switch
         {
-            "Draft" => "bg-secondary",
             "Pending" => "bg-warning",
-            "Approved" => "bg-info",
-            "Sent" => "bg-primary",
+            "Sent" => "bg-info",
             "Paid" => "bg-success",
             "Overdue" => "bg-danger",
             "Cancelled" => "bg-dark",
@@ -87,13 +86,20 @@ namespace FinserveNew.Models
         {
             "USD" => $"${TotalAmount:F2}",
             "MYR" => $"RM {TotalAmount:F2}",
-            "SGD" => $"S${TotalAmount:F2}",
-            "EUR" => $"€{TotalAmount:F2}",
             _ => $"{Currency} {TotalAmount:F2}"
         };
 
-        public bool CanEdit => Status == "Draft" || Status == "Pending";
-        public bool CanDelete => Status == "Draft";
-        public bool IsOverdue => (Status == "Sent" || Status == "Approved") && DueDate < DateTime.Now;
+        // Only Pending invoices can be edited or deleted
+        public bool CanEdit => Status == "Pending" && !IsDeleted;
+        public bool CanDelete => Status == "Pending" && !IsDeleted;
+
+        // Check if invoice is overdue
+        public bool IsOverdue => (Status == "Sent") && DueDate < DateTime.Now;
+
+        // Can send to client only if status is Pending
+        public bool CanSend => Status == "Pending" && !IsDeleted;
+
+        // Can mark as paid only if status is Sent or Overdue
+        public bool CanMarkPaid => (Status == "Sent" || Status == "Overdue") && !IsDeleted;
     }
 }

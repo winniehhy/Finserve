@@ -113,12 +113,6 @@ namespace FinserveNew.Data
                 entity.Property(i => i.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
                 entity.Property(i => i.Remark).HasMaxLength(500);
                 entity.Property(i => i.FilePath).HasMaxLength(255);
-                entity.Property(i => i.EmployeeID).IsRequired();
-
-                entity.HasOne(i => i.Employee)
-                    .WithMany()
-                    .HasForeignKey(i => i.EmployeeID)
-                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<ClaimDetails>()

@@ -433,12 +433,14 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(3)")
                         .HasDefaultValue("MYR");
 
-                    b.Property<DateTime>("DueDate")
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("DeletedDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("EmployeeID")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("FilePath")
                         .HasMaxLength(255)
@@ -448,6 +450,9 @@ namespace FinserveNew.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("IssueDate")
                         .HasColumnType("datetime(6)");
@@ -471,8 +476,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("InvoiceID");
-
-                    b.HasIndex("EmployeeID");
 
                     b.ToTable("Invoices");
                 });
@@ -867,17 +870,6 @@ namespace FinserveNew.Migrations
                         .WithMany("EmployeeDocuments")
                         .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
-                {
-                    b.HasOne("FinserveNew.Models.ApplicationUser", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeID")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Employee");

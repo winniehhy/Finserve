@@ -44,7 +44,6 @@
             <input asp-for="InvoiceID" type="hidden" />
             <input asp-for="InvoiceNumber" type="hidden" />
             <input asp-for="Status" type="hidden" />
-            <input asp-for="EmployeeID" type="hidden" />
             <input asp-for="IssueDate" type="hidden" />
 
             <div class="row">
@@ -88,8 +87,7 @@
                                 <select asp-for="Currency" class="form-select">
                                     <option value="MYR">MYR</option>
                                     <option value="USD">USD</option>
-                                    <option value="SGD">SGD</option>
-                                    <option value="EUR">EUR</option>
+    
                                 </select>
                                 <span asp-validation-for="Currency" class="text-danger"></span>
                             </div>
@@ -155,10 +153,7 @@
                         <div class="card-body">
                             <h6 class="card-title"><i class="fas fa-info-circle me-2"></i>Invoice Summary</h6>
                             <div class="row">
-                                <div class="col-6">
-                                    <small class="text-muted">Employee:</small>
-                                    <p class="mb-1">@Model.EmployeeID</p>
-                                </div>
+                             
                                 <div class="col-6">
                                     <small class="text-muted">Status:</small>
                                     <p class="mb-1"><span class="badge @Model.StatusBadgeClass">@Model.Status</span></p>
