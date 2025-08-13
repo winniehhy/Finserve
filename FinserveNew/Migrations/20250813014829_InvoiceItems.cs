@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FinserveNew.Migrations
 {
     /// <inheritdoc />
-    public partial class InvoiceUpdate : Migration
+    public partial class InvoiceItems : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -185,6 +185,32 @@ namespace FinserveNew.Migrations
                         column: x => x.RoleId,
                         principalTable: "AspNetRoles",
                         principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "InvoiceItems",
+                columns: table => new
+                {
+                    InvoiceItemID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    InvoiceID = table.Column<int>(type: "int", nullable: false),
+                    Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    UnitPrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    LineTotal = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_InvoiceItems", x => x.InvoiceItemID);
+                    table.ForeignKey(
+                        name: "FK_InvoiceItems_Invoices_InvoiceID",
+                        column: x => x.InvoiceID,
+                        principalTable: "Invoices",
+                        principalColumn: "InvoiceID",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -622,6 +648,11 @@ namespace FinserveNew.Migrations
                 column: "RoleID");
 
             migrationBuilder.CreateIndex(
+                name: "IX_InvoiceItems_InvoiceID",
+                table: "InvoiceItems",
+                column: "InvoiceID");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_LeaveDetails_LeaveID",
                 table: "LeaveDetails",
                 column: "LeaveID");
@@ -693,7 +724,7 @@ namespace FinserveNew.Migrations
                 name: "EmployeeDocuments");
 
             migrationBuilder.DropTable(
-                name: "Invoices");
+                name: "InvoiceItems");
 
             migrationBuilder.DropTable(
                 name: "LeaveDetails");
@@ -709,6 +740,9 @@ namespace FinserveNew.Migrations
 
             migrationBuilder.DropTable(
                 name: "Claims");
+
+            migrationBuilder.DropTable(
+                name: "Invoices");
 
             migrationBuilder.DropTable(
                 name: "Leaves");

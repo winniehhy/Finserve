@@ -329,10 +329,52 @@
                 }
             }
         function exportToExcel() {
-            var table = document.getElementById('invoiceTable');
-            var wb = XLSX.utils.table_to_book(table, { sheet: "Invoices" });
-            XLSX.writeFile(wb, 'invoices_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    // Clone the table to avoid modifying the original
+    var originalTable = document.getElementById('invoiceTable');
+    var table = originalTable.cloneNode(true);
+    
+    // Format date cells to shorter format
+    var rows = table.getElementsByTagName('tr');
+    for (var i = 1; i < rows.length; i++) { // Skip header row
+        var cells = rows[i].getElementsByTagName('td');
+        if (cells.length >= 4) {
+            // Format Issue Date (column 2) and Due Date (column 3)
+            var issueDate = cells[2].textContent.trim();
+            var dueDate = cells[3].textContent.trim();
+            
+            // Convert to shorter format if needed
+            cells[2].textContent = formatDateForExcel(issueDate);
+            cells[3].textContent = formatDateForExcel(dueDate);
         }
+    }
+    
+    var wb = XLSX.utils.table_to_book(table, { sheet: "Invoices" });
+    
+    // Auto-fit columns
+    var ws = wb.Sheets["Invoices"];
+    ws['!cols'] = [
+        {wch: 12}, // Invoice #
+        {wch: 20}, // Client
+        {wch: 12}, // Issue Date
+        {wch: 12}, // Due Date
+        {wch: 12}, // Amount
+        {wch: 10}, // Status
+        {wch: 8},  // Year
+        {wch: 15}  // Actions
+    ];
+    
+    XLSX.writeFile(wb, 'invoices_' + new Date().toISOString().split('T')[0] + '.xlsx');
+}
+
+function formatDateForExcel(dateStr) {
+    // Convert "13 Sep 2025" to "13/09/2025" or similar shorter format
+    try {
+        var date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+    } catch (e) {
+        return dateStr; // Return original if parsing fails
+    }
+}
 
         function clearFilters() {
             document.getElementById('statusFilter').value = '';

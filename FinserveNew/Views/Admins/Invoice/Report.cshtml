@@ -1,4 +1,547 @@
-﻿@* @page
-@model FinserveNew.Views.Admins.Invoice.ReportModel
+﻿@model List<FinserveNew.Models.Invoice>
 @{
-} *@
+    ViewData["Title"] = "Invoice Reports & Analytics";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var reportData = ViewBag.ReportData;
+    var selectedYear = ViewBag.SelectedYear;
+    var selectedMonth = ViewBag.SelectedMonth;
+    var selectedStatus = ViewBag.SelectedStatus as string;
+    var selectedPeriod = ViewBag.SelectedPeriod as string ?? "yearly";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-bar me-2"></i>Invoice Reports & Analytics</h4>
+                </div>
+                <div class="card-body">
+
+                    <!-- Filter Form -->
+                    <form method="get" class="mb-4">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <label for="period" class="form-label">Period Type</label>
+                                <select name="period" id="period" class="form-select" onchange="toggleMonthField()">
+                                    <option value="yearly" selected="@(selectedPeriod == "yearly")">Yearly</option>
+                                    <option value="monthly" selected="@(selectedPeriod == "monthly")">Monthly</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="year" class="form-label">Year</label>
+                                <select name="year" id="year" class="form-select">
+                                    @if (reportData?.AvailableYears != null)
+                                    {
+                                        @foreach (var year in reportData.AvailableYears)
+                                        {
+                                            <option value="@year" selected="@(selectedYear == year)">@year</option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="2024" selected="@(selectedYear == 2024)">2024</option>
+                                        <option value="2023" selected="@(selectedYear == 2023)">2023</option>
+                                        <option value="2022" selected="@(selectedYear == 2022)">2022</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2" id="monthField" style="@(selectedPeriod == "monthly" ? "" : "display:none;")">
+                                <label for="month" class="form-label">Month</label>
+                                <select name="month" id="month" class="form-select">
+                                    <option value="">All Months</option>
+                                    <option value="1" selected="@(selectedMonth == 1)">January</option>
+                                    <option value="2" selected="@(selectedMonth == 2)">February</option>
+                                    <option value="3" selected="@(selectedMonth == 3)">March</option>
+                                    <option value="4" selected="@(selectedMonth == 4)">April</option>
+                                    <option value="5" selected="@(selectedMonth == 5)">May</option>
+                                    <option value="6" selected="@(selectedMonth == 6)">June</option>
+                                    <option value="7" selected="@(selectedMonth == 7)">July</option>
+                                    <option value="8" selected="@(selectedMonth == 8)">August</option>
+                                    <option value="9" selected="@(selectedMonth == 9)">September</option>
+                                    <option value="10" selected="@(selectedMonth == 10)">October</option>
+                                    <option value="11" selected="@(selectedMonth == 11)">November</option>
+                                    <option value="12" selected="@(selectedMonth == 12)">December</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="status" class="form-label">Status</label>
+                                <select name="status" id="status" class="form-select">
+                                    <option value="">All Status</option>
+                                    <option value="Pending" selected="@(selectedStatus == "Pending")">Pending</option>
+                                    <option value="Sent" selected="@(selectedStatus == "Sent")">Sent</option>
+                                    <option value="Paid" selected="@(selectedStatus == "Paid")">Paid</option>
+                                    <option value="Overdue" selected="@(selectedStatus == "Overdue")">Overdue</option>
+                                    <option value="Cancelled" selected="@(selectedStatus == "Cancelled")">Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter me-1"></i>Apply Filter
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="@Url.Action("GenerateReport")" class="btn btn-outline-secondary">
+                                    <i class="fas fa-refresh me-1"></i>Reset
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Summary Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-2">
+                            <div class="card text-center border-primary">
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary">Total Invoices</h5>
+                                    <h3 class="text-primary">@(reportData?.TotalInvoices ?? 0)</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-info">
+                                <div class="card-body">
+                                    <h5 class="card-title text-info">Total Amount</h5>
+                                    <h3 class="text-info">RM @((reportData?.TotalAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-success">
+                                <div class="card-body">
+                                    <h5 class="card-title text-success">Paid</h5>
+                                    <h3 class="text-success">RM @((reportData?.PaidAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-warning">
+                                <div class="card-body">
+                                    <h5 class="card-title text-warning">Pending</h5>
+                                    <h3 class="text-warning">RM @((reportData?.PendingAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-info">
+                                <div class="card-body">
+                                    <h5 class="card-title text-info">Sent</h5>
+                                    <h3 class="text-info">RM @((reportData?.SentAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-danger">
+                                <div class="card-body">
+                                    <h5 class="card-title text-danger">Overdue</h5>
+                                    <h3 class="text-danger">RM @((reportData?.OverdueAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-chart-pie me-2"></i>Invoice Status Distribution</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleChart('pie')">
+                                        <i class="fas fa-chart-pie"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="statusPieChart" style="max-height: 400px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-chart-line me-2"></i>@(selectedPeriod == "monthly" ? "Daily" : "Monthly") Trend</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleChart('line')">
+                                        <i class="fas fa-chart-line"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="trendLineChart" style="max-height: 400px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart Type Toggle Buttons -->
+                    <div class="row mb-3">
+                        <div class="col-12 text-center">
+                            <div class="btn-group" role="group" aria-label="Chart Type">
+                                <button type="button" class="btn btn-outline-primary chart-toggle-btn active" data-chart="both">
+                                    <i class="fas fa-chart-area me-1"></i>Both Charts
+                                </button>
+                                <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="pie">
+                                    <i class="fas fa-chart-pie me-1"></i>Pie Chart Only
+                                </button>
+                                <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="line">
+                                    <i class="fas fa-chart-line me-1"></i>Line Chart Only
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invoice List -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list me-2"></i>Invoice Details (@Model.Count records)</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (Model.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Invoice #</th>
+                                                <th>Client</th>
+                                                <th>Issue Date</th>
+                                                <th>Due Date</th>
+                                                <th>Amount</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var invoice in Model)
+                                            {
+                                                <tr>
+                                                    <td>@invoice.InvoiceNumber</td>
+                                                    <td>
+                                                        <strong>@invoice.ClientName</strong>
+                                                        @if (!string.IsNullOrEmpty(invoice.ClientCompany))
+                                                        {
+                                                            <br>
+                                                
+                                                            <small class="text-muted">@invoice.ClientCompany</small>
+                                                        }
+                                                    </td>
+                                                    <td>@invoice.IssueDate.ToString("dd/MM/yyyy")</td>
+                                                    <td>@invoice.DueDate.ToString("dd/MM/yyyy")</td>
+                                                    <td>RM @invoice.TotalAmount.ToString("N2")</td>
+                                                    <td>
+                                                        @{
+                                                            string badgeClass = invoice.Status switch
+                                                            {
+                                                                "Pending" => "bg-warning text-dark",
+                                                                "Sent" => "bg-info",
+                                                                "Paid" => "bg-success",
+                                                                "Overdue" => "bg-danger",
+                                                                "Cancelled" => "bg-secondary",
+                                                                _ => "bg-secondary"
+                                                            };
+                                                        }
+                                                        <span class="badge @badgeClass">@invoice.Status</span>
+                                                    </td>
+                                                    <td>
+                                                        <a href="@Url.Action("Details", new { id = invoice.InvoiceID })"
+                                                           class="btn btn-sm btn-outline-info" title="View Details">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-5">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No invoices found</h5>
+                                    <p class="text-muted">Try adjusting your filter criteria</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let pieChart = null;
+    let lineChart = null;
+
+    // Toggle month field based on period selection
+    function toggleMonthField() {
+        const period = document.getElementById('period').value;
+        const monthField = document.getElementById('monthField');
+        if (period === 'monthly') {
+            monthField.style.display = 'block';
+        } else {
+            monthField.style.display = 'none';
+            document.getElementById('month').value = '';
+        }
+    }
+
+    // Chart toggle functionality
+    function toggleChart(chartType) {
+        const pieContainer = document.getElementById('statusPieChart').closest('.col-md-6');
+        const lineContainer = document.getElementById('trendLineChart').closest('.col-md-6');
+
+        if (chartType === 'pie') {
+            pieContainer.style.display = 'block';
+            lineContainer.style.display = 'none';
+        } else if (chartType === 'line') {
+            pieContainer.style.display = 'none';
+            lineContainer.style.display = 'block';
+        } else {
+            pieContainer.style.display = 'block';
+            lineContainer.style.display = 'block';
+        }
+    }
+
+    // Chart toggle buttons
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+        toggleButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from all buttons
+                toggleButtons.forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+
+                const chartType = this.dataset.chart;
+                const pieContainer = document.getElementById('statusPieChart').closest('.col-md-6');
+                const lineContainer = document.getElementById('trendLineChart').closest('.col-md-6');
+
+                switch(chartType) {
+                    case 'pie':
+                        pieContainer.classList.remove('col-md-6');
+                        pieContainer.classList.add('col-md-12');
+                        lineContainer.style.display = 'none';
+                        break;
+                    case 'line':
+                        lineContainer.classList.remove('col-md-6');
+                        lineContainer.classList.add('col-md-12');
+                        pieContainer.style.display = 'none';
+                        break;
+                    case 'both':
+                    default:
+                        pieContainer.classList.remove('col-md-12');
+                        pieContainer.classList.add('col-md-6');
+                        lineContainer.classList.remove('col-md-12');
+                        lineContainer.classList.add('col-md-6');
+                        pieContainer.style.display = 'block';
+                        lineContainer.style.display = 'block';
+                        break;
+                }
+
+                // Resize charts
+                if (pieChart) pieChart.resize();
+                if (lineChart) lineChart.resize();
+            });
+        });
+    });
+
+    // Status Pie Chart
+    @if (reportData?.StatusCounts != null)
+    {
+            <text>
+            const statusData = @Html.Raw(Json.Serialize(reportData.StatusCounts));
+            const pieCtx = document.getElementById('statusPieChart').getContext('2d');
+
+            const statusColors = {
+                'Pending': '#ffc107',
+                'Sent': '#17a2b8',
+                'Paid': '#28a745',
+                'Overdue': '#dc3545',
+                'Cancelled': '#6c757d'
+            };
+
+            pieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: statusData.map(item => item.status),
+                    datasets: [{
+                        data: statusData.map(item => item.count),
+                        backgroundColor: statusData.map(item => statusColors[item.status] || '#6c757d'),
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = statusData.reduce((sum, item) => sum + item.count, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+            </text>
+    }
+    else
+    {
+            <text>
+            // No data available for pie chart
+            const pieCtx = document.getElementById('statusPieChart').getContext('2d');
+            pieCtx.font = '16px Arial';
+            pieCtx.textAlign = 'center';
+            pieCtx.fillStyle = '#6c757d';
+            pieCtx.fillText('No data available', pieCtx.canvas.width / 2, pieCtx.canvas.height / 2);
+            </text>
+    }
+
+    // Trend Line Chart
+    @if (reportData?.TrendData != null)
+    {
+            <text>
+            const trendData = @Html.Raw(Json.Serialize(reportData.TrendData));
+            const lineCtx = document.getElementById('trendLineChart').getContext('2d');
+
+            lineChart = new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: trendData.map(item => item.periodName),
+                    datasets: [{
+                        label: 'Invoice Count',
+                        data: trendData.map(item => item.count),
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Amount (RM)',
+                        data: trendData.map(item => item.amount),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '@(selectedPeriod == "monthly" ? "Day" : "Month")'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Count'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Amount (RM)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return 'RM ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            </text>
+    }
+    else
+    {
+            <text>
+            // No data available for line chart
+            const lineCtx = document.getElementById('trendLineChart').getContext('2d');
+            lineCtx.font = '16px Arial';
+            lineCtx.textAlign = 'center';
+            lineCtx.fillStyle = '#6c757d';
+            lineCtx.fillText('No data available', lineCtx.canvas.width / 2, lineCtx.canvas.height / 2);
+            </text>
+    }
+</script>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+        margin-bottom: 1rem;
+    }
+
+    .card-header {
+        background-color: rgba(0, 0, 0, 0.03);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+
+    .table th {
+        border-top: none;
+        font-weight: 600;
+    }
+
+    .chart-toggle-btn.active {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+
+    .chart-toggle-btn:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+        color: white;
+    }
+</style>

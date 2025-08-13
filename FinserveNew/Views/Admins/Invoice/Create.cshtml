@@ -73,10 +73,11 @@
                                 <div class="mb-3">
                                     <label asp-for="TotalAmount" class="form-label"></label>
                                     <div class="input-group">
-                                        <input asp-for="TotalAmount" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" />
+                                        <input asp-for="TotalAmount" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" readonly />
                                         <span class="input-group-text">@Model.Currency</span>
                                     </div>
                                     <span asp-validation-for="TotalAmount" class="text-danger"></span>
+                                    <small class="text-muted">Total is calculated automatically from items below</small>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -91,7 +92,6 @@
                             </div>
                         </div>
 
-                        <!-- Status field removed - automatically set to Pending -->
                         <div class="mb-3">
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i>
@@ -111,20 +111,57 @@
                         </h5>
 
                         <div id="invoiceItems">
-                            <div class="row invoice-item mb-2">
-                                <div class="col-md-5">
-                                    <input type="text" class="form-control item-description" placeholder="Item Description" />
+                            @if (Model.InvoiceItems != null && Model.InvoiceItems.Any())
+                            {
+                                @for (int i = 0; i < Model.InvoiceItems.Count; i++)
+                                {
+                                    <div class="row invoice-item mb-2" data-index="@i">
+                                        <div class="col-md-4">
+                                            <input asp-for="InvoiceItems[@i].Description" class="form-control item-description" placeholder="Item Description" />
+                                            <span asp-validation-for="InvoiceItems[@i].Description" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" />
+                                            <span asp-validation-for="InvoiceItems[@i].Quantity" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                                            <span asp-validation-for="InvoiceItems[@i].UnitPrice" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            @if (i > 0)
+                                            {
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="row invoice-item mb-2" data-index="0">
+                                    <div class="col-md-4">
+                                        <input name="InvoiceItems[0].Description" type="text" class="form-control item-description" placeholder="Item Description" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <!-- First item cannot be removed -->
+                                    </div>
                                 </div>
-                                <div class="col-md-2">
-                                    <input type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
-                                </div>
-                                <div class="col-md-2">
-                                    <input type="text" class="form-control item-amount" placeholder="Amount" readonly />
-                                </div>
-                            </div>
+                            }
                         </div>
 
                         <button type="button" class="btn btn-outline-primary btn-sm" onclick="addInvoiceItem()">
@@ -215,11 +252,11 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 
-    <!-- jsPDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script>
         let currentPDF = null;
+        let itemIndex = @(Model.InvoiceItems?.Count ?? 1);
 
         // Auto-calculate due date when issue date changes (30 days later)
         document.getElementById('IssueDate').addEventListener('change', function() {
@@ -234,7 +271,7 @@
         // File size validation
         document.getElementById('invoiceFile').addEventListener('change', function() {
             var file = this.files[0];
-            if (file && file.size > 5 * 1024 * 1024) { // 5MB limit
+            if (file && file.size > 5 * 1024 * 1024) {
                 alert('File size must be less than 5MB');
                 this.value = '';
             }
@@ -252,19 +289,22 @@
             const itemsContainer = document.getElementById('invoiceItems');
             const newItem = document.createElement('div');
             newItem.className = 'row invoice-item mb-2';
+            newItem.setAttribute('data-index', itemIndex);
             newItem.innerHTML = `
-                <div class="col-md-5">
-                    <input type="text" class="form-control item-description" placeholder="Item Description" />
+                <div class="col-md-4">
+                    <input name="InvoiceItems[${itemIndex}].Description" type="text" class="form-control item-description" placeholder="Item Description" />
                 </div>
                 <div class="col-md-2">
-                    <input type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
+                    <input name="InvoiceItems[${itemIndex}].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
                 </div>
-                <div class="col-md-3">
-                    <input type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
                 </div>
-                <div class="col-md-2 d-flex">
-                    <input type="text" class="form-control item-amount" placeholder="Amount" readonly />
-                    <button type="button" class="btn btn-outline-danger btn-sm ms-1" onclick="removeItem(this)">
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -277,12 +317,40 @@
 
             quantityInput.addEventListener('input', calculateItemAmount);
             priceInput.addEventListener('input', calculateItemAmount);
+
+            itemIndex++;
         }
 
         // Remove invoice item
         function removeItem(button) {
-            button.closest('.invoice-item').remove();
+            const item = button.closest('.invoice-item');
+            item.remove();
             updateTotalAmount();
+            reindexItems();
+        }
+
+        // Reindex items after removal
+        function reindexItems() {
+            const items = document.querySelectorAll('.invoice-item');
+            items.forEach((item, index) => {
+                item.setAttribute('data-index', index);
+                const inputs = item.querySelectorAll('input[name*="InvoiceItems"]');
+                inputs.forEach(input => {
+                    const nameAttr = input.getAttribute('name');
+                    if (nameAttr) {
+                        if (nameAttr.includes('.Description')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].Description`);
+                        } else if (nameAttr.includes('.Quantity')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].Quantity`);
+                        } else if (nameAttr.includes('.UnitPrice')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].UnitPrice`);
+                        } else if (nameAttr.includes('.LineTotal')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].LineTotal`);
+                        }
+                    }
+                });
+            });
+            itemIndex = items.length;
         }
 
         // Calculate item amount
@@ -318,9 +386,22 @@
             priceInputs.forEach(input => {
                 input.addEventListener('input', calculateItemAmount);
             });
+
+            // Calculate initial totals if items exist
+            updateTotalAmount();
+
+            // Set default dates if not set
+            if (!document.getElementById('IssueDate').value) {
+                document.getElementById('IssueDate').value = new Date().toISOString().split('T')[0];
+            }
+            if (!document.getElementById('DueDate').value) {
+                var dueDate = new Date();
+                dueDate.setDate(dueDate.getDate() + 30);
+                document.getElementById('DueDate').value = dueDate.toISOString().split('T')[0];
+            }
         });
 
-        // Preview invoice function
+        // Preview and download functions
         function previewInvoice() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
@@ -362,10 +443,8 @@
                 items
             });
 
-            // Store current PDF for download
             currentPDF = doc;
 
-            // Show modal with PDF preview
             const pdfOutput = doc.output('datauristring');
             document.getElementById('pdfPreview').innerHTML =
                 `<iframe src="${pdfOutput}" width="100%" height="100%" style="border: none;"></iframe>`;
@@ -374,7 +453,6 @@
             modal.show();
         }
 
-        // Generate PDF function
         function generateInvoicePDF(doc, data) {
             const currencySymbol = data.currency === 'MYR' ? 'RM' : '$';
 
@@ -393,7 +471,7 @@
             doc.text(`Issue Date: ${data.issueDate || 'Not specified'}`, 150, 55);
             doc.text(`Due Date: ${data.dueDate || 'Not specified'}`, 150, 65);
 
-            // From section with hardcoded address
+            // From section
             doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.text('FROM:', 20, 60);
@@ -474,7 +552,6 @@
             }
         }
 
-        // Download PDF function
         function downloadPDF() {
             if (currentPDF) {
                 currentPDF.save('invoice-preview.pdf');

@@ -480,6 +480,41 @@ namespace FinserveNew.Migrations
                     b.ToTable("Invoices");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
+                {
+                    b.Property<int>("InvoiceItemID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("InvoiceItemID"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("InvoiceID")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("InvoiceItemID");
+
+                    b.HasIndex("InvoiceID");
+
+                    b.ToTable("InvoiceItems");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
                 {
                     b.Property<int>("RoleID")
@@ -875,6 +910,17 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
+                {
+                    b.HasOne("FinserveNew.Models.Invoice", "Invoice")
+                        .WithMany("InvoiceItems")
+                        .HasForeignKey("InvoiceID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Invoice");
+                });
+
             modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
                 {
                     b.HasOne("FinserveNew.Models.LeaveModel", "Leave")
@@ -979,6 +1025,11 @@ namespace FinserveNew.Migrations
                     b.Navigation("EmployeeDocuments");
 
                     b.Navigation("Payrolls");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
+                {
+                    b.Navigation("InvoiceItems");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>

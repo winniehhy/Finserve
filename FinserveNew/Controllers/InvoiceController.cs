@@ -28,8 +28,9 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> InvoiceRecord()
         {
-            // Only show non-deleted invoices, check for overdue invoices
+            // Include InvoiceItems when loading invoices
             var invoices = await _context.Invoices
+                .Include(i => i.InvoiceItems)
                 .Where(i => !i.IsDeleted)
                 .OrderByDescending(i => i.CreatedDate)
                 .ToListAsync();
@@ -64,6 +65,7 @@ namespace FinserveNew.Controllers
             }
 
             var invoice = await _context.Invoices
+                .Include(i => i.InvoiceItems) // Include invoice items for details view
                 .Where(i => i.InvoiceID == id && !i.IsDeleted)
                 .FirstOrDefaultAsync();
 
@@ -86,6 +88,9 @@ namespace FinserveNew.Controllers
                 Currency = "MYR",
                 Status = "Pending" // Start with Pending status
             };
+
+            // Add one empty invoice item for the form
+            invoice.InvoiceItems.Add(new InvoiceItem());
 
             return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
         }
@@ -125,11 +130,31 @@ namespace FinserveNew.Controllers
                 invoice.Status = "Pending"; // Always start with Pending
                 invoice.IsDeleted = false;
 
+                // Process invoice items - remove empty items
+                if (invoice.InvoiceItems != null)
+                {
+                    invoice.InvoiceItems = invoice.InvoiceItems
+                        .Where(item => !string.IsNullOrWhiteSpace(item.Description) &&
+                                     item.Quantity > 0 && item.UnitPrice > 0)
+                        .ToList();
+
+                    // Calculate line totals and set invoice ID
+                    foreach (var item in invoice.InvoiceItems)
+                    {
+                        item.CalculateLineTotal();
+                        item.CreatedDate = DateTime.Now;
+                        item.InvoiceID = 0; // Will be set by EF Core
+                    }
+
+                    // Calculate total amount from items
+                    invoice.CalculateTotalFromItems();
+                }
+
                 // Remove these fields from model validation - they are auto-generated
                 ModelState.Remove("InvoiceNumber");
                 ModelState.Remove("CreatedBy");
-                ModelState.Remove("FilePath"); // Add this line - FilePath is optional
-                ModelState.Remove("invoiceFile"); // Add this line - the file parameter is separate
+                ModelState.Remove("FilePath");
+                ModelState.Remove("invoiceFile");
 
                 // Additional validation fixes
                 if (invoice.IssueDate == default(DateTime))
@@ -142,6 +167,12 @@ namespace FinserveNew.Controllers
                     invoice.DueDate = DateTime.Now.AddDays(30);
                 }
 
+                // Validate that we have at least one invoice item
+                if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                {
+                    ModelState.AddModelError("InvoiceItems", "At least one invoice item is required.");
+                }
+
                 if (!ModelState.IsValid)
                 {
                     // Log validation errors for debugging
@@ -152,6 +183,13 @@ namespace FinserveNew.Controllers
                             _logger.LogWarning($"Validation error for {error.Key}: {modelError.ErrorMessage}");
                         }
                     }
+
+                    // Add empty item if no items exist for form re-display
+                    if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                    {
+                        invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+                    }
+
                     return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
                 }
 
@@ -160,11 +198,6 @@ namespace FinserveNew.Controllers
                 {
                     var filePath = await SaveFile(invoiceFile, "invoices");
                     invoice.FilePath = filePath;
-                }
-                else
-                {
-                    // Explicitly set to null if no file uploaded
-                    invoice.FilePath = null;
                 }
 
                 _context.Invoices.Add(invoice);
@@ -177,12 +210,26 @@ namespace FinserveNew.Controllers
             {
                 _logger.LogError(ex, "Database error while saving invoice");
                 ModelState.AddModelError("", "An error occurred while saving the invoice. Please try again.");
+
+                // Ensure we have items for form re-display
+                if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                {
+                    invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+                }
+
                 return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while creating invoice");
                 ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+
+                // Ensure we have items for form re-display
+                if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                {
+                    invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+                }
+
                 return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
             }
         }
@@ -195,7 +242,9 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            // IMPORTANT: Include InvoiceItems when retrieving the invoice
             var invoice = await _context.Invoices
+                .Include(i => i.InvoiceItems)
                 .Where(i => i.InvoiceID == id && !i.IsDeleted)
                 .FirstOrDefaultAsync();
 
@@ -208,6 +257,12 @@ namespace FinserveNew.Controllers
             {
                 TempData["Error"] = "This invoice cannot be edited. Only pending invoices can be modified.";
                 return RedirectToAction(nameof(InvoiceRecord));
+            }
+
+            // Add an empty item if no items exist (for adding new items in edit mode)
+            if (!invoice.InvoiceItems.Any())
+            {
+                invoice.InvoiceItems.Add(new InvoiceItem());
             }
 
             return View("~/Views/Admins/Invoice/Edit.cshtml", invoice);
@@ -229,12 +284,19 @@ namespace FinserveNew.Controllers
             ModelState.Remove("FilePath");
             ModelState.Remove("InvoiceFile");
 
+            // Validate that we have at least one invoice item
+            if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any(i => !string.IsNullOrWhiteSpace(i.Description)))
+            {
+                ModelState.AddModelError("InvoiceItems", "At least one invoice item is required.");
+            }
 
             if (ModelState.IsValid)
             {
                 try
                 {
+                    // Get existing invoice with items from database
                     var existingInvoice = await _context.Invoices
+                        .Include(i => i.InvoiceItems)
                         .Where(i => i.InvoiceID == id && !i.IsDeleted)
                         .FirstOrDefaultAsync();
 
@@ -249,16 +311,39 @@ namespace FinserveNew.Controllers
                         return RedirectToAction(nameof(InvoiceRecord));
                     }
 
-                    // Update properties (don't change InvoiceNumber, CreatedBy, or CreatedDate)
+                    // Update invoice properties (don't change InvoiceNumber, CreatedBy, or CreatedDate)
                     existingInvoice.ClientName = invoice.ClientName;
                     existingInvoice.ClientCompany = invoice.ClientCompany;
                     existingInvoice.ClientEmail = invoice.ClientEmail;
                     existingInvoice.IssueDate = invoice.IssueDate;
                     existingInvoice.DueDate = invoice.DueDate;
-                    existingInvoice.TotalAmount = invoice.TotalAmount;
                     existingInvoice.Currency = invoice.Currency;
                     existingInvoice.Remark = invoice.Remark;
                     existingInvoice.Year = invoice.IssueDate.Year;
+
+                    // Remove existing invoice items
+                    _context.InvoiceItems.RemoveRange(existingInvoice.InvoiceItems);
+
+                    // Add updated invoice items
+                    if (invoice.InvoiceItems != null)
+                    {
+                        var validItems = invoice.InvoiceItems
+                            .Where(item => !string.IsNullOrWhiteSpace(item.Description) &&
+                                         item.Quantity > 0 && item.UnitPrice > 0)
+                            .ToList();
+
+                        foreach (var item in validItems)
+                        {
+                            item.InvoiceID = existingInvoice.InvoiceID;
+                            item.CalculateLineTotal();
+                            item.CreatedDate = DateTime.Now;
+                            item.InvoiceItemID = 0; // Reset ID for new items
+                            existingInvoice.InvoiceItems.Add(item);
+                        }
+
+                        // Calculate total from items
+                        existingInvoice.CalculateTotalFromItems();
+                    }
 
                     // Handle file upload
                     if (invoiceFile != null && invoiceFile.Length > 0)
@@ -277,7 +362,6 @@ namespace FinserveNew.Controllers
                         existingInvoice.FilePath = filePath;
                     }
 
-                    _context.Update(existingInvoice);
                     await _context.SaveChangesAsync();
 
                     TempData["Success"] = "Invoice updated successfully!";
@@ -306,6 +390,12 @@ namespace FinserveNew.Controllers
                 }
             }
 
+            // If we reach here, there was an error - ensure we have items for form re-display
+            if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+            {
+                invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+            }
+
             return View("~/Views/Admins/Invoice/Edit.cshtml", invoice);
         }
 
@@ -318,6 +408,7 @@ namespace FinserveNew.Controllers
             }
 
             var invoice = await _context.Invoices
+                .Include(i => i.InvoiceItems) // Include items for delete confirmation view
                 .Where(i => i.InvoiceID == id && !i.IsDeleted)
                 .FirstOrDefaultAsync();
 
@@ -343,6 +434,7 @@ namespace FinserveNew.Controllers
             try
             {
                 var invoice = await _context.Invoices
+                    .Include(i => i.InvoiceItems) // Include items for deletion
                     .Where(i => i.InvoiceID == id && !i.IsDeleted)
                     .FirstOrDefaultAsync();
 
@@ -359,6 +451,9 @@ namespace FinserveNew.Controllers
                     invoice.IsDeleted = true;
                     invoice.DeletedDate = DateTime.Now;
                     invoice.DeletedBy = User.Identity.Name;
+
+                    // Note: Invoice items will remain in database with the invoice
+                    // They're linked by InvoiceID foreign key
 
                     _context.Update(invoice);
                     await _context.SaveChangesAsync();
@@ -509,44 +604,309 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(InvoiceRecord));
         }
 
+
+
         // GET: Invoice/GenerateReport
-        public async Task<IActionResult> GenerateReport(int? year, string? status)
+        // GET: Invoice/GenerateReport
+        public async Task<IActionResult> GenerateReport(string period = "yearly", int? year = null,
+            int? month = null, string? status = null, string chartType = "pie")
         {
-            var query = _context.Invoices
-                .Where(i => !i.IsDeleted); // Only include non-deleted invoices in reports
-
-            if (year.HasValue)
+            try
             {
-                query = query.Where(i => i.Year == year.Value);
+                // Set default year if not provided
+                if (!year.HasValue)
+                {
+                    year = DateTime.Now.Year;
+                }
+
+                var query = _context.Invoices
+                    .Include(i => i.InvoiceItems)
+                    .Where(i => !i.IsDeleted);
+
+                // Apply filters based on period
+                switch (period.ToLower())
+                {
+                    case "monthly":
+                        if (month.HasValue)
+                        {
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == month.Value);
+                        }
+                        else
+                        {
+                            // Default to current month if month not specified
+                            var currentMonth = DateTime.Now.Month;
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == currentMonth);
+                            month = currentMonth;
+                        }
+                        break;
+                    case "yearly":
+                        query = query.Where(i => i.IssueDate.Year == year.Value);
+                        break;
+                }
+
+                // Apply status filter if specified
+                if (!string.IsNullOrEmpty(status) && status != "all")
+                {
+                    query = query.Where(i => i.Status.ToLower() == status.ToLower());
+                }
+
+                var invoices = await query
+                    .OrderByDescending(i => i.CreatedDate)
+                    .ToListAsync();
+
+                // Get available years for filter dropdown - MOVED HERE BEFORE USAGE
+                var availableYears = await _context.Invoices
+                    .Where(i => !i.IsDeleted)
+                    .Select(i => i.IssueDate.Year)
+                    .Distinct()
+                    .OrderByDescending(y => y)
+                    .ToListAsync();
+
+                // Calculate status distribution for pie chart
+                var statusDistribution = new Dictionary<string, object>
+                {
+                    ["Pending"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Pending"),
+                        amount = invoices.Where(i => i.Status == "Pending").Sum(i => i.TotalAmount)
+                    },
+                    ["Sent"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Sent"),
+                        amount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount)
+                    },
+                    ["Paid"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Paid"),
+                        amount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount)
+                    },
+                    ["Overdue"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Overdue"),
+                        amount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount)
+                    }
+                };
+
+                // Generate time series data for line chart
+                List<object> timeSeriesData = new List<object>();
+
+                if (period == "yearly")
+                {
+                    // Monthly data for the selected year
+                    for (int m = 1; m <= 12; m++)
+                    {
+                        var monthlyInvoices = invoices.Where(i => i.IssueDate.Month == m).ToList();
+                        timeSeriesData.Add(new
+                        {
+                            period = new DateTime(year.Value, m, 1).ToString("MMM yyyy"),
+                            month = m,
+                            pending = monthlyInvoices.Count(i => i.Status == "Pending"),
+                            sent = monthlyInvoices.Count(i => i.Status == "Sent"),
+                            paid = monthlyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = monthlyInvoices.Count(i => i.Status == "Overdue"),
+                            totalAmount = monthlyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+                else if (period == "monthly")
+                {
+                    // Daily data for the selected month
+                    var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
+                    for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var dailyInvoices = invoices.Where(i => i.IssueDate.Day == d).ToList();
+                        timeSeriesData.Add(new
+                        {
+                            period = $"{d:D2}",
+                            day = d,
+                            pending = dailyInvoices.Count(i => i.Status == "Pending"),
+                            sent = dailyInvoices.Count(i => i.Status == "Sent"),
+                            paid = dailyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = dailyInvoices.Count(i => i.Status == "Overdue"),
+                            totalAmount = dailyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+
+                // Create status counts for pie chart
+                var statusCounts = new[]
+                {
+    new { status = "Pending", count = invoices.Count(i => i.Status == "Pending") },
+    new { status = "Sent", count = invoices.Count(i => i.Status == "Sent") },
+    new { status = "Paid", count = invoices.Count(i => i.Status == "Paid") },
+    new { status = "Overdue", count = invoices.Count(i => i.Status == "Overdue") }
+}.Where(x => x.count > 0).ToArray();
+
+                // Create trend data for line chart
+                List<object> trendData = new List<object>();
+
+                if (period == "yearly")
+                {
+                    // Monthly data for the selected year
+                    for (int m = 1; m <= 12; m++)
+                    {
+                        var monthlyInvoices = invoices.Where(i => i.IssueDate.Month == m).ToList();
+                        trendData.Add(new
+                        {
+                            periodName = new DateTime(year.Value, m, 1).ToString("MMM yyyy"),
+                            month = m,
+                            count = monthlyInvoices.Count,
+                            amount = monthlyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+                else if (period == "monthly")
+                {
+                    // Daily data for the selected month
+                    var daysInMonth = DateTime.DaysInMonth(year.Value, month ?? DateTime.Now.Month);
+                    var selectedMonth = month ?? DateTime.Now.Month;
+                    for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var dailyInvoices = invoices.Where(i => i.IssueDate.Day == d).ToList();
+                        trendData.Add(new
+                        {
+                            periodName = $"Day {d}",
+                            day = d,
+                            count = dailyInvoices.Count,
+                            amount = dailyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+
+                var reportData = new
+                {
+                    Period = period,
+                    Year = year.Value,
+                    Month = month,
+                    Status = status,
+                    ChartType = chartType,
+                    TotalInvoices = invoices.Count,
+                    TotalAmount = invoices.Sum(i => i.TotalAmount),
+                    PaidAmount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount),
+                    PendingAmount = invoices.Where(i => i.Status == "Pending").Sum(i => i.TotalAmount),
+                    SentAmount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount),
+                    OverdueAmount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount),
+                    StatusDistribution = statusDistribution,
+                    TimeSeriesData = timeSeriesData,
+                    StatusCounts = statusCounts,
+                    TrendData = trendData,
+                    AvailableYears = availableYears,
+                    Invoices = invoices
+                };
+
+                ViewBag.ReportData = reportData;
+                ViewBag.SelectedPeriod = period;
+                ViewBag.SelectedYear = year;
+                ViewBag.SelectedMonth = month;
+                ViewBag.SelectedStatus = status;
+                ViewBag.SelectedChartType = chartType;
+
+                // REMOVED DUPLICATE availableYears QUERY - Now using the one defined above
+                ViewBag.AvailableYears = availableYears;
+
+                return View("~/Views/Admins/Invoice/Report.cshtml", invoices);
             }
-
-            if (!string.IsNullOrEmpty(status))
+            catch (Exception ex)
             {
-                query = query.Where(i => i.Status == status);
+                _logger.LogError(ex, "Error generating invoice report");
+                TempData["Error"] = "An error occurred while generating the report.";
+                return RedirectToAction(nameof(InvoiceRecord));
             }
-
-            var invoices = await query
-                .OrderByDescending(i => i.CreatedDate)
-                .ToListAsync();
-
-            var reportData = new
-            {
-                TotalInvoices = invoices.Count,
-                TotalAmount = invoices.Sum(i => i.TotalAmount),
-                PaidAmount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount),
-                PendingAmount = invoices.Where(i => i.Status == "Pending").Sum(i => i.TotalAmount),
-                SentAmount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount),
-                OverdueAmount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount),
-                Invoices = invoices
-            };
-
-            ViewBag.ReportData = reportData;
-            ViewBag.SelectedYear = year;
-            ViewBag.SelectedStatus = status;
-
-            return View("~/Views/Admins/Invoice/Report.cshtml", invoices);
         }
 
+        // API endpoint to get chart data for AJAX requests
+        [HttpGet]
+        public async Task<IActionResult> GetChartData(string period = "yearly", int? year = null,
+            int? month = null, string? status = null)
+        {
+            try
+            {
+                if (!year.HasValue) year = DateTime.Now.Year;
+
+                var query = _context.Invoices
+                    .Include(i => i.InvoiceItems)
+                    .Where(i => !i.IsDeleted);
+
+                // Apply period filter
+                switch (period.ToLower())
+                {
+                    case "monthly":
+                        if (month.HasValue)
+                        {
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == month.Value);
+                        }
+                        else
+                        {
+                            var currentMonth = DateTime.Now.Month;
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == currentMonth);
+                            month = currentMonth;
+                        }
+                        break;
+                    case "yearly":
+                        query = query.Where(i => i.IssueDate.Year == year.Value);
+                        break;
+                }
+
+                // Apply status filter
+                if (!string.IsNullOrEmpty(status) && status != "all")
+                {
+                    query = query.Where(i => i.Status.ToLower() == status.ToLower());
+                }
+
+                var invoices = await query.ToListAsync();
+
+                // Pie chart data
+                var pieData = new[]
+                {
+            new { label = "Pending", value = invoices.Count(i => i.Status == "Pending"), color = "#fbbf24" },
+            new { label = "Sent", value = invoices.Count(i => i.Status == "Sent"), color = "#60a5fa" },
+            new { label = "Paid", value = invoices.Count(i => i.Status == "Paid"), color = "#34d399" },
+            new { label = "Overdue", value = invoices.Count(i => i.Status == "Overdue"), color = "#f87171" }
+        }.Where(x => x.value > 0).ToArray();
+
+                // Line chart data
+                List<object> lineData = new List<object>();
+
+                if (period == "yearly")
+                {
+                    for (int m = 1; m <= 12; m++)
+                    {
+                        var monthlyInvoices = invoices.Where(i => i.IssueDate.Month == m).ToList();
+                        lineData.Add(new
+                        {
+                            period = new DateTime(year.Value, m, 1).ToString("MMM"),
+                            pending = monthlyInvoices.Count(i => i.Status == "Pending"),
+                            sent = monthlyInvoices.Count(i => i.Status == "Sent"),
+                            paid = monthlyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = monthlyInvoices.Count(i => i.Status == "Overdue")
+                        });
+                    }
+                }
+                else
+                {
+                    var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
+                    for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var dailyInvoices = invoices.Where(i => i.IssueDate.Day == d).ToList();
+                        lineData.Add(new
+                        {
+                            period = d.ToString(),
+                            pending = dailyInvoices.Count(i => i.Status == "Pending"),
+                            sent = dailyInvoices.Count(i => i.Status == "Sent"),
+                            paid = dailyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = dailyInvoices.Count(i => i.Status == "Overdue")
+                        });
+                    }
+                }
+
+                return Json(new { pieData, lineData });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting chart data");
+                return Json(new { error = "Failed to load chart data" });
+            }
+        }
         private bool InvoiceExists(int id)
         {
             return _context.Invoices.Any(e => e.InvoiceID == id && !e.IsDeleted);

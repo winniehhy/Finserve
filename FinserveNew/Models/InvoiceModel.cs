@@ -44,7 +44,7 @@ namespace FinserveNew.Models
 
         [Required]
         [StringLength(20)]
-        public string Status { get; set; } = "Pending"; // Default to Pending instead of Draft
+        public string Status { get; set; } = "Pending";
 
         [Required]
         public int Year { get; set; }
@@ -62,7 +62,7 @@ namespace FinserveNew.Models
         [Display(Name = "Created By")]
         public string? CreatedBy { get; set; }
 
-        // Soft delete flag - invoices are never physically deleted
+        // Soft delete flag
         public bool IsDeleted { get; set; } = false;
 
         [Display(Name = "Deleted Date")]
@@ -70,6 +70,9 @@ namespace FinserveNew.Models
 
         [Display(Name = "Deleted By")]
         public string? DeletedBy { get; set; }
+
+        // CHANGED: Navigation property for invoice items - Use List instead of ICollection
+        public virtual List<InvoiceItem> InvoiceItems { get; set; } = new List<InvoiceItem>();
 
         // Computed Properties for Display
         public string StatusBadgeClass => Status switch
@@ -89,17 +92,16 @@ namespace FinserveNew.Models
             _ => $"{Currency} {TotalAmount:F2}"
         };
 
-        // Only Pending invoices can be edited or deleted
         public bool CanEdit => Status == "Pending" && !IsDeleted;
         public bool CanDelete => Status == "Pending" && !IsDeleted;
-
-        // Check if invoice is overdue
         public bool IsOverdue => (Status == "Sent") && DueDate < DateTime.Now;
-
-        // Can send to client only if status is Pending
         public bool CanSend => Status == "Pending" && !IsDeleted;
-
-        // Can mark as paid only if status is Sent or Overdue
         public bool CanMarkPaid => (Status == "Sent" || Status == "Overdue") && !IsDeleted;
+
+        // Method to calculate total from items
+        public void CalculateTotalFromItems()
+        {
+            TotalAmount = InvoiceItems?.Sum(item => item.LineTotal) ?? 0;
+        }
     }
 }
