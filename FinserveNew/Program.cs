@@ -67,6 +67,8 @@ builder.Services.AddAuthorization(options =>
 // ✅ Register the email sender service
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
+// Add this line after your existing service registrations
+builder.Services.AddScoped<IOcrService, TesseractOcrService>();
 var app = builder.Build();
 
 // ✅ Seed users and roles

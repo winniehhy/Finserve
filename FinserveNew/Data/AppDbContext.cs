@@ -96,10 +96,16 @@ namespace FinserveNew.Data
                 entity.Property(c => c.SupportingDocumentName).HasMaxLength(255);
                 entity.Property(c => c.EmployeeID).IsRequired().HasMaxLength(255);
                 entity.Property(c => c.TotalAmount).HasPrecision(18, 2);
-
-                // Add configuration for new approval fields
                 entity.Property(c => c.ApprovedBy).HasMaxLength(255);
                 entity.Property(c => c.ApprovalRemarks).HasMaxLength(1000);
+
+                // NEW: Configure currency-related fields
+                entity.Property(c => c.Currency).HasMaxLength(3).HasDefaultValue("MYR");
+                entity.Property(c => c.OriginalAmount).HasPrecision(18, 2);
+                entity.Property(c => c.OriginalCurrency).HasMaxLength(3);
+                entity.Property(c => c.ExchangeRate).HasPrecision(10, 6);
+                entity.Property(c => c.ClaimDate).IsRequired();
+                entity.Property(c => c.Description).HasMaxLength(1000);
             });
 
             // Configure the Invoice table
@@ -116,8 +122,37 @@ namespace FinserveNew.Data
                 entity.Property(i => i.FilePath).HasMaxLength(255);
             });
 
-            modelBuilder.Entity<ClaimDetails>()
-                .HasKey(cd => new { cd.ClaimID, cd.ClaimTypeID });
+            modelBuilder.Entity<ClaimDetails>(entity =>
+            {
+                entity.HasKey(cd => cd.Id); // Use single primary key instead of composite
+
+                entity.Property(cd => cd.Comment).IsRequired().HasMaxLength(500);
+                entity.Property(cd => cd.DocumentPath).IsRequired().HasMaxLength(500);
+                entity.Property(cd => cd.OriginalFileName).HasMaxLength(255);
+                entity.Property(cd => cd.UploadDate).IsRequired();
+
+                // Configure relationships
+                entity.HasOne(cd => cd.Claim)
+                      .WithMany(c => c.ClaimDetails)
+                      .HasForeignKey(cd => cd.ClaimID)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(cd => cd.ClaimType)
+                      .WithMany(ct => ct.ClaimDetails)
+                      .HasForeignKey(cd => cd.ClaimTypeID)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ClaimType>(entity =>
+            {
+                entity.HasKey(ct => ct.Id);
+                entity.Property(ct => ct.Name).IsRequired().HasMaxLength(50);
+                entity.Property(ct => ct.Description).HasMaxLength(500);
+                entity.Property(ct => ct.MaxAmount).HasPrecision(18, 2);
+                entity.Property(ct => ct.RequiresApproval).HasDefaultValue(true);
+                entity.Property(ct => ct.IsActive).HasDefaultValue(true);
+                entity.Property(ct => ct.CreatedDate).IsRequired();
+            });
 
             // Configure remaining tables
             modelBuilder.Entity<BankInformation>(entity =>

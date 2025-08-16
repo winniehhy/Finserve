@@ -45,15 +45,23 @@
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.7" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Tesseract" Version="5.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Services\" />
+    <Folder Include="wwwroot\uploads\claims\" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="wwwroot\css\layout.css" />
     <None Include="wwwroot\js\layout.js" />
   </ItemGroup>
+
+  <ItemGroup>
+  <Content Include="tessdata\**\*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
 
 </Project>
