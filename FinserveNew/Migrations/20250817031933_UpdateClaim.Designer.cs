@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250803010244_UpdateClaim")]
+    [Migration("20250817031933_UpdateClaim")]
     partial class UpdateClaim
     {
         /// <inheritdoc />
@@ -146,7 +146,7 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("ApprovalRemarks")
                         .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ApprovedBy")
                         .HasMaxLength(255)
@@ -176,7 +176,7 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("EmployeeID")
                         .IsRequired()
@@ -186,6 +186,31 @@ namespace FinserveNew.Migrations
                     b.Property<decimal?>("ExchangeRate")
                         .HasPrecision(10, 6)
                         .HasColumnType("decimal(10,6)");
+
+                    b.Property<bool>("IsOCRProcessed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("OCRAmountVerified")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("OCRConfidence")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("OCRDetectedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("OCRDetectedCurrency")
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("OCRPriceAnalysis")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("OCRProcessedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OCRRawText")
+                        .HasColumnType("LONGTEXT");
 
                     b.Property<decimal?>("OriginalAmount")
                         .HasPrecision(18, 2)
@@ -494,12 +519,14 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(3)")
                         .HasDefaultValue("MYR");
 
-                    b.Property<DateTime>("DueDate")
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("DeletedDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("EmployeeID")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("FilePath")
                         .HasMaxLength(255)
@@ -509,6 +536,9 @@ namespace FinserveNew.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("IssueDate")
                         .HasColumnType("datetime(6)");
@@ -533,9 +563,42 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("InvoiceID");
 
-                    b.HasIndex("EmployeeID");
-
                     b.ToTable("Invoices");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
+                {
+                    b.Property<int>("InvoiceItemID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("InvoiceItemID"));
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("InvoiceID")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("InvoiceItemID");
+
+                    b.HasIndex("InvoiceID");
+
+                    b.ToTable("InvoiceItems");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
@@ -761,6 +824,41 @@ namespace FinserveNew.Migrations
                     b.ToTable("Payrolls");
                 });
 
+            modelBuilder.Entity("FinserveNew.Models.ProcessOCRSubmissionModel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ClaimAmount")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("ClaimDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ClaimType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EmployeeID")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ocrResults")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProcessOCRSubmissions");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -933,15 +1031,15 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employee");
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
+            modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
                 {
-                    b.HasOne("FinserveNew.Models.ApplicationUser", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeID")
-                        .OnDelete(DeleteBehavior.Restrict)
+                    b.HasOne("FinserveNew.Models.Invoice", "Invoice")
+                        .WithMany("InvoiceItems")
+                        .HasForeignKey("InvoiceID")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Employee");
+                    b.Navigation("Invoice");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
@@ -1053,6 +1151,11 @@ namespace FinserveNew.Migrations
                     b.Navigation("EmployeeDocuments");
 
                     b.Navigation("Payrolls");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
+                {
+                    b.Navigation("InvoiceItems");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>

@@ -35,7 +35,8 @@ namespace FinserveNew.Data
         // Add the missing Invoice DbSet
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
-
+        
+        public DbSet<ProcessOCRSubmissionModel> ProcessOCRSubmissions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

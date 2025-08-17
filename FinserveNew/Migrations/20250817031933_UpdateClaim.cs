@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FinserveNew.Migrations
 {
     /// <inheritdoc />
-    public partial class InvoiceItems : Migration
+    public partial class UpdateClaim : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -57,15 +57,20 @@ namespace FinserveNew.Migrations
                 name: "ClaimTypes",
                 columns: table => new
                 {
-                    ClaimTypeID = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    TypeName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    Name = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    MaxAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                    Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MaxAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    RequiresApproval = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ClaimTypes", x => x.ClaimTypeID);
+                    table.PrimaryKey("PK_ClaimTypes", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -144,6 +149,29 @@ namespace FinserveNew.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_LeaveTypes", x => x.LeaveTypeID);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "ProcessOCRSubmissions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    EmployeeID = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClaimType = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClaimDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ClaimAmount = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
+                    Description = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ocrResults = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProcessOCRSubmissions", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -370,8 +398,15 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     ClaimType = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClaimDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     ClaimAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                    Currency = table.Column<string>(type: "varchar(3)", maxLength: 3, nullable: false, defaultValue: "MYR")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OriginalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    OriginalCurrency = table.Column<string>(type: "varchar(3)", maxLength: 3, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ExchangeRate = table.Column<decimal>(type: "decimal(10,6)", precision: 10, scale: 6, nullable: true),
+                    Description = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     SupportingDocumentPath = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
@@ -386,9 +421,20 @@ namespace FinserveNew.Migrations
                     ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     ApprovedBy = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ApprovalRemarks = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                    ApprovalRemarks = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true)
+                    TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    IsOCRProcessed = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    OCRRawText = table.Column<string>(type: "LONGTEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OCRConfidence = table.Column<int>(type: "int", nullable: true),
+                    OCRPriceAnalysis = table.Column<string>(type: "TEXT", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OCRDetectedAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: true),
+                    OCRDetectedCurrency = table.Column<string>(type: "varchar(3)", maxLength: 3, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OCRAmountVerified = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    OCRProcessedDate = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -517,22 +563,28 @@ namespace FinserveNew.Migrations
                 name: "ClaimDetails",
                 columns: table => new
                 {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     ClaimID = table.Column<int>(type: "int", nullable: false),
                     ClaimTypeID = table.Column<int>(type: "int", nullable: false),
                     Comment = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    DocumentPath = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                    DocumentPath = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OriginalFileName = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FileSize = table.Column<long>(type: "bigint", nullable: true),
+                    UploadDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ClaimDetails", x => new { x.ClaimID, x.ClaimTypeID });
+                    table.PrimaryKey("PK_ClaimDetails", x => x.Id);
                     table.ForeignKey(
                         name: "FK_ClaimDetails_ClaimTypes_ClaimTypeID",
                         column: x => x.ClaimTypeID,
                         principalTable: "ClaimTypes",
-                        principalColumn: "ClaimTypeID",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ClaimDetails_Claims_ClaimID",
                         column: x => x.ClaimID,
@@ -610,6 +662,11 @@ namespace FinserveNew.Migrations
                 table: "AspNetUsers",
                 column: "NormalizedUserName",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClaimDetails_ClaimID",
+                table: "ClaimDetails",
+                column: "ClaimID");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ClaimDetails_ClaimTypeID",
@@ -731,6 +788,9 @@ namespace FinserveNew.Migrations
 
             migrationBuilder.DropTable(
                 name: "Payrolls");
+
+            migrationBuilder.DropTable(
+                name: "ProcessOCRSubmissions");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

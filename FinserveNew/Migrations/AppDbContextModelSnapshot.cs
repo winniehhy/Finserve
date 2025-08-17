@@ -143,7 +143,7 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("ApprovalRemarks")
                         .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("ApprovedBy")
                         .HasMaxLength(255)
@@ -173,7 +173,7 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("EmployeeID")
                         .IsRequired()
@@ -183,6 +183,31 @@ namespace FinserveNew.Migrations
                     b.Property<decimal?>("ExchangeRate")
                         .HasPrecision(10, 6)
                         .HasColumnType("decimal(10,6)");
+
+                    b.Property<bool>("IsOCRProcessed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("OCRAmountVerified")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("OCRConfidence")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("OCRDetectedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("OCRDetectedCurrency")
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<string>("OCRPriceAnalysis")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("OCRProcessedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OCRRawText")
+                        .HasColumnType("LONGTEXT");
 
                     b.Property<decimal?>("OriginalAmount")
                         .HasPrecision(18, 2)
@@ -794,6 +819,41 @@ namespace FinserveNew.Migrations
                     b.HasIndex("EmployeeID");
 
                     b.ToTable("Payrolls");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.ProcessOCRSubmissionModel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ClaimAmount")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<DateTime>("ClaimDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ClaimType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EmployeeID")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ocrResults")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProcessOCRSubmissions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
