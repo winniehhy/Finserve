@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
 namespace FinserveNew.Models
 {
     public class LeaveModel
@@ -33,7 +32,8 @@ namespace FinserveNew.Models
         public string Status { get; set; } = "Pending"; // Default to Pending
 
         [Display(Name = "Leave Days")]
-        public int LeaveDays { get; set; }
+        [Range(0.5, double.MaxValue, ErrorMessage = "Leave days must be at least 0.5")]
+        public double LeaveDays { get; set; } // Changed from int to double
 
         [Display(Name = "Created Date")]
         public DateTime CreatedDate { get; set; }
@@ -71,8 +71,8 @@ namespace FinserveNew.Models
         // Add navigation property for LeaveDetails
         public virtual ICollection<LeaveDetailsModel>? LeaveDetails { get; set; }
 
-        // Calculated property for leave duration (as backup)
+        // Calculated property for leave duration (as backup) - Updated to return double
         [NotMapped]
-        public int CalculatedLeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;
+        public double CalculatedLeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;
     }
 }

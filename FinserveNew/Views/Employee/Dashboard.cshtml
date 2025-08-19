@@ -39,6 +39,9 @@
             var pendingClaims = (ViewBag.PendingClaims as int?) ?? 0;
             var pendingLeaves = (ViewBag.PendingLeaves as int?) ?? 0;
             var totalPending = pendingClaims + pendingLeaves;
+
+            // FIXED: Cast as double instead of int
+            var totalRemainingLeave = (ViewBag.TotalRemainingLeave as double?) ?? 0.0;
         }
 
         <div class="col-lg-6 col-md-6 mb-3">
@@ -63,7 +66,8 @@
                     <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="stat-content">
-                    <div class="stat-number">@((ViewBag.TotalRemainingLeave as int?) ?? 0)</div>
+                    <!-- FIXED: Display as decimal with proper formatting -->
+                    <div class="stat-number">@totalRemainingLeave.ToString("0.#")</div>
                     <div class="stat-label">Remaining Leave Days</div>
                     <div class="stat-change neutral">
                         <i class="fas fa-calendar"></i>
@@ -255,26 +259,42 @@
                             var leaveBalance = balance.Value as dynamic;
                             if (leaveBalance != null)
                             {
-                                var remainingDays = (leaveBalance.RemainingDays as int?) ?? 0;
-                                var defaultDays = (leaveBalance.DefaultDays as int?) ?? 0;
+                                // FIXED: Proper conversion to double with null safety
+                                var remainingDays = Convert.ToDouble(leaveBalance.RemainingDays ?? 0);
+                                var defaultDays = Convert.ToDouble(leaveBalance.DefaultDays ?? 0);
+                                var usedDays = Convert.ToDouble(leaveBalance.UsedDays ?? 0);
                                 var percentage = defaultDays > 0 ? (remainingDays * 100.0 / defaultDays) : 0;
                                 var progressColor = percentage > 70 ? "success" : percentage > 30 ? "warning" : "danger";
 
                                 <div class="leave-balance-item">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span>@balance.Key</span>
-                                        <span class="fw-bold">@remainingDays / @defaultDays days</span>
+                                        <span class="fw-medium">@balance.Key</span>
+                                        <span class="fw-bold">@remainingDays.ToString("0.#") / @defaultDays.ToString("0.#") days</span>
                                     </div>
-                                    <div class="progress mb-3">
-                                        <div class="progress-bar bg-@progressColor" style="width: @percentage%"></div>
+                                    <div class="progress mb-2" style="height: 8px;">
+                                        <div class="progress-bar bg-@progressColor"
+                                             style="width: @percentage.ToString("0.0")%"
+                                             role="progressbar"
+                                             aria-valuenow="@remainingDays"
+                                             aria-valuemin="0"
+                                             aria-valuemax="@defaultDays">
+                                        </div>
                                     </div>
+                                    <div class="d-flex justify-content-between">
+                                        
+                                    </div>
+                                    <hr class="my-3">
                                 </div>
                             }
                         }
                     }
                     else
                     {
-                        <p class="text-muted text-center">No leave balance data available</p>
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-circle fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No leave balance data available</p>
+                            <small class="text-muted">Contact HR if you believe this is an error</small>
+                        </div>
                     }
                 </div>
             </div>
@@ -295,7 +315,7 @@
                         var currentMonth = DateTime.Now.Month;
                         var currentYear = DateTime.Now.Year;
                         var isDecember = currentMonth == 12;
-                        var totalRemainingLeave = (ViewBag.TotalRemainingLeave as int?) ?? 0;
+                        //var totalRemainingLeave = (ViewBag.TotalRemainingLeave as double?) ?? 0.0;
                     }
 
                     @* Leave Reminder for December *@

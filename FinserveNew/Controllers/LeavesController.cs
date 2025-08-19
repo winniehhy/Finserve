@@ -60,11 +60,13 @@ namespace FinserveNew.Controllers
                 return View("~/Views/Employee/Leaves/LeaveRecords.cshtml", new List<LeaveModel>());
             }
 
+            // Updated query to sort by latest application first (by SubmissionDate, then CreatedDate as fallback)
             var leaves = await _context.Leaves
                 .Include(l => l.Employee)
                 .Include(l => l.LeaveType)
                 .Where(l => l.EmployeeID == employeeId)
-                .OrderByDescending(l => l.StartDate)
+                .OrderByDescending(l => l.SubmissionDate != DateTime.MinValue ? l.SubmissionDate : l.CreatedDate) // Sort by application date, not leave date
+                .ThenByDescending(l => l.LeaveID) // Secondary sort by ID for consistency
                 .ToListAsync();
 
             // Calculate dynamic leave balances
@@ -122,7 +124,7 @@ namespace FinserveNew.Controllers
             }
 
             return View("~/Views/Employee/Leaves/Details.cshtml", leave);
-        } 
+        }
 
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Create()
@@ -152,17 +154,18 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Create(LeaveModel leave, IFormFile? MedicalCertificate)
+        public async Task<IActionResult> Create(LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full")
         {
             _logger.LogInformation("🚀 CREATE LEAVE POST started");
-            _logger.LogInformation($"📝 Received leave data: Type={leave.LeaveTypeID}, Start={leave.StartDate}, End={leave.EndDate}");
+            _logger.LogInformation($"📝 Received leave data: Type={leave.LeaveTypeID}, Start={leave.StartDate}, End={leave.EndDate}, DayType={DayType}");
 
             try
             {
-                // Get current employee ID
+                // Get current employee ID FIRST
                 var employeeId = await GetCurrentEmployeeId();
                 if (string.IsNullOrEmpty(employeeId))
                 {
+                    _logger.LogError("❌ Employee ID not found");
                     ModelState.AddModelError("", "Employee record not found. Please contact administrator.");
                     await PopulateLeaveTypeDropdownAsync();
                     return View("~/Views/Employee/Leaves/Create.cshtml", leave);
@@ -171,18 +174,69 @@ namespace FinserveNew.Controllers
                 // Set EmployeeID and clear any validation error for it
                 leave.EmployeeID = employeeId;
                 ModelState.Remove("EmployeeID");
+                ModelState.Remove("Employee");
 
-                // Calculate and set LeaveDays before validation
-                leave.LeaveDays = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+                // 🚨 NEW: Handle Emergency Leave - Convert to Annual Leave in database
+                bool isEmergencyLeave = false;
+                if (leave.LeaveTypeID == 4) // Emergency Leave from UI
+                {
+                    isEmergencyLeave = true;
+                    // Find Annual Leave type ID
+                    var annualLeaveType = await _context.LeaveTypes
+                        .FirstOrDefaultAsync(lt => lt.TypeName.ToLower().Contains("annual"));
 
-                // Validate leave type exists in database
+                    if (annualLeaveType != null)
+                    {
+                        leave.LeaveTypeID = annualLeaveType.LeaveTypeID; // Convert to Annual Leave
+                        _logger.LogInformation($"📝 Emergency Leave converted to Annual Leave (ID: {leave.LeaveTypeID})");
+                    }
+                    else
+                    {
+                        ModelState.AddModelError("LeaveTypeID", "Annual Leave type not found. Cannot process Emergency Leave.");
+                        await PopulateLeaveTypeDropdownAsync();
+                        return View("~/Views/Employee/Leaves/Create.cshtml", leave);
+                    }
+                }
+
+                // Calculate LeaveDays BEFORE validation
+                var baseDays = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+                if (DayType == "half")
+                {
+                    if (baseDays == 1)
+                    {
+                        leave.LeaveDays = 0.5;
+                    }
+                    else
+                    {
+                        leave.LeaveDays = baseDays - 0.5;
+                    }
+                }
+                else
+                {
+                    leave.LeaveDays = baseDays;
+                }
+
+                _logger.LogInformation($"📝 Calculated LeaveDays: {leave.LeaveDays}");
+
+                // Clear validation errors for auto-set fields
+                ModelState.Remove("Status");
+                ModelState.Remove("CreatedDate");
+                ModelState.Remove("SubmissionDate");
+                ModelState.Remove("ApprovalDate");
+                ModelState.Remove("ApprovedBy");
+                ModelState.Remove("ApprovalRemarks");
+                ModelState.Remove("LeaveDays");
+
+                _logger.LogInformation($"📝 Model State Valid: {ModelState.IsValid}");
+
+                // Validate leave type exists in database (now should be valid since we converted Emergency to Annual)
                 if (!await IsValidLeaveTypeAsync(leave.LeaveTypeID))
                 {
                     ModelState.AddModelError("LeaveTypeID", "Please select a valid leave type.");
                     _logger.LogWarning($"❌ Invalid leave type: {leave.LeaveTypeID}");
                 }
 
-                // Check if medical leave and validate medical certificate
+                // Validate medical certificate for medical leave
                 var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeID);
                 if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical"))
                 {
@@ -209,25 +263,40 @@ namespace FinserveNew.Controllers
                     }
                 }
 
-                // Validate leave balance
+                // 🚨 NEW: Validate leave balance - for Emergency Leave, check Annual Leave balance
                 var currentYear = DateTime.Now.Year;
-                var leaveDays = leave.LeaveDays;
-                var hasBalance = await HasSufficientLeaveBalanceAsync(leave.EmployeeID, leave.LeaveTypeID, leaveDays, currentYear);
+                var requestedDays = leave.LeaveDays;
+
+                var hasBalance = await HasSufficientLeaveBalanceAsync(employeeId, leave.LeaveTypeID, requestedDays, currentYear);
 
                 if (!hasBalance)
                 {
-                    var balance = await GetRemainingLeaveBalanceAsync(leave.EmployeeID, leave.LeaveTypeID, currentYear);
-                    ModelState.AddModelError("", $"Insufficient {leaveType?.TypeName} balance. You have {balance} days remaining but requested {leaveDays} days.");
+                    var balance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear);
+                    var balanceTypeName = isEmergencyLeave ? "Annual Leave (used by Emergency Leave)" : leaveType?.TypeName ?? "Selected Leave Type";
+
+                    ModelState.AddModelError("", $"Insufficient {balanceTypeName} balance. You have {balance:0.#} days remaining but requested {requestedDays:0.#} days.");
+                }
+
+                // 🚨 NEW: Validate backdate restrictions (Emergency Leave allows backdating)
+                if (!isEmergencyLeave && !await IsBackdateAllowedAsync(leave.LeaveTypeID) && leave.StartDate < DateOnly.FromDateTime(DateTime.Today))
+                {
+                    ModelState.AddModelError("StartDate", "You cannot select past dates for this leave type.");
                 }
 
                 if (ModelState.IsValid)
                 {
-                    _logger.LogInformation("✅ Model is valid, proceeding with save");
-
                     // Set default values
                     leave.Status = "Pending";
                     leave.CreatedDate = DateTime.Now;
                     leave.SubmissionDate = DateTime.Now;
+
+                    // 🚨 NEW: Add emergency leave remark to description
+                    if (isEmergencyLeave)
+                    {
+                        var originalDescription = string.IsNullOrEmpty(leave.Description) ? "" : leave.Description;
+                        leave.Description = $"[EMERGENCY LEAVE] {originalDescription}".Trim();
+                        _logger.LogInformation("📝 Added Emergency Leave remark to description");
+                    }
 
                     // Save the leave first
                     _context.Leaves.Add(leave);
@@ -235,8 +304,8 @@ namespace FinserveNew.Controllers
 
                     _logger.LogInformation($"✅ Leave saved successfully with ID: {leave.LeaveID}");
 
-                    // Handle medical certificate upload if provided
-                    if (MedicalCertificate != null && MedicalCertificate.Length > 0)
+                    if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical") &&
+                        MedicalCertificate != null && MedicalCertificate.Length > 0)
                     {
                         try
                         {
@@ -263,41 +332,33 @@ namespace FinserveNew.Controllers
                                 LeaveID = leave.LeaveID,
                                 LeaveTypeID = leave.LeaveTypeID,
                                 Comment = "Medical certificate uploaded",
-                                DocumentPath = $"/uploads/medical-certificates/{fileName}"
+                                DocumentPath = $"/uploads/medical-certificates/{fileName}",
+                                UploadDate = DateTime.Now
                             };
 
                             _context.LeaveDetails.Add(leaveDetails);
                             await _context.SaveChangesAsync();
 
-                            _logger.LogInformation($"✅ Medical certificate uploaded and saved: {fileName}");
+                            _logger.LogInformation($"✅ Medical certificate saved: {fileName}");
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "💥 Error uploading medical certificate");
-                            // Don't fail the entire operation, just log the error
-                            TempData["Warning"] = "Leave application submitted, but there was an issue uploading the medical certificate. Please contact support.";
+                            _logger.LogError(ex, "💥 Error uploading medical certificate during leave creation");
+                            // Don't fail the leave creation, but log the error
+                            TempData["Warning"] = "Leave created successfully, but there was an issue uploading the medical certificate.";
                         }
                     }
 
-                    TempData["Success"] = "Leave application submitted successfully!";
+                    TempData["Success"] = isEmergencyLeave ?
+                        "Emergency leave application submitted successfully! (Applied against Annual Leave balance)" :
+                        "Leave application submitted successfully!";
+
                     return RedirectToAction(nameof(LeaveRecords));
                 }
                 else
                 {
-                    _logger.LogWarning("❌ Model validation failed");
-                    foreach (var error in ModelState)
-                    {
-                        foreach (var modelError in error.Value.Errors)
-                        {
-                            _logger.LogWarning($"❌ Validation error for {error.Key}: {modelError.ErrorMessage}");
-                        }
-                    }
+                    _logger.LogWarning("❌ Model validation failed - displaying form with errors");
                 }
-            }
-            catch (DbUpdateException ex)
-            {
-                _logger.LogError(ex, "💥 Database error while saving leave");
-                ModelState.AddModelError("", "An error occurred while saving the leave. Please try again.");
             }
             catch (Exception ex)
             {
@@ -310,10 +371,9 @@ namespace FinserveNew.Controllers
             await PopulateLeaveTypeDropdownAsync();
 
             // Recalculate leave balances for form redisplay
-            var currentEmployeeId = await GetCurrentEmployeeId();
-            if (!string.IsNullOrEmpty(currentEmployeeId))
+            if (!string.IsNullOrEmpty(leave.EmployeeID))
             {
-                var leaveBalances = await CalculateLeaveBalancesAsync(currentEmployeeId);
+                var leaveBalances = await CalculateLeaveBalancesAsync(leave.EmployeeID);
                 ViewBag.LeaveBalances = leaveBalances;
                 PopulateLeaveBalanceViewBag(leaveBalances);
             }
@@ -352,6 +412,17 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(LeaveRecords));
             }
 
+            // 🚨 NEW: Check if this is an Emergency Leave (stored as Annual Leave with special description)
+            if (leave.LeaveType.TypeName.ToLower().Contains("annual") &&
+                !string.IsNullOrEmpty(leave.Description) &&
+                leave.Description.Contains("[EMERGENCY LEAVE]"))
+            {
+                // Display as Emergency Leave in the form
+                leave.LeaveTypeID = 4;
+                // Clean the description for display
+                leave.Description = leave.Description.Replace("[EMERGENCY LEAVE]", "").Trim();
+            }
+
             // Populate leave types dropdown
             await PopulateLeaveTypeDropdownAsync();
 
@@ -383,7 +454,7 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Edit(int id, LeaveModel leave, IFormFile? MedicalCertificate)
+        public async Task<IActionResult> Edit(int id, LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full")
         {
             if (id != leave.LeaveID)
                 return NotFound();
@@ -403,7 +474,50 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(LeaveRecords));
             }
 
-            // Validate leave type exists in database
+            // 🚨 NEW: Handle Emergency Leave - Convert to Annual Leave in database
+            bool isEmergencyLeave = false;
+            if (leave.LeaveTypeID == 4) // Emergency Leave from UI
+            {
+                isEmergencyLeave = true;
+                // Find Annual Leave type ID
+                var annualLeaveType = await _context.LeaveTypes
+                    .FirstOrDefaultAsync(lt => lt.TypeName.ToLower().Contains("annual"));
+
+                if (annualLeaveType != null)
+                {
+                    leave.LeaveTypeID = annualLeaveType.LeaveTypeID; // Convert to Annual Leave
+                    _logger.LogInformation($"📝 Emergency Leave converted to Annual Leave (ID: {leave.LeaveTypeID})");
+                }
+                else
+                {
+                    ModelState.AddModelError("LeaveTypeID", "Annual Leave type not found. Cannot process Emergency Leave.");
+                    await PopulateLeaveTypeDropdownAsync();
+                    var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+                    ViewBag.LeaveBalances = leaveBalances;
+                    PopulateLeaveBalanceViewBag(leaveBalances);
+                    return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
+                }
+            }
+
+            // Calculate LeaveDays with half-day support
+            var baseDays = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+            if (DayType == "half")
+            {
+                if (baseDays == 1)
+                {
+                    leave.LeaveDays = 0.5; // Single day half = 0.5
+                }
+                else
+                {
+                    leave.LeaveDays = baseDays - 0.5; // Multi-day with half = total - 0.5
+                }
+            }
+            else
+            {
+                leave.LeaveDays = baseDays; // Full day
+            }
+
+            // Validate leave type exists in database (now should be valid since we converted Emergency to Annual)
             if (!await IsValidLeaveTypeAsync(leave.LeaveTypeID))
             {
                 ModelState.AddModelError("LeaveTypeID", "Please select a valid leave type.");
@@ -440,15 +554,23 @@ namespace FinserveNew.Controllers
 
             // Validate leave balance for updated leave
             var currentYear = DateTime.Now.Year;
-            var leaveDays = leave.LeaveDays;
+            var requestedDays = leave.LeaveDays;
 
             // Calculate balance excluding the current leave being edited
-            var hasBalance = await HasSufficientLeaveBalanceAsync(employeeId, leave.LeaveTypeID, leaveDays, currentYear, excludeLeaveId: id);
+            var hasBalance = await HasSufficientLeaveBalanceAsync(employeeId, leave.LeaveTypeID, requestedDays, currentYear, id);
 
             if (!hasBalance)
             {
-                var balance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear, excludeLeaveId: id);
-                ModelState.AddModelError("", $"Insufficient {leaveType?.TypeName} balance. You have {balance} days remaining but requested {leaveDays} days.");
+                var balance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear, id);
+                var balanceTypeName = isEmergencyLeave ? "Annual Leave (used by Emergency Leave)" : leaveType?.TypeName ?? "Selected Leave Type";
+
+                ModelState.AddModelError("", $"Insufficient {balanceTypeName} balance. You have {balance:0.#} days remaining but requested {requestedDays:0.#} days.");
+            }
+
+            // NEW: Validate backdate restrictions (Emergency Leave allows backdating)
+            if (!isEmergencyLeave && !await IsBackdateAllowedAsync(leave.LeaveTypeID) && leave.StartDate < DateOnly.FromDateTime(DateTime.Today))
+            {
+                ModelState.AddModelError("StartDate", "You cannot select past dates for this leave type.");
             }
 
             if (ModelState.IsValid)
@@ -460,7 +582,20 @@ namespace FinserveNew.Controllers
                     leaveToUpdate.StartDate = leave.StartDate;
                     leaveToUpdate.EndDate = leave.EndDate;
                     leaveToUpdate.LeaveDays = leave.LeaveDays;
-                    leaveToUpdate.Description = leave.Description;
+
+                    // 🚨 NEW: Handle Emergency Leave description
+                    if (isEmergencyLeave)
+                    {
+                        var originalDescription = string.IsNullOrEmpty(leave.Description) ? "" : leave.Description;
+                        // Remove existing [EMERGENCY LEAVE] tag if present
+                        var cleanDescription = originalDescription.Replace("[EMERGENCY LEAVE]", "").Trim();
+                        leaveToUpdate.Description = $"[EMERGENCY LEAVE] {cleanDescription}".Trim();
+                        _logger.LogInformation("📝 Updated Emergency Leave remark in description");
+                    }
+                    else
+                    {
+                        leaveToUpdate.Description = leave.Description;
+                    }
 
                     // Handle medical certificate upload if provided
                     if (MedicalCertificate != null && MedicalCertificate.Length > 0)
@@ -530,7 +665,11 @@ namespace FinserveNew.Controllers
                     }
 
                     await _context.SaveChangesAsync();
-                    TempData["Success"] = "Leave updated successfully!";
+
+                    TempData["Success"] = isEmergencyLeave ?
+                        "Emergency leave updated successfully! (Applied against Annual Leave balance)" :
+                        "Leave updated successfully!";
+
                     return RedirectToAction(nameof(LeaveRecords));
                 }
                 catch (DbUpdateConcurrencyException)
@@ -616,8 +755,6 @@ namespace FinserveNew.Controllers
 
             return RedirectToAction(nameof(LeaveRecords));
         }
-
-        
 
         // ================== HR ACTIONS ==================
 
@@ -922,8 +1059,6 @@ namespace FinserveNew.Controllers
             }
         }
 
-
-
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> LeaveReports()
         {
@@ -976,7 +1111,7 @@ namespace FinserveNew.Controllers
             return View("~/Views/HR/Leaves/LeaveReports.cshtml");
         }
 
-        // ================== HELPER METHODS ==================
+        // ================== HELPER METHODS (UPDATED FOR DOUBLE LEAVE DAYS) ==================
 
         private void PopulateLeaveBalanceViewBag(Dictionary<string, object> leaveBalances)
         {
@@ -987,39 +1122,39 @@ namespace FinserveNew.Controllers
                 if (leaveBalances.ContainsKey("Annual Leave"))
                 {
                     var annualLeave = leaveBalances["Annual Leave"] as dynamic;
-                    ViewBag.AnnualLeaveBalance = annualLeave?.RemainingDays ?? 14;
+                    ViewBag.AnnualLeaveBalance = annualLeave?.RemainingDays ?? 14.0;
                 }
                 else
                 {
-                    ViewBag.AnnualLeaveBalance = 14;
+                    ViewBag.AnnualLeaveBalance = 14.0;
                 }
 
                 if (leaveBalances.ContainsKey("Medical Leave"))
                 {
                     var medicalLeave = leaveBalances["Medical Leave"] as dynamic;
-                    ViewBag.MedicalLeaveBalance = medicalLeave?.RemainingDays ?? 10;
+                    ViewBag.MedicalLeaveBalance = medicalLeave?.RemainingDays ?? 10.0;
                 }
                 else
                 {
-                    ViewBag.MedicalLeaveBalance = 10;
+                    ViewBag.MedicalLeaveBalance = 10.0;
                 }
 
                 if (leaveBalances.ContainsKey("Hospitalization Leave"))
                 {
                     var hospitalizationLeave = leaveBalances["Hospitalization Leave"] as dynamic;
-                    ViewBag.HospitalizationLeaveBalance = hospitalizationLeave?.RemainingDays ?? 16;
+                    ViewBag.HospitalizationLeaveBalance = hospitalizationLeave?.RemainingDays ?? 16.0;
                 }
                 else
                 {
-                    ViewBag.HospitalizationLeaveBalance = 16;
+                    ViewBag.HospitalizationLeaveBalance = 16.0;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "❌ Error populating individual ViewBag properties");
-                ViewBag.AnnualLeaveBalance = 14;
-                ViewBag.MedicalLeaveBalance = 10;
-                ViewBag.HospitalizationLeaveBalance = 16;
+                ViewBag.AnnualLeaveBalance = 14.0;
+                ViewBag.MedicalLeaveBalance = 10.0;
+                ViewBag.HospitalizationLeaveBalance = 16.0;
             }
         }
 
@@ -1035,56 +1170,128 @@ namespace FinserveNew.Controllers
             {
                 var leaveTypes = await _context.LeaveTypes.ToListAsync();
 
-                foreach (var leaveType in leaveTypes)
+                // ✅ FIRST: Get Annual Leave balance for Emergency Leave reference
+                var annualLeaveType = leaveTypes.FirstOrDefault(lt => lt.TypeName.ToLower().Contains("annual"));
+                double annualLeaveUsed = 0;
+                double annualLeaveRemaining = 0;
+
+                if (annualLeaveType != null)
                 {
-                    // Only count APPROVED leaves for actual balance calculation
-                    var approvedLeaves = await _context.Leaves
+                    // Get all leaves that use Annual Leave balance (Annual + Emergency)
+                    var annualLeaveApplications = await _context.Leaves
                         .Where(l => l.EmployeeID == employeeId
-                                && l.LeaveTypeID == leaveType.LeaveTypeID
+                                && (l.LeaveTypeID == annualLeaveType.LeaveTypeID ||
+                                    _context.LeaveTypes.Any(lt => lt.LeaveTypeID == l.LeaveTypeID && lt.TypeName.ToLower().Contains("emergency")))
                                 && l.StartDate.Year == year
-                                && l.Status == "Approved") // Only approved leaves
+                                && l.Status == "Approved")
                         .ToListAsync();
 
-                    // For balance checking (when creating/editing), include pending leaves
-                    var pendingLeaves = await _context.Leaves
-                        .Where(l => l.EmployeeID == employeeId
-                                && l.LeaveTypeID == leaveType.LeaveTypeID
-                                && l.StartDate.Year == year
-                                && l.Status == "Pending")
-                        .ToListAsync();
-
-                    var usedDays = 0;
-                    foreach (var leave in approvedLeaves)
+                    foreach (var leave in annualLeaveApplications)
                     {
-                        // Use LeaveDays if available, otherwise calculate from dates
-                        var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
-                                          (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
-                        usedDays += leaveDuration;
+                        annualLeaveUsed += leave.LeaveDays;
+                        _logger.LogInformation($"📊 Annual/Emergency leave used: {leave.LeaveDays} days (Total: {annualLeaveUsed})");
                     }
 
-                    var pendingDays = 0;
-                    foreach (var leave in pendingLeaves)
-                    {
-                        // Use LeaveDays if available, otherwise calculate from dates
-                        var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
-                                          (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
-                        pendingDays += leaveDuration;
-                    }
+                    annualLeaveRemaining = annualLeaveType.DefaultDaysPerYear - annualLeaveUsed;
 
-                    var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
-
-                    leaveBalances[leaveType.TypeName] = new
-                    {
-                        LeaveTypeID = leaveType.LeaveTypeID,
-                        TypeName = leaveType.TypeName,
-                        DefaultDays = leaveType.DefaultDaysPerYear,
-                        UsedDays = usedDays, // Only approved leaves
-                        PendingDays = pendingDays, // Pending leaves separately
-                        RemainingDays = Math.Max(0, remainingDays)
-                    };
+                    _logger.LogInformation($"📋 Annual Leave Summary: Default={annualLeaveType.DefaultDaysPerYear}, Used={annualLeaveUsed}, Remaining={annualLeaveRemaining}");
                 }
 
-                _logger.LogInformation($"🧮 Calculated balances: {string.Join(", ", leaveBalances.Select(b => $"{b.Key}: {((dynamic)b.Value).RemainingDays}/{((dynamic)b.Value).DefaultDays}"))}");
+                foreach (var leaveType in leaveTypes)
+                {
+                    _logger.LogInformation($"🔍 Processing leave type: {leaveType.TypeName} (ID: {leaveType.LeaveTypeID})");
+
+                    double usedDays = 0;
+                    double remainingDays = 0;
+
+                    // ✅ SPECIAL HANDLING FOR EMERGENCY LEAVE
+                    if (leaveType.TypeName.ToLower().Contains("emergency"))
+                    {
+                        // Emergency Leave uses Annual Leave balance
+                        var emergencyLeaves = await _context.Leaves
+                            .Where(l => l.EmployeeID == employeeId
+                                    && l.LeaveTypeID == leaveType.LeaveTypeID
+                                    && l.StartDate.Year == year
+                                    && l.Status == "Approved")
+                            .ToListAsync();
+
+                        foreach (var leave in emergencyLeaves)
+                        {
+                            usedDays += leave.LeaveDays;
+                        }
+
+                        // Use Annual Leave remaining balance for Emergency Leave
+                        remainingDays = Math.Max(0, annualLeaveRemaining);
+
+                        _logger.LogInformation($"📋 EMERGENCY LEAVE CALCULATION:");
+                        _logger.LogInformation($"   - Emergency Leave Used: {usedDays}");
+                        _logger.LogInformation($"   - Available (from Annual): {remainingDays}");
+
+                        leaveBalances[leaveType.TypeName] = new
+                        {
+                            LeaveTypeID = leaveType.LeaveTypeID,
+                            TypeName = leaveType.TypeName,
+                            DefaultDays = annualLeaveType?.DefaultDaysPerYear ?? 14, // Show Annual Leave default
+                            UsedDays = usedDays,
+                            PendingDays = 0, // You can calculate pending if needed
+                            RemainingDays = remainingDays
+                        };
+                    }
+                    else
+                    {
+                        // ✅ NORMAL PROCESSING FOR OTHER LEAVE TYPES
+                        var approvedLeaves = await _context.Leaves
+                            .Where(l => l.EmployeeID == employeeId
+                                    && l.LeaveTypeID == leaveType.LeaveTypeID
+                                    && l.StartDate.Year == year
+                                    && l.Status == "Approved")
+                            .ToListAsync();
+
+                        var pendingLeaves = await _context.Leaves
+                            .Where(l => l.EmployeeID == employeeId
+                                    && l.LeaveTypeID == leaveType.LeaveTypeID
+                                    && l.StartDate.Year == year
+                                    && l.Status == "Pending")
+                            .ToListAsync();
+
+                        foreach (var leave in approvedLeaves)
+                        {
+                            usedDays += leave.LeaveDays;
+                        }
+
+                        double pendingDays = 0;
+                        foreach (var leave in pendingLeaves)
+                        {
+                            pendingDays += leave.LeaveDays;
+                        }
+
+                        // ✅ FOR ANNUAL LEAVE: Use the pre-calculated remaining balance
+                        if (leaveType.TypeName.ToLower().Contains("annual"))
+                        {
+                            remainingDays = Math.Max(0, annualLeaveRemaining);
+                        }
+                        else
+                        {
+                            remainingDays = Math.Max(0, leaveType.DefaultDaysPerYear - usedDays);
+                        }
+
+                        _logger.LogInformation($"📋 CALCULATION for {leaveType.TypeName}:");
+                        _logger.LogInformation($"   - Default Days: {leaveType.DefaultDaysPerYear}");
+                        _logger.LogInformation($"   - Used Days: {usedDays}");
+                        _logger.LogInformation($"   - Pending Days: {pendingDays}");
+                        _logger.LogInformation($"   - Remaining Days: {remainingDays}");
+
+                        leaveBalances[leaveType.TypeName] = new
+                        {
+                            LeaveTypeID = leaveType.LeaveTypeID,
+                            TypeName = leaveType.TypeName,
+                            DefaultDays = leaveType.DefaultDaysPerYear,
+                            UsedDays = usedDays,
+                            PendingDays = pendingDays,
+                            RemainingDays = remainingDays
+                        };
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1094,13 +1301,62 @@ namespace FinserveNew.Controllers
             return leaveBalances;
         }
 
-        private async Task<bool> HasSufficientLeaveBalanceAsync(string employeeId, int leaveTypeId, int requestedDays, int year = 0, int? excludeLeaveId = null)
+        private async Task<bool> HasSufficientLeaveBalanceForEmergencyAsync(string employeeId, double requestedDays, int year = 0, int? excludeLeaveId = null)
+        {
+            if (year == 0) year = DateTime.Now.Year;
+
+            // Find Annual Leave type
+            var annualLeaveType = await _context.LeaveTypes
+                .FirstOrDefaultAsync(lt => lt.TypeName.ToLower().Contains("annual"));
+
+            if (annualLeaveType == null) return false;
+
+            // Get all leaves that use Annual Leave balance (both Annual and Emergency)
+            var query = _context.Leaves
+                .Where(l => l.EmployeeID == employeeId
+                        && l.StartDate.Year == year
+                        && (l.Status == "Approved" || l.Status == "Pending")
+                        && (l.LeaveTypeID == annualLeaveType.LeaveTypeID ||
+                            _context.LeaveTypes.Any(lt => lt.LeaveTypeID == l.LeaveTypeID && lt.TypeName.ToLower().Contains("emergency"))));
+
+            // Exclude current leave being edited
+            if (excludeLeaveId.HasValue)
+            {
+                query = query.Where(l => l.LeaveID != excludeLeaveId.Value);
+            }
+
+            var leaves = await query.ToListAsync();
+
+            double usedDays = 0;
+            foreach (var leave in leaves)
+            {
+                usedDays += leave.LeaveDays;
+            }
+
+            var remainingDays = annualLeaveType.DefaultDaysPerYear - usedDays;
+            return remainingDays >= requestedDays;
+        }
+
+        private async Task<bool> HasSufficientLeaveBalanceAsync(string employeeId, int leaveTypeId, double requestedDays, int year = 0, int? excludeLeaveId = null)
         {
             if (year == 0) year = DateTime.Now.Year;
 
             var leaveType = await _context.LeaveTypes.FindAsync(leaveTypeId);
             if (leaveType == null) return false;
 
+            // ✅ SPECIAL HANDLING FOR EMERGENCY LEAVE
+            if (leaveType.TypeName.ToLower().Contains("emergency"))
+            {
+                return await HasSufficientLeaveBalanceForEmergencyAsync(employeeId, requestedDays, year, excludeLeaveId);
+            }
+
+            // ✅ SPECIAL HANDLING FOR ANNUAL LEAVE (also consider Emergency Leave usage)
+            if (leaveType.TypeName.ToLower().Contains("annual"))
+            {
+                return await HasSufficientLeaveBalanceForEmergencyAsync(employeeId, requestedDays, year, excludeLeaveId);
+            }
+
+            // ✅ NORMAL PROCESSING FOR OTHER LEAVE TYPES
             var query = _context.Leaves
                 .Where(l => l.EmployeeID == employeeId
                         && l.LeaveTypeID == leaveTypeId
@@ -1115,27 +1371,87 @@ namespace FinserveNew.Controllers
 
             var leaves = await query.ToListAsync();
 
-            var usedDays = 0;
+            double usedDays = 0;
             foreach (var leave in leaves)
             {
-                var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
-                                  (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
-                usedDays += leaveDuration;
+                usedDays += leave.LeaveDays;
             }
 
             var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
-
             return remainingDays >= requestedDays;
         }
 
-        private async Task<int> GetRemainingLeaveBalanceAsync(string employeeId, int leaveTypeId, int year = 0, int? excludeLeaveId = null)
+        private async Task<double> GetRemainingLeaveBalanceAsync(string employeeId, int leaveTypeId, int year = 0, int? excludeLeaveId = null)
         {
             if (year == 0) year = DateTime.Now.Year;
 
             var leaveType = await _context.LeaveTypes.FindAsync(leaveTypeId);
             if (leaveType == null) return 0;
 
-            var query = _context.Leaves
+            // ✅ SPECIAL HANDLING FOR EMERGENCY LEAVE
+            if (leaveType.TypeName.ToLower().Contains("emergency"))
+            {
+                // Find Annual Leave type
+                var annualLeaveType = await _context.LeaveTypes
+                    .FirstOrDefaultAsync(lt => lt.TypeName.ToLower().Contains("annual"));
+
+                if (annualLeaveType == null) return 0;
+
+                // Get all leaves that use Annual Leave balance (both Annual and Emergency)
+                var query = _context.Leaves
+                    .Where(l => l.EmployeeID == employeeId
+                            && l.StartDate.Year == year
+                            && (l.Status == "Approved" || l.Status == "Pending")
+                            && (l.LeaveTypeID == annualLeaveType.LeaveTypeID ||
+                                _context.LeaveTypes.Any(lt => lt.LeaveTypeID == l.LeaveTypeID && lt.TypeName.ToLower().Contains("emergency"))));
+
+                // Exclude current leave being edited
+                if (excludeLeaveId.HasValue)
+                {
+                    query = query.Where(l => l.LeaveID != excludeLeaveId.Value);
+                }
+
+                var leaves = await query.ToListAsync();
+                double usedDays = 0;
+                foreach (var leave in leaves)
+                {
+                    usedDays += leave.LeaveDays;
+                }
+
+                var remainingDays = annualLeaveType.DefaultDaysPerYear - usedDays;
+                return Math.Max(0, remainingDays);
+            }
+
+            // ✅ SPECIAL HANDLING FOR ANNUAL LEAVE
+            if (leaveType.TypeName.ToLower().Contains("annual"))
+            {
+                // Get all leaves that use Annual Leave balance (both Annual and Emergency)
+                var query = _context.Leaves
+                    .Where(l => l.EmployeeID == employeeId
+                            && l.StartDate.Year == year
+                            && (l.Status == "Approved" || l.Status == "Pending")
+                            && (l.LeaveTypeID == leaveTypeId ||
+                                _context.LeaveTypes.Any(lt => lt.LeaveTypeID == l.LeaveTypeID && lt.TypeName.ToLower().Contains("emergency"))));
+
+                // Exclude current leave being edited
+                if (excludeLeaveId.HasValue)
+                {
+                    query = query.Where(l => l.LeaveID != excludeLeaveId.Value);
+                }
+
+                var leaves = await query.ToListAsync();
+                double usedDays = 0;
+                foreach (var leave in leaves)
+                {
+                    usedDays += leave.LeaveDays;
+                }
+
+                var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
+                return Math.Max(0, remainingDays);
+            }
+
+            // ✅ NORMAL PROCESSING FOR OTHER LEAVE TYPES
+            var normalQuery = _context.Leaves
                 .Where(l => l.EmployeeID == employeeId
                         && l.LeaveTypeID == leaveTypeId
                         && l.StartDate.Year == year
@@ -1144,22 +1460,18 @@ namespace FinserveNew.Controllers
             // Exclude current leave being edited
             if (excludeLeaveId.HasValue)
             {
-                query = query.Where(l => l.LeaveID != excludeLeaveId.Value);
+                normalQuery = normalQuery.Where(l => l.LeaveID != excludeLeaveId.Value);
             }
 
-            var leaves = await query.ToListAsync();
-
-            var usedDays = 0;
-            foreach (var leave in leaves)
+            var normalLeaves = await normalQuery.ToListAsync();
+            double normalUsedDays = 0;
+            foreach (var leave in normalLeaves)
             {
-                var leaveDuration = leave.LeaveDays > 0 ? leave.LeaveDays :
-                                  (leave.EndDate.ToDateTime(TimeOnly.MinValue) - leave.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
-                usedDays += leaveDuration;
+                normalUsedDays += leave.LeaveDays;
             }
 
-            var remainingDays = leaveType.DefaultDaysPerYear - usedDays;
-
-            return Math.Max(0, remainingDays);
+            var normalRemainingDays = leaveType.DefaultDaysPerYear - normalUsedDays;
+            return Math.Max(0, normalRemainingDays);
         }
 
         private async Task<Dictionary<string, object>> GetEmployeeLeaveBalance(string employeeId)
@@ -1172,40 +1484,39 @@ namespace FinserveNew.Controllers
                 // Get default days for this leave type
                 var defaultDays = leaveType.DefaultDaysPerYear;
 
-                // Calculate used days - ONLY APPROVED leaves
+                // Calculate used days - ONLY APPROVED leaves - Now returns double
                 var usedDays = await _context.Leaves
                     .Where(l => l.EmployeeID == employeeId &&
                                l.LeaveTypeID == leaveType.LeaveTypeID &&
                                l.Status == "Approved" &&
                                l.StartDate.Year == DateTime.Now.Year) // Add year filter
-                    .SumAsync(l => l.LeaveDays);
+                    .SumAsync(l => l.LeaveDays); // This will now return double
 
                 var remainingDays = defaultDays - usedDays;
 
                 leaveBalances[leaveType.TypeName] = new
                 {
                     DefaultDays = defaultDays,
-                    UsedDays = usedDays,
-                    RemainingDays = Math.Max(0, remainingDays)
+                    UsedDays = usedDays, // Now double
+                    RemainingDays = Math.Max(0, remainingDays) // Now double
                 };
             }
 
             return leaveBalances;
         }
 
-
-        private int GetDefaultLeaveDays(string leaveType)
+        private double GetDefaultLeaveDays(string leaveType)
         {
             switch (leaveType)
             {
                 case "Annual Leave":
-                    return 14; 
+                    return 14.0;
                 case "Medical Leave":
-                    return 10; 
+                    return 10.0;
                 case "Hospitalization Leave":
-                    return 16; 
+                    return 16.0;
                 default:
-                    return 0;
+                    return 0.0;
             }
         }
 
@@ -1231,13 +1542,89 @@ namespace FinserveNew.Controllers
 
         private async Task PopulateLeaveTypeDropdownAsync()
         {
-            var leaveTypes = await _context.LeaveTypes.ToListAsync();
-            ViewBag.LeaveTypes = new SelectList(leaveTypes, "LeaveTypeID", "TypeName");
+            try
+            {
+                var leaveTypes = await _context.LeaveTypes
+                    .OrderBy(lt => lt.TypeName)
+                    .ToListAsync();
+
+                _logger.LogInformation($"📝 Found {leaveTypes.Count} leave types in database");
+
+                if (!leaveTypes.Any())
+                {
+                    _logger.LogWarning("❌ No leave types found in database");
+                    // Create fallback list
+                    ViewBag.LeaveTypes = new SelectList(new[]
+                    {
+                new { LeaveTypeID = 1, TypeName = "Annual Leave" },
+                new { LeaveTypeID = 2, TypeName = "Medical Leave" },
+                new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" },
+                new { LeaveTypeID = 4, TypeName = "Emergency Leave" }
+            }, "LeaveTypeID", "TypeName");
+                }
+                else
+                {
+                    // 🚨 NEW: Create a list that includes Emergency Leave
+                    var dropdownItems = new List<dynamic>();
+
+                    // Add existing database leave types
+                    foreach (var lt in leaveTypes)
+                    {
+                        _logger.LogInformation($"📝 Leave Type: ID={lt.LeaveTypeID}, Name={lt.TypeName}");
+                        dropdownItems.Add(new { LeaveTypeID = lt.LeaveTypeID, TypeName = lt.TypeName });
+                    }
+
+                    // 🚨 NEW: Add Emergency Leave (UI only - will be converted to Annual Leave)
+                    dropdownItems.Add(new { LeaveTypeID = 4, TypeName = "Emergency Leave" });
+
+                    // Sort by TypeName for better UX
+                    var sortedItems = dropdownItems.OrderBy(x => x.TypeName).ToList();
+
+                    ViewBag.LeaveTypes = new SelectList(sortedItems, "LeaveTypeID", "TypeName");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "💥 Error populating leave types dropdown");
+                // Fallback dropdown in case of error
+                ViewBag.LeaveTypes = new SelectList(new[]
+                {
+            new { LeaveTypeID = 1, TypeName = "Annual Leave" },
+            new { LeaveTypeID = 2, TypeName = "Medical Leave" },
+            new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" },
+            new { LeaveTypeID = 4, TypeName = "Emergency Leave" }
+        }, "LeaveTypeID", "TypeName");
+            }
         }
 
         private bool LeaveExists(int id)
         {
             return _context.Leaves.Any(e => e.LeaveID == id);
         }
+
+        
+        private async Task<bool> IsBackdateAllowedAsync(int leaveTypeId)
+        {
+            try
+            {
+                var leaveType = await _context.LeaveTypes.FindAsync(leaveTypeId);
+                if (leaveType == null) return false;
+
+                var leaveTypeName = leaveType.TypeName.ToLower();
+
+                
+                return leaveTypeName.Contains("medical") ||
+                       leaveTypeName.Contains("hospitalization") ||
+                       leaveTypeName.Contains("emergency") ||
+                       leaveTypeName.Contains("annual"); 
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error checking backdate permission for leave type {leaveTypeId}");
+                return false; // Default to not allowing backdate on error
+            }
+        }
+
+        
     }
 }

@@ -8,7 +8,8 @@
     {
         new SelectListItem { Value = "1", Text = "Annual Leave" },
         new SelectListItem { Value = "2", Text = "Medical Leave" },
-        new SelectListItem { Value = "3", Text = "Hospitalization Leave" }
+        new SelectListItem { Value = "3", Text = "Hospitalization Leave" },
+        new SelectListItem { Value = "4", Text = "Emergency Leave" }
     };
 }
 
@@ -46,22 +47,45 @@
                         </div>
                     </div>
 
+                    <!-- Half Day / Full Day Selection -->
+                    <div class="mb-3" id="dayTypeSection" style="display: none;">
+                        <label class="form-label">Day Type <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="DayType" id="fullDay" value="full" checked>
+                                <label class="form-check-label" for="fullDay">
+                                     Full Day
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="DayType" id="halfDay" value="half">
+                                <label class="form-check-label" for="halfDay">
+                                     Half Day
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Half day will deduct 0.5 days from your leave balance
+                        </div>
+                    </div>
+
                     <!-- Medical Certificate Upload Section (Hidden by default) -->
                     <div class="mb-3" id="medicalCertificateSection" style="display: none;">
                         <div class="alert alert-info">
                             <i class="fas fa-file-medical me-2"></i>
                             <strong>Medical Certificate Required:</strong> Please upload an official medical certificate to support your medical leave application.
                         </div>
-                        
+
                         <label class="form-label">Medical Certificate <span class="text-danger">*</span></label>
-                        <input type="file" name="MedicalCertificate" id="MedicalCertificate" 
+                        <input type="file" name="MedicalCertificate" id="MedicalCertificate"
                                class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
                         <div class="form-text">
                             <i class="fas fa-info-circle me-1"></i>
                             Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max size: 5MB)
                         </div>
                         <span id="medicalCertificateError" class="text-danger" style="display: none;"></span>
-                        
+
                         <!-- File preview area -->
                         <div id="filePreview" class="mt-2" style="display: none;">
                             <div class="border rounded p-2 bg-light">
@@ -82,6 +106,10 @@
                             <label asp-for="StartDate" class="form-label">Start Date <span class="text-danger">*</span></label>
                             <input asp-for="StartDate" type="date" class="form-control" id="StartDate" required />
                             <span asp-validation-for="StartDate" class="text-danger"></span>
+                            <div class="form-text" id="dateHelp">
+                                <i class="fas fa-info-circle me-1"></i>
+                                <span id="dateHelpText">Select dates from today onwards</span>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label asp-for="EndDate" class="form-label">End Date <span class="text-danger">*</span></label>
@@ -149,7 +177,7 @@
                              style="width: @(((ViewBag.MedicalLeaveBalance != null ? (double)ViewBag.MedicalLeaveBalance : 0) / 10) * 100)%"></div>
                     </div>
                 </div>
-                <div class="mb-0">
+                <div class="mb-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <strong>Hospitalization Leave:</strong>
                         <span class="badge bg-success">@(ViewBag.HospitalizationLeaveBalance ?? 0) / 16</span>
@@ -157,6 +185,12 @@
                     <div class="progress mt-1" style="height: 8px;">
                         <div class="progress-bar bg-success" role="progressbar"
                              style="width: @(((ViewBag.HospitalizationLeaveBalance != null ? (double)ViewBag.HospitalizationLeaveBalance : 0) / 16) * 100)%"></div>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small><strong>Emergency Leave:</strong> Deducts from Annual Leave balance</small>
                     </div>
                 </div>
             </div>
@@ -178,6 +212,10 @@
                         <i class="fas fa-check text-success me-2"></i>
                         <small>Medical leave requires documentation</small>
                     </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Emergency leave deducts from annual balance</small>
+                    </li>
                     <li class="mb-0">
                         <i class="fas fa-check text-success me-2"></i>
                         <small>Annual leave expires at year-end</small>
@@ -191,36 +229,49 @@
 @section Scripts {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        $(document).ready(function() {
-            // FIXED: Use dynamic leave balance data from ViewBag
+
+               $(document).ready(function() {
+            console.log('Form script initialized');
+
+            // ✅ SIMPLIFIED: Build leave balances object directly from ViewBag values
             const leaveBalances = {
                 '1': {
+                    typeName: 'Annual Leave',
                     maxDays: 14,
-                    remaining: @(ViewBag.AnnualLeaveBalance ?? 14)
+                    remaining: @(ViewBag.AnnualLeaveBalance ?? 14),
+                    allowBackdate: true
                 },
                 '2': {
+                    typeName: 'Medical Leave',
                     maxDays: 10,
-                    remaining: @(ViewBag.MedicalLeaveBalance ?? 10)
+                    remaining: @(ViewBag.MedicalLeaveBalance ?? 10),
+                    allowBackdate: true
                 },
                 '3': {
+                    typeName: 'Hospitalization Leave',
                     maxDays: 16,
-                    remaining: @(ViewBag.HospitalizationLeaveBalance ?? 16)
+                    remaining: @(ViewBag.HospitalizationLeaveBalance ?? 16),
+                    allowBackdate: true
+                },
+                '4': {
+                    typeName: 'Emergency Leave',
+                    maxDays: 14,
+                    remaining: @(ViewBag.AnnualLeaveBalance ?? 14), // ✅ Emergency uses Annual Leave balance
+                    allowBackdate: true
                 }
             };
 
-            const leaveNames = {
-                '1': 'Annual Leave',
-                '2': 'Medical Leave',
-                '3': 'Hospitalization Leave'
-            };
+            console.log("Leave Balances:", leaveBalances);
 
             // File validation settings
             const maxFileSize = 5 * 1024 * 1024; // 5MB
             const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
 
-            // Validate leave type selection
+            // ✅ FIXED: Validate leave type selection
             function isValidLeaveType(leaveTypeId) {
-                return ['1', '2', '3'].includes(leaveTypeId);
+                const isValid = Object.keys(leaveBalances).includes(leaveTypeId);
+                console.log('Validating leave type:', leaveTypeId, 'Is valid:', isValid);
+                return isValid;
             }
 
             // File validation function
@@ -229,18 +280,18 @@
 
                 const fileName = file.name.toLowerCase();
                 const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
-                
+
                 if (!allowedExtensions.includes(fileExtension)) {
-                    return { 
-                        isValid: false, 
-                        message: 'Invalid file type. Please select PDF, JPG, PNG, DOC, or DOCX files only.' 
+                    return {
+                        isValid: false,
+                        message: 'Invalid file type. Please select PDF, JPG, PNG, DOC, or DOCX files only.'
                     };
                 }
 
                 if (file.size > maxFileSize) {
-                    return { 
-                        isValid: false, 
-                        message: 'File size exceeds 5MB limit. Please select a smaller file.' 
+                    return {
+                        isValid: false,
+                        message: 'File size exceeds 5MB limit. Please select a smaller file.'
                     };
                 }
 
@@ -256,6 +307,32 @@
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
             }
 
+            // ✅ FIXED: Update date restrictions based on leave type
+            function updateDateRestrictions(leaveTypeId) {
+                const today = new Date().toISOString().split('T')[0];
+                const startDateInput = $('#StartDate');
+                const endDateInput = $('#EndDate');
+                const dateHelpText = $('#dateHelpText');
+
+                if (isValidLeaveType(leaveTypeId) && leaveBalances[leaveTypeId].allowBackdate) {
+                    // Allow backdate for medical, hospitalization, and emergency leave
+                    startDateInput.removeAttr('min');
+                    endDateInput.removeAttr('min');
+                    dateHelpText.html('<i class="fas fa-calendar-alt me-1"></i>You can select past dates for this leave type');
+                } else {
+                    // Restrict to future dates for annual leave
+                    startDateInput.attr('min', today);
+                    endDateInput.attr('min', today);
+                    dateHelpText.html('<i class="fas fa-calendar-plus me-1"></i>Select dates from today onwards');
+                }
+
+                // Update end date minimum when start date changes
+                const startDate = startDateInput.val();
+                if (startDate) {
+                    endDateInput.attr('min', startDate);
+                }
+            }
+
             // Handle medical certificate file selection
             $('#MedicalCertificate').on('change', function() {
                 const file = this.files[0];
@@ -264,7 +341,7 @@
 
                 if (file) {
                     const validation = validateFile(file);
-                    
+
                     if (!validation.isValid) {
                         errorSpan.text(validation.message).show();
                         filePreview.hide();
@@ -290,14 +367,35 @@
                 $('#medicalCertificateError').hide();
             });
 
-            // Handle leave type selection
+            // Handle day type selection
+            $('input[name="DayType"]').on('change', function() {
+                console.log('Day type changed to:', $(this).val());
+                calculateDuration();
+            });
+
+            // ✅ FIXED: Handle leave type selection with proper Emergency Leave display
             $('#LeaveTypeID').on('change', function() {
                 const leaveTypeId = $(this).val();
                 const availableDaysDiv = $('#availableDays');
                 const medicalCertificateSection = $('#medicalCertificateSection');
+                const dayTypeSection = $('#dayTypeSection');
 
-                // Show/hide medical certificate section based on leave type
-                if (leaveTypeId === '2') { // Medical Leave
+                console.log('Leave type selected:', leaveTypeId);
+
+                // Show day type selection for all leave types
+                if (leaveTypeId) {
+                    dayTypeSection.show();
+                } else {
+                    dayTypeSection.hide();
+                }
+
+                // Show/hide medical certificate section based on leave type name
+                const isMedicalLeave = leaveTypeId && leaveBalances[leaveTypeId] &&
+                                      leaveBalances[leaveTypeId].typeName.toLowerCase().includes('medical');
+
+                console.log('Is medical leave:', isMedicalLeave);
+
+                if (isMedicalLeave) {
                     medicalCertificateSection.show();
                     $('#MedicalCertificate').prop('required', true);
                 } else {
@@ -309,16 +407,20 @@
                     $('#medicalCertificateError').hide();
                 }
 
+                // Update date restrictions
+                updateDateRestrictions(leaveTypeId);
+
                 if (!leaveTypeId) {
                     availableDaysDiv.text('Select a leave type to see available days');
                     availableDaysDiv.removeClass('text-danger text-success text-warning').addClass('text-muted');
                     return;
                 }
 
-                // Validate leave type
+                // ✅ FIXED: Validate leave type exists
                 if (!isValidLeaveType(leaveTypeId)) {
                     availableDaysDiv.text('Invalid leave type selected');
                     availableDaysDiv.removeClass('text-muted text-success text-warning').addClass('text-danger');
+                    console.error('Invalid leave type:', leaveTypeId, 'Available types:', Object.keys(leaveBalances));
                     return;
                 }
 
@@ -326,7 +428,12 @@
                 const remainingDays = balance.remaining;
                 const maxDays = balance.maxDays;
 
-                availableDaysDiv.html(`<strong>${remainingDays}</strong> of ${maxDays} days remaining`);
+                // ✅ FIXED: Special display for Emergency Leave
+                if (balance.typeName.toLowerCase().includes('emergency')) {
+                    availableDaysDiv.html(`<strong>${remainingDays}</strong> of ${maxDays} days remaining<br><small class="text-info">(Uses Annual Leave Balance)</small>`);
+                } else {
+                    availableDaysDiv.html(`<strong>${remainingDays}</strong> of ${maxDays} days remaining`);
+                }
 
                 // Color coding based on remaining balance
                 availableDaysDiv.removeClass('text-muted text-danger text-success text-warning');
@@ -346,11 +453,14 @@
                 calculateDuration();
             });
 
-            // Calculate duration function
+            // ✅ FIXED: Calculate duration function with half day support
             function calculateDuration() {
                 const startDate = $('#StartDate').val();
                 const endDate = $('#EndDate').val();
                 const leaveTypeId = $('#LeaveTypeID').val();
+                const dayType = $('input[name="DayType"]:checked').val();
+
+                console.log('Calculating duration:', { startDate, endDate, leaveTypeId, dayType });
 
                 if (startDate && endDate) {
                     const start = new Date(startDate);
@@ -358,13 +468,24 @@
 
                     if (end >= start) {
                         const timeDiff = end.getTime() - start.getTime();
-                        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                        let daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                        // Apply half day calculation
+                        if (dayType === 'half') {
+                            if (daysDiff === 1) {
+                                daysDiff = 0.5;
+                            } else {
+                                daysDiff = daysDiff - 0.5;
+                            }
+                        }
+
+                        console.log('Calculated days:', daysDiff);
 
                         $('#calculatedDuration').text(daysDiff);
                         $('#durationInfo').show();
 
-                        // Check if duration exceeds available balance
-                        if (isValidLeaveType(leaveTypeId) && leaveBalances[leaveTypeId] !== undefined) {
+                        // ✅ FIXED: Check if duration exceeds available balance
+                        if (isValidLeaveType(leaveTypeId)) {
                             const availableBalance = leaveBalances[leaveTypeId].remaining;
 
                             if (daysDiff > availableBalance) {
@@ -383,72 +504,110 @@
                 }
             }
 
-            // Set minimum date to today
+            // Set minimum date to today initially
             const today = new Date().toISOString().split('T')[0];
             $('#StartDate').attr('min', today);
 
             // Update end date minimum when start date changes
             $('#StartDate').on('change', function() {
-                $('#EndDate').attr('min', $(this).val());
-                if ($('#EndDate').val() && $('#EndDate').val() < $(this).val()) {
-                    $('#EndDate').val($(this).val());
+                const startDate = $(this).val();
+
+                if (startDate) {
+                    $('#EndDate').attr('min', startDate);
+                    if ($('#EndDate').val() && $('#EndDate').val() < startDate) {
+                        $('#EndDate').val(startDate);
+                    }
                 }
                 calculateDuration();
             });
 
-            // Form validation before submission
+            // ✅ FIXED: Form validation before submission
             $('form').on('submit', function(e) {
+                console.log('Form submission started');
+
+                // Get form values
                 const leaveTypeId = $('#LeaveTypeID').val();
                 const startDate = $('#StartDate').val();
                 const endDate = $('#EndDate').val();
                 const reason = $('#Reason').val().trim();
+                const dayType = $('input[name="DayType"]:checked').val();
 
-                // Check if form is valid according to HTML5 validation
-                const form = this;
-                if (!form.checkValidity()) {
-                    return true;
+                console.log('Form data before validation:', { leaveTypeId, startDate, endDate, reason, dayType });
+
+                // Prevent double submission
+                const submitBtn = $(this).find('button[type="submit"]');
+                if (submitBtn.prop('disabled')) {
+                    console.log('Form already submitting, preventing double submission');
+                    e.preventDefault();
+                    return false;
                 }
 
-                // Validate leave type
-                if (!isValidLeaveType(leaveTypeId)) {
-                    e.preventDefault();
-                    alert('Please select a valid leave type (Annual Leave, Medical Leave, or Hospitalization Leave).');
+                // Basic validation
+                let validationFailed = false;
+
+                if (!leaveTypeId) {
+                    console.log('Validation failed: No leave type selected');
+                    alert('Please select a leave type.');
                     $('#LeaveTypeID').focus();
+                    validationFailed = true;
+                }
+
+                if (!startDate) {
+                    console.log('Validation failed: No start date');
+                    alert('Please select a start date.');
+                    $('#StartDate').focus();
+                    validationFailed = true;
+                }
+
+                if (!endDate) {
+                    console.log('Validation failed: No end date');
+                    alert('Please select an end date.');
+                    $('#EndDate').focus();
+                    validationFailed = true;
+                }
+
+                if (!reason) {
+                    console.log('Validation failed: No reason provided');
+                    alert('Please provide a reason for your leave.');
+                    $('#Reason').focus();
+                    validationFailed = true;
+                }
+
+                if (validationFailed) {
+                    e.preventDefault();
+                    return false;
+                }
+
+                // ✅ FIXED: Validate leave type exists in our balances
+                if (!isValidLeaveType(leaveTypeId)) {
+                    console.error('Invalid leave type during submission:', leaveTypeId);
+                    console.error('Available leave types:', Object.keys(leaveBalances));
+                    alert('Please select a valid leave type from the dropdown.');
+                    $('#LeaveTypeID').focus();
+                    e.preventDefault();
                     return false;
                 }
 
                 // Medical leave specific validation
-                if (leaveTypeId === '2') {
+                const isMedicalLeave = leaveBalances[leaveTypeId].typeName.toLowerCase().includes('medical');
+                if (isMedicalLeave) {
                     const medicalCertFile = $('#MedicalCertificate')[0].files[0];
                     if (!medicalCertFile) {
-                        e.preventDefault();
+                        console.log('Validation failed: Medical certificate required');
                         alert('Please upload a medical certificate for medical leave applications.');
                         $('#MedicalCertificate').focus();
+                        e.preventDefault();
                         return false;
                     }
 
                     const validation = validateFile(medicalCertFile);
                     if (!validation.isValid) {
-                        e.preventDefault();
+                        console.log('Validation failed: Invalid medical certificate');
                         alert('Medical certificate validation failed: ' + validation.message);
                         $('#MedicalCertificate').focus();
+                        e.preventDefault();
                         return false;
                     }
-                }
-
-                if (!startDate || !endDate) {
-                    e.preventDefault();
-                    alert('Please select both start and end dates.');
-                    if (!startDate) $('#StartDate').focus();
-                    else $('#EndDate').focus();
-                    return false;
-                }
-
-                if (!reason) {
-                    e.preventDefault();
-                    alert('Please provide a reason for your leave.');
-                    $('#Reason').focus();
-                    return false;
                 }
 
                 // Date validation
@@ -456,39 +615,47 @@
                 const end = new Date(endDate);
 
                 if (end < start) {
-                    e.preventDefault();
+                    console.log('Validation failed: End date before start date');
                     alert('End date must be after or equal to start date.');
                     $('#EndDate').focus();
+                    e.preventDefault();
                     return false;
                 }
 
-                // Balance validation
+                // ✅ FIXED: Balance validation with half day support
                 const timeDiff = end.getTime() - start.getTime();
-                const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+                let daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                if (dayType === 'half') {
+                    if (daysDiff === 1) {
+                        daysDiff = 0.5;
+                    } else {
+                        daysDiff = daysDiff - 0.5;
+                    }
+                }
+
                 const availableBalance = leaveBalances[leaveTypeId].remaining;
 
                 if (daysDiff > availableBalance) {
-                    e.preventDefault();
-                    const leaveName = leaveNames[leaveTypeId];
-                    const confirmMsg = `You are requesting ${daysDiff} days but only have ${availableBalance} days remaining for ${leaveName}.\n\nDo you want to proceed anyway?`;
+                    const leaveName = leaveBalances[leaveTypeId].typeName;
+                    const balanceSource = leaveName.toLowerCase().includes('emergency') ? ' (from Annual Leave balance)' : '';
+                    const confirmMsg = `You are requesting ${daysDiff} day(s) but only have ${availableBalance} day(s) remaining for ${leaveName}${balanceSource}.\n\nDo you want to proceed anyway?`;
 
                     if (!confirm(confirmMsg)) {
-                        return false;
-                    } else {
-                        // Re-submit the form programmatically
-                        setTimeout(() => {
-                            $(this).off('submit').submit();
-                        }, 100);
+                        console.log('User cancelled submission due to insufficient balance');
+                        e.preventDefault();
                         return false;
                     }
                 }
 
+                console.log('Form validation passed, proceeding with submission...');
+
                 // Show loading state
-                const submitBtn = $(this).find('button[type="submit"]');
                 submitBtn
                     .prop('disabled', true)
                     .html('<i class="fas fa-spinner fa-spin me-2"></i>Submitting...');
 
+                // Let the form submit naturally
                 return true;
             });
 
@@ -498,10 +665,24 @@
                 this.style.height = (this.scrollHeight) + 'px';
             });
 
-            // Initialize the form - trigger change event on page load if Annual Leave is pre-selected
+            // Initialize the form - trigger change event on page load if leave type is pre-selected
             if ($('#LeaveTypeID').val()) {
+                console.log('Pre-selected leave type found, triggering change event');
                 $('#LeaveTypeID').trigger('change');
             }
+
+            // Debug: Log form state on page load
+            console.log('Available leave types in dropdown:', $('#LeaveTypeID option').map(function() {
+                return {value: this.value, text: this.text};
+            }).get());
+
+            // Debug: Log current form field values
+            console.log('Initial form values:', {
+                leaveType: $('#LeaveTypeID').val(),
+                startDate: $('#StartDate').val(),
+                endDate: $('#EndDate').val(),
+                reason: $('#Reason').val()
+            });
         });
     </script>
 }

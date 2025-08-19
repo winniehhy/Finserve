@@ -90,19 +90,61 @@
     }
 </div>
 
+<!-- Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <label for="statusFilter" class="form-label">Filter by Status:</label>
+                <select id="statusFilter" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="yearFilter" class="form-label">Filter by Year:</label>
+                <select id="yearFilter" class="form-select">
+                    <option value="">All Years</option>
+                    @{
+                        var currentYear = DateTime.Now.Year;
+                        for (int year = currentYear; year >= currentYear - 5; year--)
+                        {
+                            <option value="@year">@year</option>
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <button id="clearFilters" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>Clear Filters
+                </button>
+                <small class="text-muted ms-3">
+                    <span id="recordCount">@(Model?.Count() ?? 0)</span> record(s) found
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="form-container">
     @if (Model != null && Model.Any())
     {
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="leaveTable">
                 <thead class="table-light">
                     <tr>
+                        <th>Leave ID</th>
                         <th>Leave Type</th>
                         <th>Start Date</th>
                         <th>End Date</th>
                         <th>Duration</th>
                         <th>Reason</th>
                         <th>Status</th>
+                        <th>Applied Date</th>
                         <th>Approved By</th>
                         <th>Actions</th>
                     </tr>
@@ -110,7 +152,10 @@
                 <tbody>
                     @foreach (var leave in Model)
                     {
-                        <tr>
+                        <tr data-status="@leave.Status" data-year="@leave.StartDate.Year">
+                            <td>
+                                <span class="badge bg-secondary">#@leave.LeaveID</span>
+                            </td>
                             <td>
                                 <span class="badge bg-primary">@leave.LeaveType?.TypeName</span>
                             </td>
@@ -142,6 +187,16 @@
                                     <span class="badge bg-danger">@leave.Status</span>
                                 }
                             </td>
+                            <td>
+                                @if (leave.SubmissionDate != DateTime.MinValue)
+                                {
+                                    @leave.SubmissionDate.ToString("dd MMM yyyy")
+                                }
+                                else
+                                {
+                                    <text>N/A</text>
+                                }
+                            </td>
                             <td>@(leave.ApprovedBy ?? "N/A")</td>
                             <td>
                                 @if (leave.Status == "Pending")
@@ -171,7 +226,7 @@
     }
     else
     {
-        <div class="text-center py-5">
+        <div class="text-center py-5" id="noRecordsMessage">
             <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
             <h5 class="text-muted">No leave records found</h5>
             <p class="text-muted">You haven't applied for any leave yet.</p>
@@ -182,6 +237,60 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
+            // Filter functionality
+            function filterTable() {
+                const statusFilter = $('#statusFilter').val().toLowerCase();
+                const yearFilter = $('#yearFilter').val();
+                let visibleCount = 0;
+
+                $('#leaveTable tbody tr').each(function() {
+                    const row = $(this);
+                    const status = row.data('status').toLowerCase();
+                    const year = row.data('year').toString();
+
+                    let showRow = true;
+
+                    // Status filter
+                    if (statusFilter && status !== statusFilter) {
+                        showRow = false;
+                    }
+
+                    // Year filter
+                    if (yearFilter && year !== yearFilter) {
+                        showRow = false;
+                    }
+
+                    if (showRow) {
+                        row.show();
+                        visibleCount++;
+                    } else {
+                        row.hide();
+                    }
+                });
+
+                // Update record count
+                $('#recordCount').text(visibleCount);
+
+                // Show/hide no records message
+                if (visibleCount === 0) {
+                    $('#leaveTable').hide();
+                    $('#noRecordsMessage').show();
+                } else {
+                    $('#leaveTable').show();
+                    $('#noRecordsMessage').hide();
+                }
+            }
+
+            // Event listeners for filters
+            $('#statusFilter, #yearFilter').on('change', filterTable);
+
+            // Clear filters
+            $('#clearFilters').on('click', function() {
+                $('#statusFilter').val('');
+                $('#yearFilter').val('');
+                filterTable();
+            });
+
             // Check if today is December 1st and show reminder if needed
             const today = new Date();
             if (today.getMonth() === 11 && today.getDate() === 1) {

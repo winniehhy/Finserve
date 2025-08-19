@@ -689,8 +689,8 @@ namespace FinserveNew.Migrations
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
 
-                    b.Property<int>("LeaveDays")
-                        .HasColumnType("int");
+                    b.Property<double>("LeaveDays")
+                        .HasColumnType("double");
 
                     b.Property<int>("LeaveTypeID")
                         .HasColumnType("int");

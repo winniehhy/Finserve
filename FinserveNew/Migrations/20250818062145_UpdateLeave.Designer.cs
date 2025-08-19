@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250817031933_UpdateClaim")]
-    partial class UpdateClaim
+    [Migration("20250818062145_UpdateLeave")]
+    partial class UpdateLeave
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -692,8 +692,8 @@ namespace FinserveNew.Migrations
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
 
-                    b.Property<int>("LeaveDays")
-                        .HasColumnType("int");
+                    b.Property<double>("LeaveDays")
+                        .HasColumnType("double");
 
                     b.Property<int>("LeaveTypeID")
                         .HasColumnType("int");

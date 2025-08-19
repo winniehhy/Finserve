@@ -221,19 +221,20 @@ namespace FinserveNew.Controllers
                 // Calculate leave balances - USE THE SAME METHOD AS LeaveRecords
                 var leaveBalances = await CalculateLeaveBalancesAsync(employeeId, currentYear);
 
-                // Calculate total days used and remaining
-                var totalDaysUsed = 0;
-                var totalRemainingDays = 0;
-                var totalDefaultDays = 0;
+                // Calculate total days used and remaining - FIXED: Use proper casting
+                double totalDaysUsed = 0;
+                double totalRemainingDays = 0;
+                double totalDefaultDays = 0;
 
                 foreach (var balance in leaveBalances)
                 {
                     var leaveBalance = balance.Value as dynamic;
                     if (leaveBalance != null)
                     {
-                        totalDaysUsed += leaveBalance.UsedDays;
-                        totalRemainingDays += leaveBalance.RemainingDays;
-                        totalDefaultDays += leaveBalance.DefaultDays;
+                        // FIXED: Proper casting to double
+                        totalDaysUsed += Convert.ToDouble(leaveBalance.UsedDays);
+                        totalRemainingDays += Convert.ToDouble(leaveBalance.RemainingDays);
+                        totalDefaultDays += Convert.ToDouble(leaveBalance.DefaultDays);
                     }
                 }
 
@@ -251,7 +252,7 @@ namespace FinserveNew.Controllers
                     .Where(l => l.EmployeeID == employeeId && l.Status == "Pending")
                     .CountAsync();
 
-                // ✅ ADD MISSING CLAIMS DATA
+                // Claims data
                 var claims = await _context.Claims
                     .Where(c => c.EmployeeID == employeeId)
                     .ToListAsync();
@@ -267,24 +268,21 @@ namespace FinserveNew.Controllers
                 var totalClaimAmount = claims.Where(c => c.Status == "Approved").Sum(c => c.ClaimAmount);
                 var approvalRate = totalClaimsCount > 0 ? (approvedClaimsCount * 100.0 / totalClaimsCount) : 0;
 
-                // ✅ ENHANCED: Get approved leave dates for ENTIRE YEAR and organize by month
+                // Get approved leave dates for calendar
                 var approvedLeaves = await _context.Leaves
                     .Where(l => l.EmployeeID == employeeId &&
                                l.Status == "Approved" &&
                                (l.StartDate.Year == currentYear || l.EndDate.Year == currentYear))
                     .ToListAsync();
 
-                // ✅ ENHANCED: Create comprehensive calendar data for entire year
+                // Create calendar data
                 var calendarData = new Dictionary<string, List<int>>();
-
-                // Initialize all months for current year
                 for (int month = 1; month <= 12; month++)
                 {
                     var monthKey = $"{currentYear}-{month:D2}";
                     calendarData[monthKey] = new List<int>();
                 }
 
-                // Add leave dates to calendar data
                 foreach (var leave in approvedLeaves)
                 {
                     var startDate = leave.StartDate;
@@ -303,62 +301,55 @@ namespace FinserveNew.Controllers
                     }
                 }
 
-                // Remove duplicates and sort
                 foreach (var key in calendarData.Keys.ToList())
                 {
                     calendarData[key] = calendarData[key].Distinct().OrderBy(d => d).ToList();
                 }
 
-                // ✅ Set ALL ViewBag properties
+                // FIXED: Set ViewBag properties with proper casting
                 ViewBag.LeaveBalances = leaveBalances;
-                ViewBag.TotalLeaveDaysUsed = totalDaysUsed;
-                ViewBag.TotalRemainingLeave = totalRemainingDays;
-                ViewBag.TotalDefaultDays = totalDefaultDays;
+                ViewBag.TotalLeaveDaysUsed = Math.Round(totalDaysUsed, 1);
+                ViewBag.TotalRemainingLeave = Math.Round(totalRemainingDays, 1);
+                ViewBag.TotalDefaultDays = Math.Round(totalDefaultDays, 1);
                 ViewBag.CurrentYear = currentYear;
                 ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
                 ViewBag.RecentLeaves = recentLeaves;
                 ViewBag.PendingRequestsCount = pendingRequestsCount;
-
-                // ✅ NEW: Enhanced calendar data
                 ViewBag.CalendarData = calendarData;
                 ViewBag.CurrentMonthIndex = DateTime.Now.Month;
 
-                // ✅ ADD MISSING CLAIMS ViewBag PROPERTIES
+                // Claims ViewBag properties
                 ViewBag.TotalClaims = totalClaimsCount;
                 ViewBag.ApprovedClaims = approvedClaimsCount;
                 ViewBag.PendingClaims = pendingClaimsCount;
                 ViewBag.ApprovalRate = Math.Round(approvalRate, 1);
                 ViewBag.TotalClaimAmount = totalClaimAmount;
                 ViewBag.RecentClaims = recentClaims;
-
-                // For leaves specifically
                 ViewBag.PendingLeaves = pendingRequestsCount;
 
-                // This ensures the Dashboard uses the same data as LeaveRecords
+                // FIXED: Populate individual leave balances correctly
                 PopulateLeaveBalanceViewBag(leaveBalances);
 
-                _logger.LogInformation($"✅ Dashboard loaded successfully for employee {employeeId}");
+                _logger.LogInformation($"Dashboard loaded successfully for employee {employeeId}");
+                _logger.LogInformation($"Leave balances: {string.Join(", ", leaveBalances.Select(b => $"{b.Key}: {((dynamic)b.Value).RemainingDays}/{((dynamic)b.Value).DefaultDays}"))}");
+
                 return View("~/Views/Employee/Dashboard.cshtml");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "💥 Error loading dashboard");
+                _logger.LogError(ex, "Error loading dashboard");
 
-                // ✅ SET DEFAULT VALUES FOR ALL ViewBag PROPERTIES TO PREVENT NULL ERRORS
+                // Set default values
                 ViewBag.LeaveBalances = new Dictionary<string, object>();
-                ViewBag.TotalLeaveDaysUsed = 0;
-                ViewBag.TotalRemainingLeave = 0;
-                ViewBag.TotalDefaultDays = 0;
+                ViewBag.TotalLeaveDaysUsed = 0.0;
+                ViewBag.TotalRemainingLeave = 0.0;
+                ViewBag.TotalDefaultDays = 0.0;
                 ViewBag.CurrentYear = DateTime.Now.Year;
                 ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
                 ViewBag.RecentLeaves = new List<LeaveModel>();
                 ViewBag.PendingRequestsCount = 0;
-
-                // Calendar defaults
                 ViewBag.CalendarData = new Dictionary<string, List<int>>();
                 ViewBag.CurrentMonthIndex = DateTime.Now.Month;
-
-                // Claims defaults
                 ViewBag.TotalClaims = 0;
                 ViewBag.ApprovedClaims = 0;
                 ViewBag.PendingClaims = 0;
@@ -400,46 +391,49 @@ namespace FinserveNew.Controllers
 
         private void PopulateLeaveBalanceViewBag(Dictionary<string, object> leaveBalances)
         {
-            _logger.LogInformation("🔧 Populating individual ViewBag properties for leave balances");
+            _logger.LogInformation("Populating individual ViewBag properties for leave balances");
 
             try
             {
                 if (leaveBalances.ContainsKey("Annual Leave"))
                 {
                     var annualLeave = leaveBalances["Annual Leave"] as dynamic;
-                    ViewBag.AnnualLeaveBalance = annualLeave?.RemainingDays ?? 14;
+                    ViewBag.AnnualLeaveBalance = annualLeave != null ? Convert.ToDouble(annualLeave.RemainingDays) : 14.0;
+                    _logger.LogInformation($"Annual Leave Balance: {ViewBag.AnnualLeaveBalance}");
                 }
                 else
                 {
-                    ViewBag.AnnualLeaveBalance = 14;
+                    ViewBag.AnnualLeaveBalance = 14.0;
                 }
 
                 if (leaveBalances.ContainsKey("Medical Leave"))
                 {
                     var medicalLeave = leaveBalances["Medical Leave"] as dynamic;
-                    ViewBag.MedicalLeaveBalance = medicalLeave?.RemainingDays ?? 10;
+                    ViewBag.MedicalLeaveBalance = medicalLeave != null ? Convert.ToDouble(medicalLeave.RemainingDays) : 10.0;
+                    _logger.LogInformation($"Medical Leave Balance: {ViewBag.MedicalLeaveBalance}");
                 }
                 else
                 {
-                    ViewBag.MedicalLeaveBalance = 10;
+                    ViewBag.MedicalLeaveBalance = 10.0;
                 }
 
                 if (leaveBalances.ContainsKey("Hospitalization Leave"))
                 {
                     var hospitalizationLeave = leaveBalances["Hospitalization Leave"] as dynamic;
-                    ViewBag.HospitalizationLeaveBalance = hospitalizationLeave?.RemainingDays ?? 16;
+                    ViewBag.HospitalizationLeaveBalance = hospitalizationLeave != null ? Convert.ToDouble(hospitalizationLeave.RemainingDays) : 16.0;
+                    _logger.LogInformation($"Hospitalization Leave Balance: {ViewBag.HospitalizationLeaveBalance}");
                 }
                 else
                 {
-                    ViewBag.HospitalizationLeaveBalance = 16;
+                    ViewBag.HospitalizationLeaveBalance = 16.0;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error populating individual ViewBag properties");
-                ViewBag.AnnualLeaveBalance = 14;
-                ViewBag.MedicalLeaveBalance = 10;
-                ViewBag.HospitalizationLeaveBalance = 16;
+                _logger.LogError(ex, "Error populating individual ViewBag properties");
+                ViewBag.AnnualLeaveBalance = 14.0;
+                ViewBag.MedicalLeaveBalance = 10.0;
+                ViewBag.HospitalizationLeaveBalance = 16.0;
             }
         }
 
@@ -473,7 +467,7 @@ namespace FinserveNew.Controllers
                                 && l.Status == "Pending")
                         .ToListAsync();
 
-                    var usedDays = 0;
+                    double usedDays = 0;
                     foreach (var leave in approvedLeaves)
                     {
                         // Use LeaveDays if available, otherwise calculate from dates
@@ -482,7 +476,7 @@ namespace FinserveNew.Controllers
                         usedDays += leaveDuration;
                     }
 
-                    var pendingDays = 0;
+                    double pendingDays = 0;
                     foreach (var leave in pendingLeaves)
                     {
                         // Use LeaveDays if available, otherwise calculate from dates
@@ -504,7 +498,7 @@ namespace FinserveNew.Controllers
                     };
                 }
 
-                _logger.LogInformation($"🧮 Calculated balances: {string.Join(", ", leaveBalances.Select(b => $"{b.Key}: {((dynamic)b.Value).RemainingDays}/{((dynamic)b.Value).DefaultDays}"))}");
+                _logger.LogInformation($"🧮 Calculated balances: {string.Join(", ", leaveBalances.Select(b => $"{b.Key}: {((dynamic)b.Value).RemainingDays:0.#}/{((dynamic)b.Value).DefaultDays}"))}");
             }
             catch (Exception ex)
             {
@@ -543,4 +537,4 @@ namespace FinserveNew.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
     }
-}   
+}

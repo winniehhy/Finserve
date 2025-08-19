@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FinserveNew.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateClaim : Migration
+    public partial class UpdateLeave : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -489,7 +489,7 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    LeaveDays = table.Column<int>(type: "int", nullable: false),
+                    LeaveDays = table.Column<double>(type: "double", nullable: false),
                     CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     SubmissionDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
