@@ -32,6 +32,8 @@ namespace FinserveNew.Data
 
         public DbSet<LeaveDetailsModel> LeaveDetails { get; set; }
 
+        public DbSet<UnpaidLeaveRequestModel> UnpaidLeaveRequests { get; set; }
+
         // Add the missing Invoice DbSet
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
@@ -197,6 +199,38 @@ namespace FinserveNew.Data
                     .WithMany(lt => lt.Leaves)
                     .HasForeignKey(l => l.LeaveTypeID)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<UnpaidLeaveRequestModel>(entity =>
+            {
+                entity.HasKey(u => u.UnpaidLeaveRequestID);
+
+                // Configure properties
+                entity.Property(u => u.EmployeeID).IsRequired().HasMaxLength(255);
+                entity.Property(u => u.StartDate).IsRequired();
+                entity.Property(u => u.EndDate).IsRequired();
+                entity.Property(u => u.RequestedDays).IsRequired().HasPrecision(4, 1); // Support decimal values
+                entity.Property(u => u.ExcessDays).IsRequired().HasPrecision(4, 1); // Support decimal values
+                entity.Property(u => u.Reason).IsRequired().HasMaxLength(500);
+                entity.Property(u => u.JustificationReason).IsRequired().HasMaxLength(1000);
+                entity.Property(u => u.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+                entity.Property(u => u.SubmissionDate).IsRequired();
+                entity.Property(u => u.ApprovedBy).HasMaxLength(450); // Standard length for Identity UserId
+                entity.Property(u => u.ApprovalRemarks).HasMaxLength(1000);
+                entity.Property(u => u.CreatedDate).IsRequired();
+
+                // Configure relationships
+                entity.HasOne(u => u.Employee)
+                    .WithMany()
+                    .HasForeignKey(u => u.EmployeeID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(u => u.LeaveType)
+                    .WithMany()
+                    .HasForeignKey(u => u.LeaveTypeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+               
             });
         }
     }

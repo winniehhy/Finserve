@@ -75,4 +75,46 @@ namespace FinserveNew.Models
         [NotMapped]
         public double CalculatedLeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;
     }
+
+    public class UnpaidLeaveRequestModel
+    {
+        [Key]
+        public int UnpaidLeaveRequestID { get; set; }
+
+        [Required]
+        public string EmployeeID { get; set; }
+
+        [Required]
+        public int LeaveTypeID { get; set; }
+
+        [DataType(DataType.Date)]
+        public DateOnly StartDate { get; set; }
+
+        [DataType(DataType.Date)]
+        public DateOnly EndDate { get; set; }
+
+        public double RequestedDays { get; set; }
+        public double ExcessDays { get; set; } // Days exceeding balance
+
+        [Required, MaxLength(500)]
+        public string Reason { get; set; }
+
+        [MaxLength(1000)]
+        public string JustificationReason { get; set; }
+
+        public string Status { get; set; } = "Pending";
+
+        public DateTime SubmissionDate { get; set; }
+        public DateTime? ApprovalDate { get; set; }
+        public string? ApprovedBy { get; set; }
+        public string? ApprovalRemarks { get; set; }
+        public DateTime CreatedDate { get; set; }
+
+        // Navigation properties
+        [ForeignKey("EmployeeID")]
+        public virtual Employee Employee { get; set; }
+
+        [ForeignKey("LeaveTypeID")]
+        public virtual LeaveTypeModel LeaveType { get; set; }
+    }
 }
