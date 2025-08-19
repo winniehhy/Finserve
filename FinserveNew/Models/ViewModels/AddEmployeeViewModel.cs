@@ -20,10 +20,14 @@ namespace FinserveNew.Models.ViewModels
         [Display(Name = "Last Name")]
         public string LastName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "IC Number is required.")]
-        [StringLength(20)]
+        [StringLength(12)]
         [Display(Name = "IC Number")]
-        public string IC { get; set; } = string.Empty;
+        public string? IC { get; set; } = string.Empty;
+
+        [StringLength(20)]
+        [Display(Name = "Passport Number")]
+        public string? PassportNumber { get; set; }
+
 
         [Required(ErrorMessage = "Nationality is required.")]
         [StringLength(50)]
@@ -107,12 +111,15 @@ namespace FinserveNew.Models.ViewModels
         public string EmergencyContactRelationship { get; set; } = string.Empty;
 
         // 5. Documents
-        [Display(Name = "IC Photo")]
-        public IFormFile? ICFile { get; set; }
-        [Display(Name = "Resume")]
-        public IFormFile? ResumeFile { get; set; }
-        [Display(Name = "Offer Letter")]
-        public IFormFile? OfferLetterFile { get; set; }
+        //[Display(Name = "IC Photo")]
+        //public IFormFile? ICFile { get; set; }
+        //[Display(Name = "Resume")]
+        //public IFormFile? ResumeFile { get; set; }
+        //[Display(Name = "Offer Letter")]
+        //public IFormFile? OfferLetterFile { get; set; }
+        public List<IFormFile>? NewDocuments { get; set; }
+        public List<string>? NewDocumentTypes { get; set; }
+
 
         [Required(ErrorMessage = "Role is required")]
         [Display(Name = "Role")]

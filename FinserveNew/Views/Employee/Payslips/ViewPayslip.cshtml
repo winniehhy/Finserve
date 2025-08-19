@@ -5,6 +5,29 @@
     var totalDeductions = Model.EmployeeEpf + Model.EmployeeSocso + Model.EmployeeEis + Model.EmployeeTax;
 }
 
+<style>
+    /* Custom CSS for payslip tables */
+    .payslip-table th,
+    .payslip-table td {
+        width: 50%; /* Make columns equal width */
+    }
+
+        .payslip-table th:first-child,
+        .payslip-table td:first-child {
+            width: 60%; /* Description column slightly wider */
+        }
+
+        .payslip-table th:last-child,
+        .payslip-table td:last-child {
+            width: 40%; /* Amount column slightly narrower */
+        }
+
+    /* Ensure consistent table layout */
+    .table-fixed {
+        table-layout: fixed;
+    }
+</style>
+
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-md-8">
@@ -50,30 +73,13 @@
                         </tr>
                     </table>
                 </div>
-                <div class="col-md-6">
-                    <h5>Payment Information</h5>
-                    <table class="table table-borderless">
-                        <tr>
-                            <td>Payment Date:</td>
-                            <td>@Model.CreatedDate.ToString("dd MMMM yyyy")</td>
-                        </tr>
-                        <tr>
-                            <td>Payment Status:</td>
-                            <td><span class="badge bg-success">@Model.PaymentStatus</span></td>
-                        </tr>
-                        <tr>
-                            <td>Project:</td>
-                            <td>@Model.ProjectName</td>
-                        </tr>
-                    </table>
-                </div>
             </div>
 
             <div class="row">
                 <div class="col-md-12">
                     <h5>Salary Details</h5>
                     <div class="table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table table-bordered payslip-table table-fixed">
                             <thead class="table-light">
                                 <tr>
                                     <th>Description</th>
@@ -95,11 +101,11 @@
                 </div>
             </div>
 
-            <div class="row mt-4">
-                <div class="col-md-6">
+            <div class="row">
+                <div class="col-md-12">
                     <h5>Deductions</h5>
                     <div class="table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table table-bordered payslip-table table-fixed">
                             <thead class="table-light">
                                 <tr>
                                     <th>Description</th>
@@ -131,10 +137,12 @@
                         </table>
                     </div>
                 </div>
-                <div class="col-md-6">
+            </div>
+            <div class="row">
+                <div class="col-md-12">
                     <h5>Summary</h5>
                     <div class="table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table table-bordered payslip-table table-fixed">
                             <thead class="table-light">
                                 <tr>
                                     <th>Description</th>
@@ -150,7 +158,7 @@
                                     <td>Total Deductions</td>
                                     <td class="text-end">@totalDeductions.ToString("N2")</td>
                                 </tr>
-                                <tr class="table-success">
+                                <tr class="table-secondary">
                                     <td><strong>Net Salary</strong></td>
                                     <td class="text-end"><strong>@Model.TotalWages.ToString("N2")</strong></td>
                                 </tr>

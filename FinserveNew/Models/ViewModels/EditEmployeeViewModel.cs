@@ -59,6 +59,17 @@ namespace FinserveNew.Models.ViewModels
         [StringLength(100)]
         public string Position { get; set; } = string.Empty;
 
+        // Statutory Information
+        [Required]
+        [StringLength(15)]
+        [Display(Name = "Income Tax Number")]
+        public string IncomeTaxNumber { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(15)]
+        [Display(Name = "EPF Number")]
+        public string EPFNumber { get; set; } = string.Empty;
+
         // Bank Information
         [Required]
         [StringLength(100)]
@@ -95,5 +106,11 @@ namespace FinserveNew.Models.ViewModels
         public string[] Nationalities { get; set; } = Array.Empty<string>();
         public string[] BankNames { get; set; } = Array.Empty<string>();
         public string[] BankTypes { get; set; } = Array.Empty<string>();
+
+        public List<EmployeeDocument> Documents { get; set; } = new();
+
+        // Multiple new documents upload
+        public List<IFormFile>? NewDocuments { get; set; }
+        public List<string>? NewDocumentTypes { get; set; }
     }
 } 

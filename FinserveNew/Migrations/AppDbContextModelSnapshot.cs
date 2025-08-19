@@ -294,6 +294,11 @@ namespace FinserveNew.Migrations
                     b.Property<DateOnly>("DateOfBirth")
                         .HasColumnType("date");
 
+                    b.Property<string>("EPFNumber")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -308,9 +313,13 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(100)");
 
                     b.Property<string>("IC")
+                        .HasMaxLength(12)
+                        .HasColumnType("varchar(12)");
+
+                    b.Property<string>("IncomeTaxNumber")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)");
 
                     b.Property<DateOnly>("JoinDate")
                         .HasColumnType("date");
@@ -324,6 +333,10 @@ namespace FinserveNew.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
+
+                    b.Property<string>("PassportNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -681,7 +694,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(30)");
 
                     b.Property<string>("ProjectName")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<decimal>("TotalEmployerCost")

@@ -50,6 +50,7 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
+                                        <th>EmployeeID</th>
                                         <th>Employee</th>
                                         <th>Month/Year</th>
                                         <th>Basic Salary</th>
@@ -63,6 +64,7 @@
                                     @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Pending Approval"))
                                     {
                                         <tr>
+                                            <td>@payroll.EmployeeID</td>
                                             <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
                                             <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
                                             <td>RM @payroll.BasicSalary.ToString("N2")</td>
@@ -98,6 +100,7 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
+                                        <th>EmployeeID</th>
                                         <th>Employee</th>
                                         <th>Month/Year</th>
                                         <th>Basic Salary</th>
@@ -109,6 +112,7 @@
                                     @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Approved"))
                                     {
                                         <tr>
+                                            <td>@payroll.EmployeeID</td>
                                             <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
                                             <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
                                             <td>RM @payroll.BasicSalary.ToString("N2")</td>
@@ -136,6 +140,7 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
+                                        <th>EmployeeID</th>
                                         <th>Employee</th>
                                         <th>Month/Year</th>
                                         <th>Basic Salary</th>
@@ -147,6 +152,7 @@
                                     @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Rejected"))
                                     {
                                         <tr>
+                                            <td>@payroll.EmployeeID</td>
                                             <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
                                             <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
                                             <td>RM @payroll.BasicSalary.ToString("N2")</td>

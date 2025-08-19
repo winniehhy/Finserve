@@ -29,10 +29,13 @@ namespace FinserveNew.Models
         [MaxLength(100)]
         public string LastName { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "IC is required")]
         [Display(Name = "IC Number")]
+        [MaxLength(12)]
+        public string? IC { get; set; } 
+
+        [Display(Name = "Passport Number")]
         [MaxLength(20)]
-        public string IC { get; set; } = string.Empty;
+        public string? PassportNumber { get; set; }
 
         [Required(ErrorMessage = "Nationality is required")]
         [Display(Name = "Nationality")]
@@ -87,6 +90,16 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "Role is required")]
         [Display(Name = "Role")]
         public int RoleID { get; set; }
+
+        [Required(ErrorMessage = "Income Tax Number is required")]
+        [Display(Name = "Income Tax Number")]
+        [MaxLength(15)]
+        public string IncomeTaxNumber { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "EPF Number is required")]
+        [Display(Name = "EPF Number")]
+        [MaxLength(15)]
+        public string EPFNumber { get; set; } = string.Empty;
 
         // Navigation Properties for Foreign Keys
         [ForeignKey("BankID")]

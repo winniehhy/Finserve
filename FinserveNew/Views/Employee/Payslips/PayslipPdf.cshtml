@@ -18,46 +18,89 @@
             padding: 20px;
             color: #333;
         }
-        .header {
-            background-color: #4a6fdc;
-            color: white;
-            padding: 15px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
+
+        .company-info {
+            text-align: left;
+            width: 50%;
         }
+
+        .company-name {
+            color: #4a6fdc;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .company-address {
+            font-size: 12px;
+            color: #666;
+            margin: 0;
+        }
+
+        .payslip-title {
+            color: #4a6fdc;
+            font-size: 30px;
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .payslip-date {
+            color: #4a6fdc;
+            font-size: 18px;            
+            font-weight: bold;
+            text-align: right;
+        }
+
         .container {
             max-width: 800px;
             margin: 0 auto;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
-        table.info td {
-            padding: 5px 0;
-        }
-        table.details {
-            border: 1px solid #ddd;
-        }
-        table.details th, table.details td {
-            border: 1px solid #ddd;
-            padding: 8px;
-        }
-        table.details th {
-            background-color: #f5f5f5;
-            text-align: left;
-        }
+
+            table.info td {
+                padding: 5px 0;
+            }
+
+            table.details {
+                border: 1px solid #ddd;
+            }
+
+                table.details th, table.details td {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                    width: 50%;
+                }
+
+                table.details th {
+                    background-color: #f5f5f5;
+                    text-align: left;
+                }
+
+                    table.details th.text-end {
+                        text-align: right;
+                    }
+
+                    table.details th:first-child, table.details td:first-child {
+                        width: 60%; /* Description column slightly wider */
+                    }
+
+                    table.details th:last-child, table.details td:last-child {
+                        width: 40%; /* Amount column slightly narrower */
+                    }
+
         .text-end {
             text-align: right;
         }
+
         .table-secondary {
             background-color: #e2e3e5;
         }
-        .table-success {
-            background-color: #d1e7dd;
-        }
+
         .footer {
             margin-top: 30px;
             border-top: 1px solid #ddd;
@@ -65,14 +108,43 @@
             color: #666;
             font-size: 12px;
         }
+
+        .summary-row {
+            background-color: #e2e3e5;
+        }
+
+        .summary-label, .summary-amount {
+            text-align: right;
+            font-weight: bold;
+            padding: 10px 8px;
+        }
+
+        .summary-amount {
+            background-color: #d1e7dd;
+        }
+
+        .total-row td {
+            text-align: right;
+            font-weight: bold;
+            background-color: #e2e3e5;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h2>PAYSLIP</h2>
-            <h3>@monthName @Model.Year</h3>
-        </div>
+        <table style="margin-bottom: 50px">
+            <tr>
+                <td class="company-info">
+                    <div class="company-name">CubicSoftware Solution</div>
+                    <p class="company-address">123 Business Avenue, Kuala Lumpur, Malaysia</p>
+                    <p class="company-address">Phone: +60 3 1234 5678, Email: info@cubicsoftware.my</p>
+                </td>
+                <td>
+                    <div class="payslip-title">PAYSLIP</div>
+                    <div class="payslip-date">@monthName @Model.Year</div>
+                </td>
+            </tr>
+        </table>
 
         <h3>Employee Information</h3>
         <table class="info">
@@ -90,27 +162,10 @@
             </tr>
         </table>
 
-        <h3>Payment Information</h3>
-        <table class="info">
-            <tr>
-                <td width="30%">Payment Date:</td>
-                <td>@Model.CreatedDate.ToString("dd MMMM yyyy")</td>
-            </tr>
-            <tr>
-                <td>Payment Status:</td>
-                <td>@Model.PaymentStatus</td>
-            </tr>
-            <tr>
-                <td>Project:</td>
-                <td>@Model.ProjectName</td>
-            </tr>
-        </table>
-
-        <h3>Salary Details</h3>
         <table class="details">
             <thead>
                 <tr>
-                    <th>Description</th>
+                    <th>Earnings</th>
                     <th class="text-end">Amount (RM)</th>
                 </tr>
             </thead>
@@ -119,18 +174,17 @@
                     <td>Basic Salary</td>
                     <td class="text-end">@Model.BasicSalary.ToString("N2")</td>
                 </tr>
-                <tr class="table-secondary">
-                    <td><strong>Gross Salary</strong></td>
-                    <td class="text-end"><strong>@Model.BasicSalary.ToString("N2")</strong></td>
+                <tr class="total-row">
+                    <td>GROSS PAY</td>
+                    <td>RM @Model.BasicSalary.ToString("N2")</td>
                 </tr>
             </tbody>
         </table>
 
-        <h3>Deductions</h3>
         <table class="details">
             <thead>
                 <tr>
-                    <th>Description</th>
+                    <th>Deductions</th>
                     <th class="text-end">Amount (RM)</th>
                 </tr>
             </thead>
@@ -151,35 +205,18 @@
                     <td>Income Tax</td>
                     <td class="text-end">@Model.EmployeeTax.ToString("N2")</td>
                 </tr>
-                <tr class="table-secondary">
-                    <td><strong>Total Deductions</strong></td>
-                    <td class="text-end"><strong>@totalDeductions.ToString("N2")</strong></td>
+                <tr class="total-row">
+                    <td>TOTAL DEDUCTIONS</td>
+                    <td>RM @totalDeductions.ToString("N2")</td>
                 </tr>
             </tbody>
         </table>
 
-        <h3>Summary</h3>
         <table class="details">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th class="text-end">Amount (RM)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Gross Salary</td>
-                    <td class="text-end">@Model.BasicSalary.ToString("N2")</td>
-                </tr>
-                <tr>
-                    <td>Total Deductions</td>
-                    <td class="text-end">@totalDeductions.ToString("N2")</td>
-                </tr>
-                <tr class="table-success">
-                    <td><strong>Net Salary</strong></td>
-                    <td class="text-end"><strong>@Model.TotalWages.ToString("N2")</strong></td>
-                </tr>
-            </tbody>
+            <tr class="summary-row">
+                <td class="summary-label">NET PAY</td>
+                <td class="summary-label">RM @Model.TotalWages.ToString("N2")</td>
+            </tr>
         </table>
 
         <div class="footer">

@@ -30,10 +30,6 @@
                             <p class="fw-bold">@Model.EmployeeID</p>
                         </div>
                         <div class="col-md-4">
-                            <p class="mb-1 text-muted">Project</p>
-                            <p class="fw-bold">@Model.ProjectName</p>
-                        </div>
-                        <div class="col-md-4">
                             <p class="mb-1 text-muted">Status</p>
                             <p><span class="badge bg-warning">@Model.PaymentStatus</span></p>
                         </div>
@@ -137,7 +133,7 @@
                     <h4 class="card-title mb-0">Approval Actions</h4>
                 </div>
                 <div class="card-body">
-                    <form asp-controller="Admin" asp-action="ApprovePayroll" asp-route-id="@Model.PayrollID" method="post">
+                    <form asp-controller="Payroll" asp-action="ApprovePayroll" asp-route-id="@Model.PayrollID" method="post">
                         <div class="mb-3">
                             <label for="comments" class="form-label">Comments (Optional)</label>
                             <textarea name="comments" id="comments" class="form-control" rows="3"></textarea>
@@ -160,7 +156,7 @@
 <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form asp-controller="Admin" asp-action="RejectPayroll" asp-route-id="@Model.PayrollID" method="post">
+            <form asp-controller="Payroll" asp-action="RejectPayroll" asp-route-id="@Model.PayrollID" method="post">
                 <div class="modal-header">
                     <h5 class="modal-title" id="rejectModalLabel">Reject Payroll</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

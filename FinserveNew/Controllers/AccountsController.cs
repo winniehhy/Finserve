@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using ISO3166;
+using System.Data;
 
 namespace FinserveNew.Controllers
 {
@@ -34,9 +35,16 @@ namespace FinserveNew.Controllers
             _logger = logger;
         }
 
-
+        // --------------------------- HR Side ----------------------------- //
         // GET: Accounts/AllAccounts
-        public async Task<IActionResult> AllAccounts(int page = 1, int pageSize = 10, string? search = null)
+        public async Task<IActionResult> AllAccounts(
+            int page = 1,
+            int pageSize = 10,
+            string? search = null,
+            string? position = null,
+            string? status = null,
+            DateTime? joinDateStart = null,
+            DateTime? joinDateEnd = null)
         {
             var query = _context.Employees
                 .Include(e => e.Role)
@@ -55,6 +63,31 @@ namespace FinserveNew.Controllers
                 );
             }
 
+            // Position filter
+            if (!string.IsNullOrWhiteSpace(position))
+            {
+                query = query.Where(e => e.Position == position);
+            }
+
+            // Status filter
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(e => e.ConfirmationStatus == status);
+            }
+
+            // Join date range filter - convert DateTime to DateOnly
+            if (joinDateStart.HasValue)
+            {
+                var startDate = DateOnly.FromDateTime(joinDateStart.Value);
+                query = query.Where(e => e.JoinDate >= startDate);
+            }
+
+            if (joinDateEnd.HasValue)
+            {
+                var endDate = DateOnly.FromDateTime(joinDateEnd.Value);
+                query = query.Where(e => e.JoinDate <= endDate);
+            }
+
             var totalRecords = await query.CountAsync();
             var employees = await query
                 .OrderBy(e => e.EmployeeID)
@@ -62,14 +95,18 @@ namespace FinserveNew.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            // Pass pagination info to the view
+            // Pass pagination info and filter values to the view
             ViewBag.Page = page;
             ViewBag.PageSize = pageSize;
             ViewBag.TotalRecords = totalRecords;
             ViewBag.PageSizes = new[] { 10, 25, 50, 100 };
             ViewBag.Search = search;
+            ViewBag.Position = position;
+            ViewBag.Status = status;
+            ViewBag.JoinDateStart = joinDateStart;
+            ViewBag.JoinDateEnd = joinDateEnd;
 
-            return View("~/Views/HR/Accounts/AllAccounts.cshtml", employees); // winnie changed path here -- remove it once u saw haha
+            return View("~/Views/HR/Accounts/AllAccounts.cshtml", employees);
         }
 
         // GET: Accounts/ViewDetails/5
@@ -90,19 +127,24 @@ namespace FinserveNew.Controllers
 
             // Get the user's system role
             var user = await _userManager.FindByIdAsync(employee.ApplicationUserId);
-            string systemRole = "Employee"; // Default
+            //string systemRole = "Employee"; // Default
             if (user != null)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                systemRole = roles.FirstOrDefault() ?? "Employee";
+                //systemRole = roles.FirstOrDefault() ?? "Employee";
             }
+
+            // Get bank names from JSON
+            var banks = GetBanksFromJson();
+            var bankNames = banks.Select(b => b["name"]).ToArray();
 
             var viewModel = new EmployeeDetailsViewModel
             {
                 EmployeeID = employee.EmployeeID,
                 FirstName = employee.FirstName,
                 LastName = employee.LastName,
-                IC = employee.IC,
+                IC = employee.IC ?? string.Empty,
+                PassportNumber = employee.PassportNumber ?? string.Empty,
                 Nationality = employee.Nationality,
                 Email = employee.Email,
                 TelephoneNumber = employee.TelephoneNumber,
@@ -111,30 +153,25 @@ namespace FinserveNew.Controllers
                 ResignationDate = employee.ResignationDate,
                 ConfirmationStatus = employee.ConfirmationStatus,
                 Position = employee.Position,
+                IncomeTaxNumber = employee.IncomeTaxNumber,
+                EPFNumber = employee.EPFNumber,
                 BankName = employee.BankInformation?.BankName ?? string.Empty,
                 BankType = employee.BankInformation?.BankType ?? string.Empty,
                 BankAccountNumber = employee.BankInformation?.BankAccountNumber ?? string.Empty,
                 EmergencyContactName = employee.EmergencyContact?.Name ?? string.Empty,
                 EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber ?? string.Empty,
                 EmergencyContactRelationship = employee.EmergencyContact?.Relationship ?? string.Empty,
-                // Documents = employee.EmployeeDocuments?.Select(d => new DocumentViewModel
-                // {
-                //     DocumentID = d.DocumentID,
-                //     DocumentType = d.DocumentType,
-                //     FilePath = d.FilePath,
-                //     //UploadDate = d.UploadDate
-                // }).ToList() ?? new List<DocumentViewModel>(),
-
+                RoleID = employee.RoleID,
                 RoleName = employee.Role?.RoleName ?? "Unknown",
-                SystemRole = systemRole,
 
                 Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>(),
-                Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" },
-                BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
-                BankTypes = new[] { "Savings", "Current" }
+                Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
+                BankNames = bankNames,
+                BankTypes = new[] { "Savings", "Current" },
+                                
             };
 
-            return View("~/Views/HR/Accounts/ViewDetails.cshtml", viewModel); // winnie changed path here -- remove it once u saw haha
+            return View("~/Views/HR/Accounts/ViewDetails.cshtml", viewModel); 
         }
 
         // GET: Accounts/Add
@@ -146,10 +183,14 @@ namespace FinserveNew.Controllers
             // Get all countries using ISO3166 library
             var countries = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
 
+            // Get bank names from JSON
+            var banks = GetBanksFromJson();
+            var bankNames = banks.Select(b => b["name"]).ToArray();
+
             var vm = new AddEmployeeViewModel
             {
                 Nationalities = countries,
-                BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
+                BankNames = bankNames,
                 BankTypes = new[] { "Savings", "Current" },
 
                 AvailableRoles = roles.Select(r => new SelectListItem
@@ -167,12 +208,31 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> Add(AddEmployeeViewModel vm)
         {
             // Uniqueness checks
-            if (await _context.Employees.AnyAsync(e => e.IC == vm.IC))
-                ModelState.AddModelError("IC", "IC already exists.");
+            // Validate based on nationality
+            if (vm.Nationality == "Malaysia")
+            {
+                if (string.IsNullOrEmpty(vm.IC))
+                {
+                    ModelState.AddModelError("IC", "IC Number is required for Malaysian citizens.");
+                }
+                else if (await _context.Employees.AnyAsync(e => e.IC == vm.IC))
+                {
+                    ModelState.AddModelError("IC", "IC already exists.");
+                }
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(vm.PassportNumber))
+                {
+                    ModelState.AddModelError("PassportNumber", "Passport Number is required for non-Malaysian citizens.");
+                }
+                else if (await _context.Employees.AnyAsync(e => e.PassportNumber == vm.PassportNumber && !string.IsNullOrEmpty(e.PassportNumber)))
+                {
+                    ModelState.AddModelError("PassportNumber", "Passport Number already exists.");
+                }
+            }
             if (await _context.Employees.AnyAsync(e => e.Email == vm.Email))
                 ModelState.AddModelError("Email", "Email already exists.");
-            //if (await _context.Employees.AnyAsync(e => e.Username == vm.Username))
-            //    ModelState.AddModelError("Username", "Username already exists.");
 
             if (!ModelState.IsValid)
             {
@@ -326,15 +386,17 @@ namespace FinserveNew.Controllers
                     Password = HashPassword(rawPassword),
                     FirstName = vm.FirstName,
                     LastName = vm.LastName,
-                    IC = vm.IC,
+                    IC = vm.Nationality == "Malaysia" ? vm.IC : null,
+                    PassportNumber = vm.Nationality != "Malaysia" ? vm.PassportNumber : null,
                     Nationality = vm.Nationality,
                     Email = vm.Email,
                     TelephoneNumber = vm.TelephoneNumber,
                     DateOfBirth = vm.DateOfBirth,
                     JoinDate = vm.JoinDate,
-                    //ResignationDate = vm.ResignationDate,
                     ConfirmationStatus = vm.ConfirmationStatus,
                     Position = vm.Position,
+                    IncomeTaxNumber = vm.IncomeTaxNumber,
+                    EPFNumber = vm.EPFNumber,
                     BankID = bankInfo.BankID,
                     EmergencyID = emergencyContact.EmergencyID,
                     RoleID = vm.RoleID
@@ -342,23 +404,24 @@ namespace FinserveNew.Controllers
                 _context.Employees.Add(employee);
                 await _context.SaveChangesAsync();
 
-                // Handle file uploads
-                if (vm.ICFile != null)
+                if (vm.NewDocuments != null && vm.NewDocumentTypes != null && vm.NewDocuments.Count == vm.NewDocumentTypes.Count)
                 {
-                    var icPath = await SaveFile(vm.ICFile, "ic_photos");
-                    await AddEmployeeDocument(employee.EmployeeID, "IC Photo", icPath);
-                }
+                    for (int i = 0; i < vm.NewDocuments.Count; i++)
+                    {
+                        var file = vm.NewDocuments[i];
+                        var docType = vm.NewDocumentTypes[i];
 
-                if (vm.ResumeFile != null)
-                {
-                    var resumePath = await SaveFile(vm.ResumeFile, "resumes");
-                    await AddEmployeeDocument(employee.EmployeeID, "Resume", resumePath);
-                }
+                        if (file != null && !string.IsNullOrEmpty(docType))
+                        {
+                            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                            var ext = Path.GetExtension(file.FileName).ToLower();
+                            if (!allowedExtensions.Contains(ext) || file.Length > 5 * 1024 * 1024)
+                                continue;
 
-                if (vm.OfferLetterFile != null)
-                {
-                    var offerLetterPath = await SaveFile(vm.OfferLetterFile, "offer_letters");
-                    await AddEmployeeDocument(employee.EmployeeID, "Offer Letter", offerLetterPath);
+                            var filePath = await SaveFile(file, "documents", docType);
+                            await AddEmployeeDocument(employee.EmployeeID, docType, filePath, file.FileName);
+                        }
+                    }
                 }
 
                 // Create ASP.NET Identity user account
@@ -411,7 +474,7 @@ namespace FinserveNew.Controllers
 
                     ModelState.AddModelError(string.Empty, $"Employee record was created but user account creation failed: {errorMessage}");
 
-                    vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
+                    vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
                     vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
                     vm.BankTypes = new[] { "Savings", "Current" };
                     return View("~/Views/HR/Accounts/Add.cshtml", vm);
@@ -426,7 +489,7 @@ namespace FinserveNew.Controllers
                 _logger.LogError(ex, "Error creating employee and user account");
                 ModelState.AddModelError(string.Empty, "An error occurred while creating the employee. Please try again.");
 
-                vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
+                vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
                 vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
                 vm.BankTypes = new[] { "Savings", "Current" };
                 return View("~/Views/HR/Accounts/Add.cshtml", vm);
@@ -436,162 +499,148 @@ namespace FinserveNew.Controllers
             //return RedirectToAction(nameof(AllAccounts));
         }
 
-        // GET: Accounts/Edit/5
-        public async Task<IActionResult> Edit(string id)
-        {
-            if (string.IsNullOrEmpty(id))
-                return NotFound();
+        //// GET: Accounts/Edit/5
+        //public async Task<IActionResult> Edit(string id)
+        //{
+        //    if (string.IsNullOrEmpty(id))
+        //        return NotFound();
 
-            var employee = await _context.Employees
-                .Include(e => e.BankInformation)
-                .Include(e => e.EmergencyContact)
-                .FirstOrDefaultAsync(e => e.EmployeeID == id);
+        //    var employee = await _context.Employees
+        //        .Include(e => e.BankInformation)
+        //        .Include(e => e.EmergencyContact)
+        //        .FirstOrDefaultAsync(e => e.EmployeeID == id);
 
-            if (employee == null)
-                return NotFound();
+        //    if (employee == null)
+        //        return NotFound();
 
-            var vm = new EditEmployeeViewModel
-            {
-                EmployeeID = employee.EmployeeID,
-                FirstName = employee.FirstName,
-                LastName = employee.LastName,
-                IC = employee.IC,
-                Nationality = employee.Nationality,
-                Email = employee.Email,
-                TelephoneNumber = employee.TelephoneNumber,
-                DateOfBirth = employee.DateOfBirth,
-                JoinDate = employee.JoinDate,
-                ResignationDate = employee.ResignationDate,
-                ConfirmationStatus = employee.ConfirmationStatus,
-                Position = employee.Position,
-                BankName = employee.BankInformation?.BankName,
-                BankType = employee.BankInformation?.BankType,
-                BankAccountNumber = employee.BankInformation?.BankAccountNumber,
-                EmergencyContactName = employee.EmergencyContact?.Name,
-                EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber,
-                EmergencyContactRelationship = employee.EmergencyContact?.Relationship,
-                Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
-                BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
-                BankTypes = new[] { "Savings", "Current" }
-            };
+        //    var vm = new EditEmployeeViewModel
+        //    {
+        //        EmployeeID = employee.EmployeeID,
+        //        FirstName = employee.FirstName,
+        //        LastName = employee.LastName,
+        //        IC = employee.IC,
+        //        Nationality = employee.Nationality,
+        //        Email = employee.Email,
+        //        TelephoneNumber = employee.TelephoneNumber,
+        //        DateOfBirth = employee.DateOfBirth,
+        //        JoinDate = employee.JoinDate,
+        //        ResignationDate = employee.ResignationDate,
+        //        ConfirmationStatus = employee.ConfirmationStatus,
+        //        Position = employee.Position,
+        //        BankName = employee.BankInformation?.BankName,
+        //        BankType = employee.BankInformation?.BankType,
+        //        BankAccountNumber = employee.BankInformation?.BankAccountNumber,
+        //        EmergencyContactName = employee.EmergencyContact?.Name,
+        //        EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber,
+        //        EmergencyContactRelationship = employee.EmergencyContact?.Relationship,
+        //        Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
+        //        BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
+        //        BankTypes = new[] { "Savings", "Current" }
+        //    };
 
-            return View(vm);
-        }
+        //    return View(vm);
+        //}
 
-        // POST: Accounts/Edit/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(string id, EditEmployeeViewModel vm)
-        {
-            if (id != vm.EmployeeID)
-                return NotFound();
+        //// POST: Accounts/Edit/5
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> Edit(string id, EmployeeDetailsViewModel vm)
+        //{
+        //    if (id != vm.EmployeeID)
+        //        return NotFound();
 
-            if (!ModelState.IsValid)
-            {
-                vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
-                vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
-                vm.BankTypes = new[] { "Savings", "Current" };
-                return View(vm);
-            }
+        //    var roles = await _context.Roles.ToListAsync();
 
-            var employee = await _context.Employees
-                .Include(e => e.BankInformation)
-                .Include(e => e.EmergencyContact)
-                .FirstOrDefaultAsync(e => e.EmployeeID == id);
+        //    // Get all countries using ISO3166 library
+        //    var countries = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
 
-            if (employee == null)
-                return NotFound();
+        //    if (!ModelState.IsValid)
+        //    {
+        //        vm.Nationalities = countries;
+        //        vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
+        //        vm.BankTypes = new[] { "Savings", "Current" };
+                                
+        //        return View(vm);
+        //    }
 
-            // Update employee details
-            employee.FirstName = vm.FirstName;
-            employee.LastName = vm.LastName;
-            employee.IC = vm.IC;
-            employee.Nationality = vm.Nationality;
-            employee.Email = vm.Email;
-            employee.TelephoneNumber = vm.TelephoneNumber;
-            employee.DateOfBirth = vm.DateOfBirth;
-            employee.JoinDate = vm.JoinDate;
-            employee.ResignationDate = vm.ResignationDate;
-            employee.ConfirmationStatus = vm.ConfirmationStatus;
-            employee.Position = vm.Position;
+        //    var employee = await _context.Employees
+        //        .Include(e => e.BankInformation)
+        //        .Include(e => e.EmergencyContact)
+        //        .FirstOrDefaultAsync(e => e.EmployeeID == id);
 
-            // Update bank information
-            if (employee.BankInformation != null)
-            {
-                employee.BankInformation.BankName = vm.BankName;
-                employee.BankInformation.BankType = vm.BankType;
-                employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
-            }
+        //    if (employee == null)
+        //        return NotFound();
 
-            // Update emergency contact
-            if (employee.EmergencyContact != null)
-            {
-                employee.EmergencyContact.Name = vm.EmergencyContactName;
-                employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
-                employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
-            }
+        //    // Update employee details
+        //    employee.FirstName = vm.FirstName;
+        //    employee.LastName = vm.LastName;
+        //    employee.IC = vm.IC;
+        //    employee.Nationality = vm.Nationality;
+        //    employee.Email = vm.Email;
+        //    employee.TelephoneNumber = vm.TelephoneNumber;
+        //    employee.DateOfBirth = vm.DateOfBirth;
+        //    employee.JoinDate = vm.JoinDate;
+        //    employee.ResignationDate = vm.ResignationDate;
+        //    employee.ConfirmationStatus = vm.ConfirmationStatus;
+        //    employee.Position = vm.Position;
+            
+        //    // Update bank information
+        //    if (employee.BankInformation != null)
+        //    {
+        //        employee.BankInformation.BankName = vm.BankName;
+        //        employee.BankInformation.BankType = vm.BankType;
+        //        employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
+        //    }
 
-            try
-            {
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Employee updated successfully!";
-                return RedirectToAction(nameof(AllAccounts));
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!EmployeeExists(id))
-                    return NotFound();
-                else
-                    throw;
-            }
-        }
+        //    // Update emergency contact
+        //    if (employee.EmergencyContact != null)
+        //    {
+        //        employee.EmergencyContact.Name = vm.EmergencyContactName;
+        //        employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
+        //        employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
+        //    }
 
-        // GET: Accounts/Documents/5
-        public async Task<IActionResult> Documents(string id)
-        {
-            if (string.IsNullOrEmpty(id))
-                return NotFound();
-
-            var employee = await _context.Employees
-                .Include(e => e.EmployeeDocuments)
-                .FirstOrDefaultAsync(e => e.EmployeeID == id);
-
-            if (employee == null)
-                return NotFound();
-
-            return View(employee);
-        }
-
-        // POST: Accounts/Documents/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UploadDocument(string id, IFormFile file, string documentType)
-        {
-            if (string.IsNullOrEmpty(id) || file == null)
-                return NotFound();
-
-            var employee = await _context.Employees.FindAsync(id);
-            if (employee == null)
-                return NotFound();
-
-            var filePath = await SaveFile(file, "documents");
-            await AddEmployeeDocument(id, documentType, filePath);
-
-            TempData["Success"] = "Document uploaded successfully!";
-            return RedirectToAction(nameof(Documents), new { id });
-        }
+        //    try
+        //    {
+        //        await _context.SaveChangesAsync();
+        //        TempData["Success"] = "Employee updated successfully!";
+        //        return RedirectToAction(nameof(AllAccounts));
+        //    }
+        //    catch (DbUpdateConcurrencyException)
+        //    {
+        //        if (!EmployeeExists(id))
+        //            return NotFound();
+        //        else
+        //            throw;
+        //    }
+        //}
 
         // POST: Accounts/UpdateEmployee
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateEmployee(EmployeeDetailsViewModel vm)
         {
+            // Get all countries using ISO3166 library
+            var countries = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
+
             if (!ModelState.IsValid)
             {
-                vm.Nationalities = new[] { "Malaysia", "Singapore", "Indonesia", "Thailand" };
-                vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
+                vm.Nationalities = countries;
+                var banksInvalid = GetBanksFromJson();
+                vm.BankNames = banksInvalid.Select(b => b["name"]).ToArray();
                 vm.BankTypes = new[] { "Savings", "Current" };
-                return View("ViewDetails", vm);
+                                
+                // Log the errors to the console
+                foreach (var modelStateEntry in ModelState.Values)
+                {
+                    foreach (var error in modelStateEntry.Errors)
+                    {
+                        // You can also use ILogger here
+                        _logger.LogError("Validation Error: {ErrorMessage}", error.ErrorMessage);
+                    }
+                }
+
+                return View("~/Views/HR/Accounts/ViewDetails.cshtml", vm);
             }
 
             var employee = await _context.Employees
@@ -605,7 +654,16 @@ namespace FinserveNew.Controllers
             // Update employee details
             employee.FirstName = vm.FirstName;
             employee.LastName = vm.LastName;
-            employee.IC = vm.IC;
+            if (vm.Nationality == "Malaysia")
+            {
+                employee.IC = vm.IC;
+                employee.PassportNumber = null;
+            }
+            else
+            {
+                employee.IC = null;
+                employee.PassportNumber = vm.PassportNumber;
+            }
             employee.Nationality = vm.Nationality;
             employee.Email = vm.Email;
             employee.TelephoneNumber = vm.TelephoneNumber;
@@ -614,6 +672,8 @@ namespace FinserveNew.Controllers
             employee.ResignationDate = vm.ResignationDate;
             employee.ConfirmationStatus = vm.ConfirmationStatus;
             employee.Position = vm.Position;
+            employee.IncomeTaxNumber = vm.IncomeTaxNumber;
+            employee.EPFNumber = vm.EPFNumber;
 
             // Update bank information
             if (employee.BankInformation != null)
@@ -629,6 +689,27 @@ namespace FinserveNew.Controllers
                 employee.EmergencyContact.Name = vm.EmergencyContactName;
                 employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
                 employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
+            }
+
+            // Handle multiple file uploads
+            if (vm.NewDocuments != null && vm.NewDocumentTypes != null && vm.NewDocuments.Count == vm.NewDocumentTypes.Count)
+            {
+                for (int i = 0; i < vm.NewDocuments.Count; i++)
+                {
+                    var file = vm.NewDocuments[i];
+                    var docType = vm.NewDocumentTypes[i];
+
+                    if (file != null && !string.IsNullOrEmpty(docType))
+                    {
+                        var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                        var ext = Path.GetExtension(file.FileName).ToLower();
+                        if (!allowedExtensions.Contains(ext) || file.Length > 5 * 1024 * 1024)
+                            continue;
+
+                        var filePath = await SaveFile(file, "documents", docType);
+                        await AddEmployeeDocument(vm.EmployeeID, docType, filePath, file.FileName);
+                    }
+                }
             }
 
             try
@@ -669,15 +750,23 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(ViewDetails), new { id = document.EmployeeID });
         }
 
-        private async Task<string> SaveFile(IFormFile file, string folder)
+        private async Task<string> SaveFile(IFormFile file, string baseFolder, string documentType)
         {
             if (file == null || file.Length == 0)
                 return null;
 
-            string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, folder);
+            // Convert document type to a valid folder name (lowercase, replace spaces with hyphens)
+            string folderName = documentType.ToLower().Replace(" ", "-").Replace("/", "-");
+
+            // Create path structure: baseFolder/documentType/
+            string folderPath = Path.Combine(baseFolder, folderName);
+            string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, folderPath);
+
+            // Create directory if it doesn't exist
             if (!Directory.Exists(uploadsFolder))
                 Directory.CreateDirectory(uploadsFolder);
 
+            // Create unique filename
             string uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
             string filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
@@ -686,17 +775,18 @@ namespace FinserveNew.Controllers
                 await file.CopyToAsync(fileStream);
             }
 
-            return "/" + folder + "/" + uniqueFileName;
+            // Return the web-accessible path
+            return $"/{folderPath}/{uniqueFileName}";
         }
 
-        private async Task AddEmployeeDocument(string employeeId, string documentType, string filePath)
+        private async Task AddEmployeeDocument(string employeeId, string documentType, string filePath, string fileName)
         {
             var document = new EmployeeDocument
             {
                 EmployeeID = employeeId,
                 DocumentType = documentType,
                 FilePath = filePath,
-                // UploadDate = DateTime.UtcNow
+                FileName = fileName
             };
 
             _context.EmployeeDocuments.Add(document);
@@ -716,142 +806,43 @@ namespace FinserveNew.Controllers
         {
             return _context.Employees.Any(e => e.EmployeeID == id);
         }
+              
 
 
-        // -------------- PROFILE RELATED METHODS -------------- //
-        // GET: Accounts/Profile
-        public async Task<IActionResult> Profile()
+        // ------------- HELPER METHOD ----------------- //
+        // Helper method to get bank names from JSON file
+        private List<Dictionary<string, string>> GetBanksFromJson()
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return RedirectToAction("Login", "Account");
-
-            var employee = await _context.Employees
-                .Include(e => e.BankInformation)
-                .Include(e => e.EmergencyContact)
-                .FirstOrDefaultAsync(e => e.EmployeeID == user.EmployeeID);
-
-            if (employee == null)
-                return NotFound();
-
-            var vm = new EditEmployeeViewModel
+            try
             {
-                EmployeeID = employee.EmployeeID,
-                FirstName = employee.FirstName,
-                LastName = employee.LastName,
-                IC = employee.IC,
-                Nationality = employee.Nationality,
-                Email = employee.Email,
-                TelephoneNumber = employee.TelephoneNumber,
-                DateOfBirth = employee.DateOfBirth,
-                JoinDate = employee.JoinDate,
-                ResignationDate = employee.ResignationDate,
-                ConfirmationStatus = employee.ConfirmationStatus,
-                Position = employee.Position,
-                BankName = employee.BankInformation?.BankName,
-                BankType = employee.BankInformation?.BankType,
-                BankAccountNumber = employee.BankInformation?.BankAccountNumber,
-                EmergencyContactName = employee.EmergencyContact?.Name,
-                EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber,
-                EmergencyContactRelationship = employee.EmergencyContact?.Relationship,
-                Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
-                BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
-                BankTypes = new[] { "Savings", "Current" }
-            };
+                // Define path to banks.json file
+                string filePath = Path.Combine(_webHostEnvironment.WebRootPath, "json", "banks.json");
 
-            return View("~/Views/Employee/Profile.cshtml", vm);
-        }
+                if (!System.IO.File.Exists(filePath))
+                    return new List<Dictionary<string, string>>();
 
-        // POST: Accounts/Profile
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Profile(EditEmployeeViewModel vm)
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null || user.EmployeeID != vm.EmployeeID)
-                return Unauthorized();
+                // Read file content
+                string jsonString = System.IO.File.ReadAllText(filePath);
 
-            if (!ModelState.IsValid)
-            {
-                vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
-                vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
-                vm.BankTypes = new[] { "Savings", "Current" };
-                return View("~/Views/Employee/Profile.cshtml", vm);
-            }
-
-            var employee = await _context.Employees
-                .Include(e => e.BankInformation)
-                .Include(e => e.EmergencyContact)
-                .FirstOrDefaultAsync(e => e.EmployeeID == vm.EmployeeID);
-
-            if (employee == null)
-                return NotFound();
-
-            // Update allowed fields
-            employee.FirstName = vm.FirstName;
-            employee.LastName = vm.LastName;
-            employee.Nationality = vm.Nationality;
-            employee.TelephoneNumber = vm.TelephoneNumber;
-            employee.Email = vm.Email;
-
-            if (employee.BankInformation != null)
-            {
-                employee.BankInformation.BankName = vm.BankName;
-                employee.BankInformation.BankType = vm.BankType;
-                employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
-            }
-
-            if (employee.EmergencyContact != null)
-            {
-                employee.EmergencyContact.Name = vm.EmergencyContactName;
-                employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
-                employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
-            }
-
-            await _context.SaveChangesAsync();
-            TempData["Success"] = "Profile updated successfully!";
-            return RedirectToAction(nameof(Profile));
-        }
-
-        // POST: Accounts/ChangePassword
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ChangePassword(string currentPassword, string newPassword, string confirmPassword)
-        {
-            if (string.IsNullOrEmpty(currentPassword) || string.IsNullOrEmpty(newPassword) || string.IsNullOrEmpty(confirmPassword))
-            {
-                return Json(new { success = false, message = "All fields are required" });
-            }
-
-            if (newPassword != confirmPassword)
-            {
-                return Json(new { success = false, message = "New password and confirmation don't match" });
-            }
-
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-            {
-                return Json(new { success = false, message = "User not found" });
-            }
-
-            var changePasswordResult = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
-            if (!changePasswordResult.Succeeded)
-            {
-                string errorMessage = "Failed to change password";
-
-                if (changePasswordResult.Errors.Any())
+                // Deserialize JSON
+                var options = new System.Text.Json.JsonSerializerOptions
                 {
-                    var firstError = changePasswordResult.Errors.First();
-                    errorMessage = firstError.Description;
-                }
+                    PropertyNameCaseInsensitive = true
+                };
 
-                return Json(new { success = false, message = errorMessage });
+                var banks = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonString, options);
+
+                // Sort alphabetically by name
+                banks = banks?.OrderBy(b => b["name"]).ToList() ?? new List<Dictionary<string, string>>();
+
+                return banks;
             }
-
-            _logger.LogInformation("User {UserId} changed their password successfully", user.Id);
-            return Json(new { success = true, message = "Password changed successfully!" });
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading banks from JSON");
+                return new List<Dictionary<string, string>>();
+            }
         }
-
 
     }
 }
