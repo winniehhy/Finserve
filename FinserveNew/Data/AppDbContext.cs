@@ -58,12 +58,16 @@ namespace FinserveNew.Data
                 entity.Property(e => e.Password).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.IC).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.IC).HasMaxLength(12);
+                entity.Property(e => e.PassportNumber).HasMaxLength(20);
                 entity.Property(e => e.Nationality).IsRequired().HasMaxLength(50);
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.TelephoneNumber).IsRequired().HasMaxLength(20);
                 entity.Property(e => e.Position).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.ConfirmationStatus).HasMaxLength(20).HasDefaultValue("Pending");
+                entity.Property(e => e.IncomeTaxNumber).IsRequired().HasMaxLength(15);
+                entity.Property(e => e.EPFNumber).IsRequired().HasMaxLength(15);
+
 
                 entity.HasOne(e => e.BankInformation)
                     .WithMany(b => b.Employees)

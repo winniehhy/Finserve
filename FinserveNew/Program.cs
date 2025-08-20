@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using FinserveNew.Services;
-
+using Rotativa.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -102,9 +102,13 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// ✅ Register Rotativa for PDF generation
+app.UseRotativa();
+
 // ✅ Set default route to redirect to login if not authenticated
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
+
 
 app.Run();

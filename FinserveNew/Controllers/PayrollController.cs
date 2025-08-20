@@ -281,9 +281,10 @@ namespace FinserveNew.Controllers
                     <li><strong>Net Salary:</strong> RM {payroll.TotalWages:N2}</li>
                     <li><strong>Total Cost:</strong> RM {payroll.TotalEmployerCost:N2}</li>
                 </ul>
-                <p><a href='{Url.Action("PayrollDetails", "Admin", new { id = payroll.PayrollID }, Request.Scheme)}'>Click here to review this payroll</a></p>";
+                <p><a href='{Url.Action("PayrollDetails", "Payroll", new { id = payroll.PayrollID }, Request.Scheme)}'>Click here to review this payroll</a></p>";
 
-                    await _emailSender.SendEmailAsync(adminUser.Email, subject, body);
+                    //await _emailSender.SendEmailAsync(adminUser.Email, subject, body);
+                    await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
                 }
             }
 
@@ -397,8 +398,7 @@ namespace FinserveNew.Controllers
 
             var currentUser = await _userManager.GetUserAsync(User);
             string approverName = currentUser != null
-                ? $"{currentUser.FirstName} {currentUser.LastName}"
-                : User.Identity.Name;
+                ? $"{currentUser.FirstName} {currentUser.LastName}" : User.Identity.Name;
 
             // Update status to approved
             payroll.PaymentStatus = "Approved";
@@ -562,9 +562,17 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // This would generate PDF - here we return the view for now
-            // In a real implementation, you would use a PDF library
-            return View("~/Views/Employee/Payslips/PayslipPdf.cshtml", payslip);
+            // Generate the PDF directly from the Razor view
+            var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payslip.Month);
+            string fileName = $"Payslip-{payslip.Employee.FirstName}{payslip.Employee.LastName}-{monthName}{payslip.Year}.pdf";
+
+            // Return the PDF with a filename
+            return new Rotativa.AspNetCore.ViewAsPdf("~/Views/Employee/Payslips/PayslipPdf.cshtml", payslip)
+            {
+                FileName = fileName,
+                PageSize = Rotativa.AspNetCore.Options.Size.A4,
+                PageMargins = { Left = 10, Right = 10, Top = 10, Bottom = 10 }
+            };
         }
     }
 } 

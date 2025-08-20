@@ -1,0 +1,16 @@
+[
+  { "name": "Maybank", "code": "MAYBANK", "swift": "MBBEMYKL" },
+  { "name": "CIMB Bank", "code": "CIMB", "swift": "CIBBMYKL" },
+  { "name": "Public Bank", "code": "PUBLICBANK", "swift": "PBBEMYKL" },
+  { "name": "RHB Bank", "code": "RHB", "swift": "RHBBMYKL" },
+  { "name": "Hong Leong Bank", "code": "HLB", "swift": "HLBBMYKL" },
+  { "name": "Bank Islam Malaysia", "code": "BANKISLAM", "swift": "BIMBMYKL" },
+  { "name": "Bank Rakyat", "code": "BANKRAKYAT", "swift": null },
+  { "name": "Ambank", "code": "AMBANK", "swift": "ARBKMYKL" },
+  { "name": "UOB Malaysia", "code": "UOB", "swift": "UOVBMYKL" },
+  { "name": "HSBC Bank Malaysia", "code": "HSBC", "swift": "HBMBMYKL" },
+  { "name": "OCBC Bank Malaysia", "code": "OCBC", "swift": "OCBCMYKL" },
+  { "name": "Standard Chartered Bank Malaysia", "code": "SCB", "swift": "SCBLMYKX" },
+  { "name": "Affin Bank", "code": "AFFIN", "swift": "PHBMMYKL" },
+  { "name": "Alliance Bank", "code": "ALLIANCE", "swift": "MFBBMYKL" }
+]

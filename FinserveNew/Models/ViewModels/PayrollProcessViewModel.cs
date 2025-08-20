@@ -21,8 +21,8 @@ namespace FinserveNew.Models.ViewModels
 
         public bool SameAsPreviousMonth { get; set; }
 
-        [Required(ErrorMessage = "Project name is required")]
-        public string ProjectName { get; set; }
+        //[Required(ErrorMessage = "Project name is required")]
+        public string? ProjectName { get; set; }
 
         // Salary details
         [Required(ErrorMessage = "Basic salary is required")]

@@ -112,6 +112,9 @@
                     </label>
                     <input asp-for="Password" class="form-control" placeholder="Enter your password" />
                     <span asp-validation-for="Password" class="text-danger"></span>
+                    <div class="mt-1 text-end">
+                        <a asp-action="ForgotPassword" class="text-decoration-none small">Forgot Password?</a>
+                    </div>
                 </div>
 
                 <div class="form-check mb-3">

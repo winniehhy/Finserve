@@ -17,8 +17,8 @@ namespace FinserveNew.Models
         [Required]
         public int Year { get; set; }
 
-        [Required]
-        public string ProjectName { get; set; }
+        //[Required]
+        public string? ProjectName { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]

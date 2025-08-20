@@ -35,7 +35,6 @@
                         <thead>
                             <tr>
                                 <th>Month</th>
-                                <th>Project</th>
                                 <th>Basic Salary</th>
                                 <th>Deductions</th>
                                 <th>Net Salary</th>
@@ -48,7 +47,6 @@
                             {
                                 <tr>
                                     <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payslip.Month)</td>
-                                    <td>@payslip.ProjectName</td>
                                     <td>RM @payslip.BasicSalary.ToString("N2")</td>
                                     <td>RM @((payslip.EmployeeEpf + payslip.EmployeeSocso + payslip.EmployeeEis + payslip.EmployeeTax).ToString("N2"))</td>
                                     <td>RM @payslip.TotalWages.ToString("N2")</td>
