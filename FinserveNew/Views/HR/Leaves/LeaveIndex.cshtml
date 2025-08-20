@@ -16,6 +16,10 @@
         <a asp-action="RejectedLeaves" class="btn btn-custom-rejected">
             <i class="fas fa-times me-2"></i>Rejected (@Model.Count(l => l.Status == "Rejected"))
         </a>
+        <!-- ✅ ADD UNPAID LEAVE REQUESTS BUTTON -->
+        <a asp-action="UnpaidLeaveIndex" class="btn btn-custom-unpaid">
+            <i class="fas fa-money-bill-alt me-2"></i>Unpaid Requests
+        </a>
         <a asp-action="EmployeeLeaveBalance" class="btn btn-custom-info">
             <i class="fas fa-balance-scale me-2"></i>Employee Balance
         </a>
@@ -37,6 +41,45 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
+
+@* <!-- ✅ ADD UNPAID LEAVE SUMMARY CARD -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Quick Overview - Unpaid Leave Requests
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-warning mb-1" id="pending-unpaid-count">Loading...</h4>
+                            <small class="text-muted">Pending Unpaid Requests</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-success mb-1" id="approved-unpaid-count">Loading...</h4>
+                            <small class="text-muted">Approved This Month</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h4 class="text-danger mb-1" id="rejected-unpaid-count">Loading...</h4>
+                        <small class="text-muted">Rejected This Month</small>
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <a asp-action="UnpaidLeaveIndex" class="btn btn-warning">
+                        <i class="fas fa-eye me-2"></i>View All Unpaid Requests
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> *@
 
 <div class="form-container">
     @if (Model != null && Model.Any())
@@ -123,4 +166,47 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/status.css">
+    <style>
+        /* ✅ ADD STYLING FOR UNPAID BUTTON */
+        .btn-custom-unpaid {
+            background-color: #fd7e14;
+            border-color: #fd7e14;
+            color: white;
+        }
+
+            .btn-custom-unpaid:hover {
+                background-color: #e76707;
+                border-color: #dc6602;
+                color: white;
+            }
+
+        .border-end {
+            border-right: 1px solid #dee2e6;
+        }
+
+        
+    </style>
+}
+
+@section Scripts {
+    <script>
+        // ✅ LOAD UNPAID LEAVE STATISTICS
+        $(document).ready(function() {
+            // Fetch unpaid leave statistics
+            $.ajax({
+                url: '@Url.Action("GetUnpaidLeaveStats", "Leaves")',
+                method: 'GET',
+                success: function(data) {
+                    $('#pending-unpaid-count').text(data.pendingCount || 0);
+                    $('#approved-unpaid-count').text(data.approvedThisMonth || 0);
+                    $('#rejected-unpaid-count').text(data.rejectedThisMonth || 0);
+                },
+                error: function() {
+                    $('#pending-unpaid-count').text('--');
+                    $('#approved-unpaid-count').text('--');
+                    $('#rejected-unpaid-count').text('--');
+                }
+            });
+        });
+    </script>
 }

@@ -70,6 +70,15 @@ namespace FinserveNew.Controllers
             ViewBag.LeaveBalances = leaveBalances;
             PopulateLeaveBalanceViewBag(leaveBalances);
 
+            // Check for unpaid leave requests (pending or approved)
+            var unpaidLeaveRequests = await _context.UnpaidLeaveRequests
+                .Where(u => u.EmployeeID == employeeId &&
+                           (u.Status == "Pending" || u.Status == "Approved"))
+                .ToListAsync();
+
+            ViewBag.HasUnpaidLeaveRequests = unpaidLeaveRequests.Any();
+            ViewBag.UnpaidLeaveRequestCount = unpaidLeaveRequests.Count;
+
             return View("~/Views/Employee/Leaves/LeaveRecords.cshtml", leaves);
         }
 
@@ -144,25 +153,18 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Create(LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full",
-    string? JustificationReason = null, bool ConfirmUnpaidLeave = false)
+      string? JustificationReason = null, bool ConfirmUnpaidLeave = false,
+      string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null)
         {
             _logger.LogInformation("🚀 CREATE LEAVE POST started");
             _logger.LogInformation($"📝 Received leave data: Type={leave.LeaveTypeID}, Start={leave.StartDate}, End={leave.EndDate}, DayType={DayType}");
+            _logger.LogInformation($"🔍 Alternative Leave Choice: {AlternativeLeaveChoice}");
+            _logger.LogInformation($"🔍 Alternative Leave Type IDs: {AlternativeLeaveTypeIds}");
 
-            // ===== CRITICAL DEBUG SECTION =====
-            _logger.LogInformation($"🔍 DEBUG CHECKPOINT 1 - Form Parameters:");
-            _logger.LogInformation($"   ConfirmUnpaidLeave: {ConfirmUnpaidLeave}");
-            _logger.LogInformation($"   JustificationReason: '{JustificationReason ?? "NULL"}'");
-            _logger.LogInformation($"   JustificationReason IsNullOrWhiteSpace: {string.IsNullOrWhiteSpace(JustificationReason)}");
-            _logger.LogInformation($"   JustificationReason Length: {JustificationReason?.Length ?? 0}");
-
-            // ✅ DECLARE employeeId AT METHOD LEVEL
             string employeeId = null;
 
             try
             {
-                _logger.LogInformation("🔍 DEBUG CHECKPOINT 2 - Starting try block");
-
                 // Get current employee ID FIRST
                 employeeId = await GetCurrentEmployeeId();
                 if (string.IsNullOrEmpty(employeeId))
@@ -173,8 +175,6 @@ namespace FinserveNew.Controllers
                     return View("~/Views/Employee/Leaves/Create.cshtml", leave);
                 }
 
-                _logger.LogInformation($"🔍 DEBUG CHECKPOINT 3 - Employee ID found: {employeeId}");
-
                 // Set EmployeeID and clear validation errors
                 leave.EmployeeID = employeeId;
                 ModelState.Remove("EmployeeID");
@@ -184,7 +184,7 @@ namespace FinserveNew.Controllers
                 bool isEmergencyLeave = false;
                 if (leave.LeaveTypeID == 4) // Emergency Leave from UI
                 {
-                    _logger.LogInformation("🔍 DEBUG CHECKPOINT 4 - Processing Emergency Leave");
+                    _logger.LogInformation("🔍 Processing Emergency Leave");
                     isEmergencyLeave = true;
                     var annualLeaveType = await _context.LeaveTypes
                         .FirstOrDefaultAsync(lt => lt.TypeName.ToLower().Contains("annual"));
@@ -202,8 +202,6 @@ namespace FinserveNew.Controllers
                         return View("~/Views/Employee/Leaves/Create.cshtml", leave);
                     }
                 }
-
-                _logger.LogInformation($"🔍 DEBUG CHECKPOINT 5 - Emergency Leave Status: {isEmergencyLeave}");
 
                 // Calculate LeaveDays BEFORE validation
                 var baseDays = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
@@ -223,8 +221,6 @@ namespace FinserveNew.Controllers
                     leave.LeaveDays = baseDays;
                 }
 
-                _logger.LogInformation($"🔍 DEBUG CHECKPOINT 6 - Calculated LeaveDays: {leave.LeaveDays}");
-
                 // Clear validation errors for auto-set fields
                 ModelState.Remove("Status");
                 ModelState.Remove("CreatedDate");
@@ -241,17 +237,13 @@ namespace FinserveNew.Controllers
                     ModelState.AddModelError("LeaveTypeID", "Please select a valid leave type.");
                 }
 
-                _logger.LogInformation("🔍 DEBUG CHECKPOINT 7 - Leave type validation completed");
-
                 // Validate medical certificate for medical leave
                 var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeID);
                 if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical"))
                 {
-                    _logger.LogInformation("🔍 DEBUG CHECKPOINT 8 - Processing Medical Leave");
                     if (MedicalCertificate == null || MedicalCertificate.Length == 0)
                     {
                         ModelState.AddModelError("MedicalCertificate", "Medical certificate is required for medical leave.");
-                        _logger.LogWarning("❌ Medical certificate missing for medical leave");
                     }
                     else
                     {
@@ -271,9 +263,7 @@ namespace FinserveNew.Controllers
                     }
                 }
 
-                _logger.LogInformation("🔍 DEBUG CHECKPOINT 9 - Medical certificate validation completed");
-
-                // Check leave balance and determine if unpaid leave is needed
+                // Check leave balance and handle alternative leave types or unpaid leave
                 var currentYear = DateTime.Now.Year;
                 var requestedDays = leave.LeaveDays;
                 var remainingBalance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear);
@@ -281,36 +271,142 @@ namespace FinserveNew.Controllers
                 bool willExceedBalance = requestedDays > remainingBalance;
                 double excessDays = Math.Max(0, requestedDays - remainingBalance);
 
-                _logger.LogInformation($"🔍 DEBUG CHECKPOINT 10 - Balance Check:");
-                _logger.LogInformation($"   Requested: {requestedDays}");
-                _logger.LogInformation($"   Available: {remainingBalance}");
-                _logger.LogInformation($"   Excess: {excessDays}");
-                _logger.LogInformation($"   Will Exceed Balance: {willExceedBalance}");
+                _logger.LogInformation($"🔍 Balance Check: Requested={requestedDays}, Available={remainingBalance}, Excess={excessDays}");
 
-                // ===== SIMPLIFIED UNPAID LEAVE HANDLING =====
                 if (willExceedBalance)
                 {
-                    _logger.LogInformation("🔍 DEBUG CHECKPOINT 11 - Balance exceeded, checking if this is an unpaid leave request");
+                    _logger.LogInformation("🔍 Balance exceeded, checking alternative options");
 
-                    // Check if this is coming from the frontend with unpaid leave confirmation
-                    var isUnpaidLeaveRequest = Request.Form["IsUnpaidLeaveRequest"].ToString() == "true";
-
-                    _logger.LogInformation($"   IsUnpaidLeaveRequest from form: {isUnpaidLeaveRequest}");
-
-                    if (isUnpaidLeaveRequest)
+                    // Check if user chose to use alternative leave types
+                    if (AlternativeLeaveChoice == "alternative" && !string.IsNullOrEmpty(AlternativeLeaveTypeIds))
                     {
-                        _logger.LogInformation("🔍 DEBUG CHECKPOINT 12 - Processing as unpaid leave request");
+                        _logger.LogInformation("🔍 Processing alternative leave types allocation");
 
-                        // Validate justification is provided
+                        var alternativeTypeIds = AlternativeLeaveTypeIds.Split(',')
+                            .Where(id => !string.IsNullOrEmpty(id))
+                            .Select(int.Parse)
+                            .ToList();
+
+                        // Create multiple leave records for different leave types
+                        var leaveRecords = new List<LeaveModel>();
+                        double remainingDaysToAllocate = requestedDays;
+
+                        // First, use the original leave type balance
+                        if (remainingBalance > 0)
+                        {
+                            var originalLeave = new LeaveModel
+                            {
+                                EmployeeID = employeeId,
+                                LeaveTypeID = leave.LeaveTypeID,
+                                StartDate = leave.StartDate,
+                                EndDate = leave.EndDate,
+                                LeaveDays = Math.Min(remainingBalance, remainingDaysToAllocate),
+                                Reason = isEmergencyLeave ? $"[EMERGENCY LEAVE] {leave.Reason ?? ""}".Trim() : leave.Reason,
+                                Status = "Pending",
+                                CreatedDate = DateTime.Now,
+                                SubmissionDate = DateTime.Now
+                            };
+                            leaveRecords.Add(originalLeave);
+                            remainingDaysToAllocate -= originalLeave.LeaveDays;
+                        }
+
+                        // Then use alternative leave types
+                        foreach (var altTypeId in alternativeTypeIds)
+                        {
+                            if (remainingDaysToAllocate <= 0) break;
+
+                            var altBalance = await GetRemainingLeaveBalanceAsync(employeeId, altTypeId, currentYear);
+                            if (altBalance > 0)
+                            {
+                                var altLeaveType = await _context.LeaveTypes.FindAsync(altTypeId);
+                                var daysToUse = Math.Min(altBalance, remainingDaysToAllocate);
+
+                                var altLeave = new LeaveModel
+                                {
+                                    EmployeeID = employeeId,
+                                    LeaveTypeID = altTypeId,
+                                    StartDate = leave.StartDate,
+                                    EndDate = leave.EndDate,
+                                    LeaveDays = daysToUse,
+                                    Reason = $"[ALTERNATIVE LEAVE - Original: {leaveType.TypeName}] {leave.Reason ?? ""}".Trim(),
+                                    Status = "Pending",
+                                    CreatedDate = DateTime.Now,
+                                    SubmissionDate = DateTime.Now
+                                };
+                                leaveRecords.Add(altLeave);
+                                remainingDaysToAllocate -= daysToUse;
+                            }
+                        }
+
+                        // If there are still remaining days, create unpaid leave request
+                        if (remainingDaysToAllocate > 0)
+                        {
+                            if (string.IsNullOrWhiteSpace(JustificationReason))
+                            {
+                                ModelState.AddModelError("JustificationReason", "Justification is required for the unpaid portion of your leave.");
+                                await PopulateViewDataForFormRedisplay(employeeId);
+                                return View("~/Views/Employee/Leaves/Create.cshtml", leave);
+                            }
+
+                            var unpaidLeaveRequest = new UnpaidLeaveRequestModel
+                            {
+                                EmployeeID = employeeId,
+                                LeaveTypeID = leave.LeaveTypeID,
+                                StartDate = leave.StartDate,
+                                EndDate = leave.EndDate,
+                                RequestedDays = remainingDaysToAllocate,
+                                ExcessDays = remainingDaysToAllocate,
+                                Reason = isEmergencyLeave ? $"[EMERGENCY LEAVE - UNPAID PORTION] {leave.Reason ?? ""}".Trim() : $"[UNPAID PORTION] {leave.Reason ?? ""}".Trim(),
+                                JustificationReason = JustificationReason,
+                                Status = "Pending",
+                                SubmissionDate = DateTime.Now,
+                                CreatedDate = DateTime.Now
+                            };
+
+                            _context.UnpaidLeaveRequests.Add(unpaidLeaveRequest);
+                        }
+
+                        // Save all leave records
+                        foreach (var leaveRecord in leaveRecords)
+                        {
+                            _context.Leaves.Add(leaveRecord);
+                        }
+
+                        await _context.SaveChangesAsync();
+
+                        // Handle medical certificate for the first leave record
+                        if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical") &&
+                            MedicalCertificate != null && MedicalCertificate.Length > 0 && leaveRecords.Any())
+                        {
+                            await SaveMedicalCertificateAsync(MedicalCertificate, leaveRecords.First().LeaveID, leave.LeaveTypeID, "Medical certificate for multi-type leave application");
+                        }
+
+                        // Success message with breakdown
+                        var breakdown = string.Join("\n", leaveRecords.Select(lr =>
+                            $"• {_context.LeaveTypes.Find(lr.LeaveTypeID)?.TypeName}: {lr.LeaveDays:0.#} days"));
+
+                        if (remainingDaysToAllocate > 0)
+                        {
+                            breakdown += $"\n• Unpaid Leave: {remainingDaysToAllocate:0.#} days";
+                        }
+
+                        TempData["Success"] = $"✅ Leave Application Submitted Successfully!\n\n" +
+                                            $"📋 Your {requestedDays:0.#} days leave has been allocated as follows:\n" +
+                                            breakdown + "\n\n" +
+                                            "⏳ All requests have been sent for approval.";
+
+                        return RedirectToAction(nameof(LeaveRecords));
+                    }
+                    // Check if this is an unpaid leave request
+                    else if (Request.Form["IsUnpaidLeaveRequest"].ToString() == "true")
+                    {
                         if (string.IsNullOrWhiteSpace(JustificationReason))
                         {
-                            _logger.LogWarning("❌ Justification missing for unpaid leave request");
                             ModelState.AddModelError("JustificationReason", "Justification is required for unpaid leave requests.");
                             await PopulateViewDataForFormRedisplay(employeeId);
                             return View("~/Views/Employee/Leaves/Create.cshtml", leave);
                         }
 
-                        // CREATE UNPAID LEAVE REQUEST
                         var unpaidLeaveRequest = new UnpaidLeaveRequestModel
                         {
                             EmployeeID = employeeId,
@@ -319,50 +415,33 @@ namespace FinserveNew.Controllers
                             EndDate = leave.EndDate,
                             RequestedDays = requestedDays,
                             ExcessDays = excessDays,
-                            Reason = !string.IsNullOrWhiteSpace(leave.Reason) ? leave.Reason : "Leave request", // ✅ ENSURE REASON IS NOT NULL
+                            Reason = !string.IsNullOrWhiteSpace(leave.Reason) ? leave.Reason : "Leave request",
                             JustificationReason = JustificationReason,
                             Status = "Pending",
                             SubmissionDate = DateTime.Now,
                             CreatedDate = DateTime.Now
                         };
 
-                        // Add emergency leave remark if applicable
                         if (isEmergencyLeave)
                         {
                             unpaidLeaveRequest.Reason = $"[EMERGENCY LEAVE] {unpaidLeaveRequest.Reason}".Trim();
                         }
 
-                        _logger.LogInformation("🔍 DEBUG CHECKPOINT 13 - Saving unpaid leave request");
-
-                        try
-                        {
-                            _context.UnpaidLeaveRequests.Add(unpaidLeaveRequest);
-                            await _context.SaveChangesAsync();
-
-                            _logger.LogInformation($"✅ Unpaid leave request created with ID: {unpaidLeaveRequest.UnpaidLeaveRequestID}");
-                        }
-                        catch (Exception saveEx)
-                        {
-                            _logger.LogError(saveEx, "💥 ERROR saving unpaid leave request");
-                            ModelState.AddModelError("", "Error saving unpaid leave request. Please try again.");
-                            await PopulateViewDataForFormRedisplay(employeeId);
-                            return View("~/Views/Employee/Leaves/Create.cshtml", leave);
-                        }
+                        _context.UnpaidLeaveRequests.Add(unpaidLeaveRequest);
+                        await _context.SaveChangesAsync();
 
                         // Handle medical certificate for unpaid leave request
                         if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical") &&
                             MedicalCertificate != null && MedicalCertificate.Length > 0)
                         {
-                            _logger.LogInformation("🔍 DEBUG CHECKPOINT 14 - Saving medical certificate");
                             await SaveMedicalCertificateAsync(MedicalCertificate, -unpaidLeaveRequest.UnpaidLeaveRequestID, leave.LeaveTypeID, "Medical certificate for unpaid leave request");
                         }
 
-                        // Success message
                         var successMessage = isEmergencyLeave ?
                             $"✅ Emergency Leave Request Submitted!\n\n" +
                             $"📋 Details:\n" +
                             $"• Total Days Requested: {requestedDays:0.#}\n" +
-                            $"• From Annual Leave Balance: {Math.Min(remainingBalance, requestedDays):0.#}\n" +
+                            $"• From {leaveType.TypeName} Balance: {Math.Min(remainingBalance, requestedDays):0.#}\n" +
                             $"• Unpaid Days: {excessDays:0.#}\n\n" +
                             $"⏳ Your request has been sent to HR for approval." :
                             $"✅ Leave Request Submitted!\n\n" +
@@ -374,19 +453,9 @@ namespace FinserveNew.Controllers
                             $"⏳ Your request has been sent to HR for approval.";
 
                         TempData["Success"] = successMessage;
-
-                        _logger.LogInformation("🔍 DEBUG CHECKPOINT 15 - Redirecting to UnpaidLeaveRequests");
                         return RedirectToAction(nameof(UnpaidLeaveRequests));
                     }
-                    else
-                    {
-                        _logger.LogInformation("🔍 DEBUG CHECKPOINT 16 - Balance exceeded but not unpaid request - letting frontend handle");
-                        // Let the frontend JavaScript handle the unpaid leave flow
-                        // The form will be redisplayed and JavaScript will show the unpaid leave section
-                    }
                 }
-
-                _logger.LogInformation("🔍 DEBUG CHECKPOINT 17 - Processing normal leave (within balance or frontend handling)");
 
                 // Validate backdate restrictions (Emergency Leave allows backdating)
                 if (!isEmergencyLeave && !await IsBackdateAllowedAsync(leave.LeaveTypeID) && leave.StartDate < DateOnly.FromDateTime(DateTime.Today))
@@ -394,11 +463,9 @@ namespace FinserveNew.Controllers
                     ModelState.AddModelError("StartDate", "You cannot select past dates for this leave type.");
                 }
 
-                // ✅ PROCEED WITH NORMAL LEAVE CREATION (within balance)
+                // Proceed with normal leave creation (within balance)
                 if (ModelState.IsValid && !willExceedBalance)
                 {
-                    _logger.LogInformation("🔍 DEBUG CHECKPOINT 18 - ModelState valid and within balance, creating normal leave");
-
                     leave.Status = "Pending";
                     leave.CreatedDate = DateTime.Now;
                     leave.SubmissionDate = DateTime.Now;
@@ -409,11 +476,8 @@ namespace FinserveNew.Controllers
                         leave.Reason = $"[EMERGENCY LEAVE] {originalReason}".Trim();
                     }
 
-                    // Save the leave
                     _context.Leaves.Add(leave);
                     await _context.SaveChangesAsync();
-
-                    _logger.LogInformation($"✅ Leave saved successfully with ID: {leave.LeaveID}");
 
                     // Handle medical certificate upload
                     if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical") &&
@@ -428,31 +492,14 @@ namespace FinserveNew.Controllers
 
                     return RedirectToAction(nameof(LeaveRecords));
                 }
-                else
-                {
-                    _logger.LogWarning("🔍 DEBUG CHECKPOINT 19 - ModelState invalid or balance exceeded");
-                    if (ModelState.ErrorCount > 0)
-                    {
-                        foreach (var modelError in ModelState)
-                        {
-                            foreach (var error in modelError.Value.Errors)
-                            {
-                                _logger.LogWarning($"   ModelState Error in {modelError.Key}: {error.ErrorMessage}");
-                            }
-                        }
-                    }
-                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "💥 DEBUG CHECKPOINT 20 - Exception in controller");
+                _logger.LogError(ex, "💥 Exception in controller");
                 ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
             }
 
             // If we got this far, redisplay form
-            _logger.LogInformation("🔍 DEBUG CHECKPOINT 21 - Redisplaying form");
-
-            // ✅ NOW employeeId is accessible here since it's declared at method level
             await PopulateViewDataForFormRedisplay(employeeId);
             return View("~/Views/Employee/Leaves/Create.cshtml", leave);
         }
@@ -537,7 +584,8 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Edit(int id, LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full")
+        public async Task<IActionResult> Edit(int id, LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full",
+    string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null, string? JustificationReason = null)
         {
             if (id != leave.LeaveID)
                 return NotFound();
@@ -629,17 +677,194 @@ namespace FinserveNew.Controllers
                 }
             }
 
-            // Validate leave balance for updated leave
+            // Check leave balance and handle alternative leave types
             var currentYear = DateTime.Now.Year;
             var requestedDays = leave.LeaveDays;
-            var hasBalance = await HasSufficientLeaveBalanceAsync(employeeId, leave.LeaveTypeID, requestedDays, currentYear, id);
+            var remainingBalance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear, id);
 
-            if (!hasBalance)
+            bool willExceedBalance = requestedDays > remainingBalance;
+            double excessDays = Math.Max(0, requestedDays - remainingBalance);
+
+            if (willExceedBalance)
             {
-                var balance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear, id);
-                var balanceTypeName = isEmergencyLeave ? "Annual Leave (used by Emergency Leave)" : leaveType?.TypeName ?? "Selected Leave Type";
+                _logger.LogInformation("🔍 Balance exceeded during edit, checking alternative options");
 
-                ModelState.AddModelError("", $"Insufficient {balanceTypeName} balance. You have {balance:0.#} days remaining but requested {requestedDays:0.#} days.");
+                // Check if user chose to use alternative leave types
+                if (AlternativeLeaveChoice == "alternative" && !string.IsNullOrEmpty(AlternativeLeaveTypeIds))
+                {
+                    _logger.LogInformation("🔍 Processing alternative leave types allocation for edit");
+
+                    var alternativeTypeIds = AlternativeLeaveTypeIds.Split(',')
+                        .Where(id => !string.IsNullOrEmpty(id))
+                        .Select(int.Parse)
+                        .ToList();
+
+                    // Validate the alternative leave allocation
+                    var validation = await ValidateAlternativeLeaveAllocationAsync(employeeId, leave.LeaveTypeID, requestedDays, alternativeTypeIds, currentYear);
+                    if (!validation.isValid)
+                    {
+                        ModelState.AddModelError("", validation.errorMessage);
+                        await PopulateLeaveTypeDropdownAsync();
+                        var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+                        ViewBag.LeaveBalances = currentLeaveBalances;
+                        PopulateLeaveBalanceViewBag(currentLeaveBalances);
+                        return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
+                    }
+
+                    // Get the allocation breakdown
+                    var allocationBreakdown = await CreateLeaveAllocationBreakdownAsync(employeeId, leave.LeaveTypeID, requestedDays, alternativeTypeIds, currentYear);
+                    LogLeaveAllocation(employeeId, allocationBreakdown, requestedDays);
+
+                    // Check if there are unpaid days and justification is required
+                    var unpaidDays = (double)allocationBreakdown.GetType().GetProperty("UnpaidDays")?.GetValue(allocationBreakdown);
+                    if (unpaidDays > 0 && string.IsNullOrWhiteSpace(JustificationReason))
+                    {
+                        ModelState.AddModelError("JustificationReason", "Justification is required for the unpaid portion of your leave.");
+                        await PopulateLeaveTypeDropdownAsync();
+                        var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+                        ViewBag.LeaveBalances = currentLeaveBalances;
+                        PopulateLeaveBalanceViewBag(currentLeaveBalances);
+                        return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
+                    }
+
+                    // Delete the original leave and create new ones based on allocation
+                    _context.Leaves.Remove(leaveToUpdate);
+
+                    var leaveRecords = new List<LeaveModel>();
+                    var breakdown = allocationBreakdown.GetType().GetProperty("Breakdown")?.GetValue(allocationBreakdown) as IEnumerable<object>;
+
+                    if (breakdown != null)
+                    {
+                        foreach (var item in breakdown)
+                        {
+                            var typeId = (int)item.GetType().GetProperty("LeaveTypeID")?.GetValue(item);
+                            var typeName = (string)item.GetType().GetProperty("TypeName")?.GetValue(item);
+                            var allocatedDays = (double)item.GetType().GetProperty("AllocatedDays")?.GetValue(item);
+
+                            var newLeave = new LeaveModel
+                            {
+                                EmployeeID = employeeId,
+                                LeaveTypeID = typeId,
+                                StartDate = leave.StartDate,
+                                EndDate = leave.EndDate,
+                                LeaveDays = allocatedDays,
+                                Reason = typeId == leave.LeaveTypeID ?
+                                    (isEmergencyLeave ? $"[EMERGENCY LEAVE] {leave.Reason ?? ""}".Trim() : leave.Reason) :
+                                    $"[ALTERNATIVE LEAVE - Original: {leaveType.TypeName}] {leave.Reason ?? ""}".Trim(),
+                                Status = "Pending",
+                                CreatedDate = leaveToUpdate.CreatedDate,
+                                SubmissionDate = DateTime.Now
+                            };
+
+                            leaveRecords.Add(newLeave);
+                            _context.Leaves.Add(newLeave);
+                        }
+                    }
+
+                    // Create unpaid leave request if there are unpaid days
+                    if (unpaidDays > 0)
+                    {
+                        var unpaidLeaveRequest = new UnpaidLeaveRequestModel
+                        {
+                            EmployeeID = employeeId,
+                            LeaveTypeID = leave.LeaveTypeID,
+                            StartDate = leave.StartDate,
+                            EndDate = leave.EndDate,
+                            RequestedDays = unpaidDays,
+                            ExcessDays = unpaidDays,
+                            Reason = isEmergencyLeave ?
+                                $"[EMERGENCY LEAVE - UNPAID PORTION] {leave.Reason ?? ""}".Trim() :
+                                $"[UNPAID PORTION] {leave.Reason ?? ""}".Trim(),
+                            JustificationReason = JustificationReason,
+                            Status = "Pending",
+                            SubmissionDate = DateTime.Now,
+                            CreatedDate = DateTime.Now
+                        };
+
+                        _context.UnpaidLeaveRequests.Add(unpaidLeaveRequest);
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    // Handle medical certificate for the first leave record
+                    if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical") &&
+                        MedicalCertificate != null && MedicalCertificate.Length > 0 && leaveRecords.Any())
+                    {
+                        await SaveMedicalCertificateAsync(MedicalCertificate, leaveRecords.First().LeaveID, leave.LeaveTypeID, "Medical certificate for updated multi-type leave application");
+                    }
+
+                    // Success message with breakdown
+                    var breakdownList = breakdown.Cast<object>().Select(item =>
+                        $"• {item.GetType().GetProperty("TypeName")?.GetValue(item)}: {item.GetType().GetProperty("AllocatedDays")?.GetValue(item):0.#} days").ToList();
+
+                    if (unpaidDays > 0)
+                    {
+                        breakdownList.Add($"• Unpaid Leave: {unpaidDays:0.#} days");
+                    }
+
+                    TempData["Success"] = $"✅ Leave Updated Successfully!\n\n" +
+                                        $"📋 Your {requestedDays:0.#} days leave has been allocated as follows:\n" +
+                                        string.Join("\n", breakdownList) + "\n\n" +
+                                        "⏳ All requests have been sent for approval.";
+
+                    return RedirectToAction(nameof(LeaveRecords));
+                }
+                // Handle direct unpaid leave request
+                else if (Request.Form["IsUnpaidLeaveRequest"].ToString() == "true")
+                {
+                    if (string.IsNullOrWhiteSpace(JustificationReason))
+                    {
+                        ModelState.AddModelError("JustificationReason", "Justification is required for unpaid leave requests.");
+                        await PopulateLeaveTypeDropdownAsync();
+                        var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+                        ViewBag.LeaveBalances = currentLeaveBalances;
+                        PopulateLeaveBalanceViewBag(currentLeaveBalances);
+                        return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
+                    }
+
+                    // Convert to unpaid leave request
+                    _context.Leaves.Remove(leaveToUpdate);
+
+                    var unpaidLeaveRequest = new UnpaidLeaveRequestModel
+                    {
+                        EmployeeID = employeeId,
+                        LeaveTypeID = leave.LeaveTypeID,
+                        StartDate = leave.StartDate,
+                        EndDate = leave.EndDate,
+                        RequestedDays = requestedDays,
+                        ExcessDays = excessDays,
+                        Reason = !string.IsNullOrWhiteSpace(leave.Reason) ? leave.Reason : "Leave request",
+                        JustificationReason = JustificationReason,
+                        Status = "Pending",
+                        SubmissionDate = DateTime.Now,
+                        CreatedDate = leaveToUpdate.CreatedDate
+                    };
+
+                    if (isEmergencyLeave)
+                    {
+                        unpaidLeaveRequest.Reason = $"[EMERGENCY LEAVE] {unpaidLeaveRequest.Reason}".Trim();
+                    }
+
+                    _context.UnpaidLeaveRequests.Add(unpaidLeaveRequest);
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = $"✅ Leave converted to Unpaid Leave Request!\n\n" +
+                                        $"📋 Details:\n" +
+                                        $"• Total Days Requested: {requestedDays:0.#}\n" +
+                                        $"• From {leaveType.TypeName} Balance: {Math.Min(remainingBalance, requestedDays):0.#}\n" +
+                                        $"• Unpaid Days: {excessDays:0.#}\n\n" +
+                                        $"⏳ Your request has been sent to HR for approval.";
+
+                    return RedirectToAction(nameof(UnpaidLeaveRequests));
+                }
+                else
+                {
+                    // Balance exceeded but no choice made - let frontend handle
+                    var balance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear, id);
+                    var balanceTypeName = isEmergencyLeave ? "Annual Leave (used by Emergency Leave)" : leaveType?.TypeName ?? "Selected Leave Type";
+
+                    ModelState.AddModelError("", $"Insufficient {balanceTypeName} balance. You have {balance:0.#} days remaining but requested {requestedDays:0.#} days. Please select an alternative or apply for unpaid leave.");
+                }
             }
 
             // Validate backdate restrictions
@@ -648,7 +873,7 @@ namespace FinserveNew.Controllers
                 ModelState.AddModelError("StartDate", "You cannot select past dates for this leave type.");
             }
 
-            if (ModelState.IsValid)
+            if (ModelState.IsValid && !willExceedBalance)
             {
                 try
                 {
@@ -702,9 +927,9 @@ namespace FinserveNew.Controllers
             }
 
             await PopulateLeaveTypeDropdownAsync();
-            var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
-            ViewBag.LeaveBalances = currentLeaveBalances;
-            PopulateLeaveBalanceViewBag(currentLeaveBalances);
+            var finalLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+            ViewBag.LeaveBalances = finalLeaveBalances;
+            PopulateLeaveBalanceViewBag(finalLeaveBalances);
 
             return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
         }
@@ -879,50 +1104,159 @@ namespace FinserveNew.Controllers
         }
 
         [Authorize(Roles = "HR")]
-        public async Task<IActionResult> ProcessLeave(int? id)
+        public async Task<IActionResult> ProcessLeave(int? id, bool isUnpaidLeave = false)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var leave = await _context.Leaves
-                .Include(l => l.Employee)
-                .Include(l => l.LeaveType)
-                .FirstOrDefaultAsync(m => m.LeaveID == id);
-
-            if (leave == null)
+            if (isUnpaidLeave)
             {
-                return NotFound();
-            }
+                // Process Unpaid Leave Request
+                var unpaidRequest = await _context.UnpaidLeaveRequests
+                    .Include(u => u.Employee)
+                    .Include(u => u.LeaveType)
+                    .FirstOrDefaultAsync(m => m.UnpaidLeaveRequestID == id);
 
-            if (leave.Status != "Pending")
-            {
-                TempData["Error"] = "This leave has already been processed.";
-                return RedirectToAction(nameof(LeaveIndex));
-            }
+                if (unpaidRequest == null)
+                {
+                    return NotFound();
+                }
 
-            var leaveDetails = await _context.LeaveDetails
-                .FirstOrDefaultAsync(ld => ld.LeaveID == id);
+                if (unpaidRequest.Status != "Pending")
+                {
+                    TempData["Error"] = "This unpaid leave request has already been processed.";
+                    return RedirectToAction(nameof(UnpaidLeaveIndex));
+                }
 
-            if (leaveDetails != null)
-            {
-                ViewBag.HasMedicalCertificate = true;
-                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
-                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
-                ViewBag.MedicalCertificateUploadDate = leaveDetails.UploadDate.ToString("dd/MM/yyyy HH:mm") ?? "Unknown";
-                ViewBag.DocumentComment = leaveDetails.Comment;
+                // Check for medical certificate (use negative ID for unpaid leave)
+                var leaveDetails = await _context.LeaveDetails
+                    .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
+
+                if (leaveDetails != null)
+                {
+                    ViewBag.HasMedicalCertificate = true;
+                    ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
+                    ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
+                    ViewBag.MedicalCertificateUploadDate = leaveDetails.UploadDate.ToString("dd/MM/yyyy HH:mm") ?? "Unknown";
+                    ViewBag.DocumentComment = leaveDetails.Comment;
+                }
+                else
+                {
+                    ViewBag.HasMedicalCertificate = false;
+                    ViewBag.MedicalCertificateFileName = "";
+                    ViewBag.MedicalCertificateUrl = "";
+                    ViewBag.MedicalCertificateUploadDate = "";
+                    ViewBag.DocumentComment = "";
+                }
+
+                // Set ViewBag flags for unpaid leave
+                ViewBag.IsUnpaidLeave = true;
+                ViewBag.UnpaidLeaveRequest = unpaidRequest;
+
+                // Create a dummy LeaveModel for the view (since the view expects it)
+                var dummyLeave = new LeaveModel
+                {
+                    LeaveID = 0,
+                    EmployeeID = unpaidRequest.EmployeeID,
+                    LeaveTypeID = unpaidRequest.LeaveTypeID,
+                    StartDate = unpaidRequest.StartDate,
+                    EndDate = unpaidRequest.EndDate,
+                    LeaveDays = unpaidRequest.RequestedDays,
+                    Reason = unpaidRequest.Reason,
+                    Status = unpaidRequest.Status,
+                    SubmissionDate = unpaidRequest.SubmissionDate,
+                    Employee = unpaidRequest.Employee,
+                    LeaveType = unpaidRequest.LeaveType
+                };
+
+                return View("~/Views/HR/Leaves/ProcessLeave.cshtml", dummyLeave);
             }
             else
             {
-                ViewBag.HasMedicalCertificate = false;
-                ViewBag.MedicalCertificateFileName = "";
-                ViewBag.MedicalCertificateUrl = "";
-                ViewBag.MedicalCertificateUploadDate = "";
-                ViewBag.DocumentComment = "";
-            }
+                // Process Regular Leave
+                var leave = await _context.Leaves
+                    .Include(l => l.Employee)
+                    .Include(l => l.LeaveType)
+                    .FirstOrDefaultAsync(m => m.LeaveID == id);
 
-            return View("~/Views/HR/Leaves/ProcessLeave.cshtml", leave);
+                if (leave == null)
+                {
+                    return NotFound();
+                }
+
+                if (leave.Status != "Pending")
+                {
+                    TempData["Error"] = "This leave has already been processed.";
+                    return RedirectToAction(nameof(LeaveIndex));
+                }
+
+                var leaveDetails = await _context.LeaveDetails
+                    .FirstOrDefaultAsync(ld => ld.LeaveID == id);
+
+                if (leaveDetails != null)
+                {
+                    ViewBag.HasMedicalCertificate = true;
+                    ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
+                    ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
+                    ViewBag.MedicalCertificateUploadDate = leaveDetails.UploadDate.ToString("dd/MM/yyyy HH:mm") ?? "Unknown";
+                    ViewBag.DocumentComment = leaveDetails.Comment;
+                }
+                else
+                {
+                    ViewBag.HasMedicalCertificate = false;
+                    ViewBag.MedicalCertificateFileName = "";
+                    ViewBag.MedicalCertificateUrl = "";
+                    ViewBag.MedicalCertificateUploadDate = "";
+                    ViewBag.DocumentComment = "";
+                }
+
+                // Set ViewBag flags for regular leave
+                ViewBag.IsUnpaidLeave = false;
+                ViewBag.UnpaidLeaveRequest = null;
+
+                return View("~/Views/HR/Leaves/ProcessLeave.cshtml", leave);
+            }
+        }
+
+        // Add this new action to handle unpaid leave medical certificate download
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> DownloadUnpaidLeaveMedicalCertificate(int unpaidLeaveId)
+        {
+            try
+            {
+                var leaveDetails = await _context.LeaveDetails
+                    .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidLeaveId);
+
+                if (leaveDetails == null)
+                {
+                    TempData["Error"] = "Document not found.";
+                    return RedirectToAction(nameof(ProcessLeave), new { id = unpaidLeaveId, isUnpaidLeave = true });
+                }
+
+                var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", leaveDetails.DocumentPath.TrimStart('/'));
+
+                if (!System.IO.File.Exists(filePath))
+                {
+                    TempData["Error"] = "Document file not found on server.";
+                    return RedirectToAction(nameof(ProcessLeave), new { id = unpaidLeaveId, isUnpaidLeave = true });
+                }
+
+                var fileName = Path.GetFileName(leaveDetails.DocumentPath);
+                var fileBytes = await System.IO.File.ReadAllBytesAsync(filePath);
+                var contentType = GetContentType(fileName);
+
+                _logger.LogInformation($"✅ HR downloading unpaid leave medical certificate: {fileName} for Unpaid Leave ID: {unpaidLeaveId}");
+
+                return File(fileBytes, contentType, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ Error downloading unpaid leave medical certificate for ID: {unpaidLeaveId}");
+                TempData["Error"] = "Error downloading document. Please try again.";
+                return RedirectToAction(nameof(ProcessLeave), new { id = unpaidLeaveId, isUnpaidLeave = true });
+            }
         }
 
         [HttpPost]
@@ -960,6 +1294,13 @@ namespace FinserveNew.Controllers
                 }
                 else if (action == "reject")
                 {
+                    // ✅ MAKE REJECTION REASON MANDATORY
+                    if (string.IsNullOrWhiteSpace(remarks))
+                    {
+                        TempData["Error"] = "Rejection reason is required. Please provide a reason for rejecting this leave application.";
+                        return RedirectToAction(nameof(ProcessLeave), new { id = id });
+                    }
+
                     leave.Status = "Rejected";
                     leave.ApprovalDate = DateTime.Now;
                     leave.ApprovedBy = currentUser.Id;
@@ -1013,6 +1354,49 @@ namespace FinserveNew.Controllers
                 .ToListAsync();
 
             return View("~/Views/HR/Leaves/ApprovedLeave.cshtml", approvedLeaves);
+        }
+
+        [Authorize(Roles = "HR")]
+        [HttpGet]
+        public async Task<IActionResult> GetUnpaidLeaveStats()
+        {
+            try
+            {
+                var currentMonth = DateTime.Now.Month;
+                var currentYear = DateTime.Now.Year;
+
+                var pendingCount = await _context.UnpaidLeaveRequests
+                    .CountAsync(u => u.Status == "Pending");
+
+                var approvedThisMonth = await _context.UnpaidLeaveRequests
+                    .CountAsync(u => u.Status == "Approved"
+                                && u.ApprovalDate.HasValue
+                                && u.ApprovalDate.Value.Month == currentMonth
+                                && u.ApprovalDate.Value.Year == currentYear);
+
+                var rejectedThisMonth = await _context.UnpaidLeaveRequests
+                    .CountAsync(u => u.Status == "Rejected"
+                                && u.ApprovalDate.HasValue
+                                && u.ApprovalDate.Value.Month == currentMonth
+                                && u.ApprovalDate.Value.Year == currentYear);
+
+                return Json(new
+                {
+                    pendingCount = pendingCount,
+                    approvedThisMonth = approvedThisMonth,
+                    rejectedThisMonth = rejectedThisMonth
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting unpaid leave statistics");
+                return Json(new
+                {
+                    pendingCount = 0,
+                    approvedThisMonth = 0,
+                    rejectedThisMonth = 0
+                });
+            }
         }
 
         [Authorize(Roles = "HR")]
@@ -1138,48 +1522,8 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> ProcessUnpaidLeave(int? id)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var unpaidRequest = await _context.UnpaidLeaveRequests
-                .Include(u => u.Employee)
-                .Include(u => u.LeaveType)
-                .FirstOrDefaultAsync(m => m.UnpaidLeaveRequestID == id);
-
-            if (unpaidRequest == null)
-            {
-                return NotFound();
-            }
-
-            if (unpaidRequest.Status != "Pending")
-            {
-                TempData["Error"] = "This unpaid leave request has already been processed.";
-                return RedirectToAction(nameof(UnpaidLeaveIndex));
-            }
-
-            var leaveDetails = await _context.LeaveDetails
-                .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
-
-            if (leaveDetails != null)
-            {
-                ViewBag.HasMedicalCertificate = true;
-                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
-                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
-                ViewBag.MedicalCertificateUploadDate = leaveDetails.UploadDate.ToString("dd/MM/yyyy HH:mm") ?? "Unknown";
-                ViewBag.DocumentComment = leaveDetails.Comment;
-            }
-            else
-            {
-                ViewBag.HasMedicalCertificate = false;
-                ViewBag.MedicalCertificateFileName = "";
-                ViewBag.MedicalCertificateUrl = "";
-                ViewBag.MedicalCertificateUploadDate = "";
-                ViewBag.DocumentComment = "";
-            }
-
-            return View("~/Views/HR/Leaves/ProcessUnpaidLeave.cshtml", unpaidRequest);
+            // Redirect to the combined ProcessLeave action
+            return RedirectToAction(nameof(ProcessLeave), new { id = id, isUnpaidLeave = true });
         }
 
         [HttpPost]
@@ -1283,6 +1627,13 @@ namespace FinserveNew.Controllers
                 }
                 else if (action == "reject")
                 {
+                    // ✅ MAKE REJECTION REASON MANDATORY FOR UNPAID LEAVE TOO
+                    if (string.IsNullOrWhiteSpace(remarks))
+                    {
+                        TempData["Error"] = "Rejection reason is required. Please provide a clear explanation for rejecting this unpaid leave request.";
+                        return RedirectToAction(nameof(ProcessUnpaidLeave), new { id = id });
+                    }
+
                     _logger.LogInformation($"🔴 REJECTING unpaid leave request ID: {id}");
 
                     unpaidRequest.Status = "Rejected";
@@ -1851,6 +2202,174 @@ namespace FinserveNew.Controllers
                     new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" },
                     new { LeaveTypeID = 4, TypeName = "Emergency Leave" }
                 }, "LeaveTypeID", "TypeName");
+            }
+        }
+
+        private async Task<List<object>> GetAvailableAlternativeLeaveTypesAsync(string employeeId, int excludeLeaveTypeId, int year = 0)
+        {
+            if (year == 0) year = DateTime.Now.Year;
+
+            var leaveTypes = await _context.LeaveTypes
+                .Where(lt => lt.LeaveTypeID != excludeLeaveTypeId && !lt.TypeName.ToLower().Contains("emergency"))
+                .ToListAsync();
+
+            var availableTypes = new List<object>();
+
+            foreach (var leaveType in leaveTypes)
+            {
+                var remainingBalance = await GetRemainingLeaveBalanceAsync(employeeId, leaveType.LeaveTypeID, year);
+
+                if (remainingBalance > 0)
+                {
+                    availableTypes.Add(new
+                    {
+                        LeaveTypeID = leaveType.LeaveTypeID,
+                        TypeName = leaveType.TypeName,
+                        RemainingBalance = remainingBalance,
+                        MaxDays = leaveType.DefaultDaysPerYear
+                    });
+                }
+            }
+
+            return availableTypes;
+        }
+
+        // Helper method to create leave allocation breakdown
+        private async Task<object> CreateLeaveAllocationBreakdownAsync(string employeeId, int originalLeaveTypeId,
+            double requestedDays, List<int> alternativeTypeIds, int year = 0)
+        {
+            if (year == 0) year = DateTime.Now.Year;
+
+            var breakdown = new List<object>();
+            var remainingDaysToAllocate = requestedDays;
+
+            // First, use the original leave type balance
+            var originalBalance = await GetRemainingLeaveBalanceAsync(employeeId, originalLeaveTypeId, year);
+            var originalLeaveType = await _context.LeaveTypes.FindAsync(originalLeaveTypeId);
+
+            if (originalBalance > 0 && remainingDaysToAllocate > 0)
+            {
+                var daysToUse = Math.Min(originalBalance, remainingDaysToAllocate);
+                breakdown.Add(new
+                {
+                    LeaveTypeID = originalLeaveTypeId,
+                    TypeName = originalLeaveType?.TypeName ?? "Unknown",
+                    AllocatedDays = daysToUse,
+                    BalanceBefore = originalBalance,
+                    BalanceAfter = originalBalance - daysToUse
+                });
+                remainingDaysToAllocate -= daysToUse;
+            }
+
+            // Then use alternative leave types
+            foreach (var altTypeId in alternativeTypeIds)
+            {
+                if (remainingDaysToAllocate <= 0) break;
+
+                var altBalance = await GetRemainingLeaveBalanceAsync(employeeId, altTypeId, year);
+                var altLeaveType = await _context.LeaveTypes.FindAsync(altTypeId);
+
+                if (altBalance > 0)
+                {
+                    var daysToUse = Math.Min(altBalance, remainingDaysToAllocate);
+                    breakdown.Add(new
+                    {
+                        LeaveTypeID = altTypeId,
+                        TypeName = altLeaveType?.TypeName ?? "Unknown",
+                        AllocatedDays = daysToUse,
+                        BalanceBefore = altBalance,
+                        BalanceAfter = altBalance - daysToUse
+                    });
+                    remainingDaysToAllocate -= daysToUse;
+                }
+            }
+
+            return new
+            {
+                Breakdown = breakdown,
+                TotalAllocatedDays = requestedDays - remainingDaysToAllocate,
+                UnpaidDays = Math.Max(0, remainingDaysToAllocate),
+                IsFullyAllocated = remainingDaysToAllocate <= 0
+            };
+        }
+
+        // Helper method to validate alternative leave allocation
+        private async Task<(bool isValid, string errorMessage)> ValidateAlternativeLeaveAllocationAsync(
+            string employeeId, int originalLeaveTypeId, double requestedDays, List<int> alternativeTypeIds, int year = 0)
+        {
+            try
+            {
+                if (year == 0) year = DateTime.Now.Year;
+
+                // Check if original leave type exists and is valid
+                var originalLeaveType = await _context.LeaveTypes.FindAsync(originalLeaveTypeId);
+                if (originalLeaveType == null)
+                {
+                    return (false, "Invalid original leave type selected.");
+                }
+
+                // Validate alternative leave type IDs
+                foreach (var altTypeId in alternativeTypeIds)
+                {
+                    var altLeaveType = await _context.LeaveTypes.FindAsync(altTypeId);
+                    if (altLeaveType == null)
+                    {
+                        return (false, $"Invalid alternative leave type ID: {altTypeId}");
+                    }
+
+                    // Don't allow Emergency Leave as alternative
+                    if (altLeaveType.TypeName.ToLower().Contains("emergency"))
+                    {
+                        return (false, "Emergency Leave cannot be used as an alternative leave type.");
+                    }
+
+                    // Don't allow same type as original
+                    if (altTypeId == originalLeaveTypeId)
+                    {
+                        return (false, "Cannot use the same leave type as alternative.");
+                    }
+                }
+
+                // Check if requested days is reasonable
+                if (requestedDays <= 0 || requestedDays > 365)
+                {
+                    return (false, "Invalid number of requested days.");
+                }
+
+                return (true, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating alternative leave allocation");
+                return (false, "An error occurred while validating the leave allocation.");
+            }
+        }
+
+        // Helper method to log leave allocation details
+        private void LogLeaveAllocation(string employeeId, object allocationBreakdown, double requestedDays)
+        {
+            _logger.LogInformation($"🔄 LEAVE ALLOCATION BREAKDOWN for Employee {employeeId}:");
+            _logger.LogInformation($"   📊 Total Requested: {requestedDays} days");
+
+            var breakdown = allocationBreakdown.GetType().GetProperty("Breakdown")?.GetValue(allocationBreakdown) as IEnumerable<object>;
+            var unpaidDays = allocationBreakdown.GetType().GetProperty("UnpaidDays")?.GetValue(allocationBreakdown);
+
+            if (breakdown != null)
+            {
+                foreach (var item in breakdown)
+                {
+                    var typeName = item.GetType().GetProperty("TypeName")?.GetValue(item);
+                    var allocatedDays = item.GetType().GetProperty("AllocatedDays")?.GetValue(item);
+                    var balanceBefore = item.GetType().GetProperty("BalanceBefore")?.GetValue(item);
+                    var balanceAfter = item.GetType().GetProperty("BalanceAfter")?.GetValue(item);
+
+                    _logger.LogInformation($"   • {typeName}: {allocatedDays} days (Balance: {balanceBefore} → {balanceAfter})");
+                }
+            }
+
+            if (unpaidDays != null && (double)unpaidDays > 0)
+            {
+                _logger.LogInformation($"   • Unpaid Leave: {unpaidDays} days");
             }
         }
 

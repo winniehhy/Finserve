@@ -31,9 +31,11 @@
                 <form asp-action="Create" method="post" enctype="multipart/form-data">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-                    <!-- Hidden fields for unpaid leave handling -->
+                    <!-- Hidden fields for leave handling -->
                     <input type="hidden" name="ConfirmUnpaidLeave" id="ConfirmUnpaidLeave" value="false" />
                     <input type="hidden" name="IsUnpaidLeaveRequest" id="IsUnpaidLeaveRequest" value="false" />
+                    <input type="hidden" name="AlternativeLeaveChoice" id="AlternativeLeaveChoice" value="" />
+                    <input type="hidden" name="AlternativeLeaveTypeIds" id="AlternativeLeaveTypeIds" value="" />
 
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -129,10 +131,55 @@
                             <strong>Duration:</strong> <span id="calculatedDuration">0</span> day(s)
                         </div>
 
-                        <!-- Balance Exceeded Warning -->
+                        <!-- Balance Exceeded Warning with Alternative Options -->
                         <div class="alert alert-warning" id="balanceExceededWarning" style="display: none;">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <div id="balanceWarningContent"></div>
+                        </div>
+
+                        <!-- Alternative Leave Selection -->
+                        <div class="card border-info" id="alternativeLeaveSection" style="display: none;">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="card-title mb-0 text-info">
+                                    <i class="fas fa-exchange-alt me-2"></i>
+                                    Alternative Leave Options
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-info mb-3" id="alternativeLeaveDetails"></div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Choose how to handle the excess days:</label>
+
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" name="LeaveAllocationChoice" id="useAlternative" value="alternative">
+                                        <label class="form-check-label" for="useAlternative">
+                                            <strong>Use available balance from other leave types</strong>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="radio" name="LeaveAllocationChoice" id="goUnpaid" value="unpaid">
+                                        <label class="form-check-label" for="goUnpaid">
+                                            <strong>Apply entire excess as unpaid leave</strong>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Alternative Leave Types Selection -->
+                                <div id="alternativeTypesSelection" style="display: none;">
+                                    <div class="mb-3">
+                                        <label class="form-label">Select which leave types to use (in order of preference):</label>
+                                        <div id="availableAlternatives"></div>
+                                        <div class="form-text">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            The system will use these leave types in the order you select them.
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-success" id="allocationPreview" style="display: none;"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -261,6 +308,10 @@
                         <i class="fas fa-check text-success me-2"></i>
                         <small>Emergency leave deducts from annual balance</small>
                     </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Use alternative leave types when balance is low</small>
+                    </li>
                     <li class="mb-0">
                         <i class="fas fa-check text-success me-2"></i>
                         <small>Annual leave expires at year-end</small>
@@ -275,7 +326,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
-            console.log('Enhanced Leave Form script initialized');
+            console.log('Enhanced Leave Form with Alternative Leave Options initialized');
 
             // Build leave balances object directly from ViewBag values
             const leaveBalances = {
@@ -313,8 +364,11 @@
 
             // State variables
             let isUnpaidLeaveMode = false;
+            let isAlternativeLeaveMode = false;
             let calculatedExcessDays = 0;
             let currentLeaveTypeName = '';
+            let selectedAlternativeTypes = [];
+            let allocationBreakdown = {};
 
             // Validate leave type selection
             function isValidLeaveType(leaveTypeId) {
@@ -379,8 +433,164 @@
                 }
             }
 
+            // Get alternative leave types with available balance
+            function getAlternativeLeaveTypes(excludeLeaveTypeId) {
+                const alternatives = [];
+
+                for (const [typeId, typeInfo] of Object.entries(leaveBalances)) {
+                    if (typeId !== excludeLeaveTypeId && typeId !== '4' && typeInfo.remaining > 0) { // Exclude Emergency Leave (4) as alternative
+                        alternatives.push({
+                            id: typeId,
+                            name: typeInfo.typeName,
+                            remaining: typeInfo.remaining
+                        });
+                    }
+                }
+
+                return alternatives;
+            }
+
+            // Calculate allocation breakdown
+            function calculateAllocationBreakdown(requestedDays, originalLeaveTypeId, alternativeTypeIds) {
+                const breakdown = [];
+                let remainingDays = requestedDays;
+
+                // Original leave type
+                const originalBalance = leaveBalances[originalLeaveTypeId].remaining;
+                if (originalBalance > 0) {
+                    const useFromOriginal = Math.min(originalBalance, remainingDays);
+                    breakdown.push({
+                        typeId: originalLeaveTypeId,
+                        typeName: leaveBalances[originalLeaveTypeId].typeName,
+                        days: useFromOriginal
+                    });
+                    remainingDays -= useFromOriginal;
+                }
+
+                // Alternative leave types
+                for (const altTypeId of alternativeTypeIds) {
+                    if (remainingDays <= 0) break;
+
+                    const altBalance = leaveBalances[altTypeId].remaining;
+                    if (altBalance > 0) {
+                        const useFromAlt = Math.min(altBalance, remainingDays);
+                        breakdown.push({
+                            typeId: altTypeId,
+                            typeName: leaveBalances[altTypeId].typeName,
+                            days: useFromAlt
+                        });
+                        remainingDays -= useFromAlt;
+                    }
+                }
+
+                return {
+                    breakdown: breakdown,
+                    unpaidDays: Math.max(0, remainingDays)
+                };
+            }
+
+            // Update allocation preview
+            function updateAllocationPreview() {
+                const requestedDays = parseFloat($('#calculatedDuration').text()) || 0;
+                const leaveTypeId = $('#LeaveTypeID').val();
+
+                if (!selectedAlternativeTypes.length || !requestedDays || !leaveTypeId) {
+                    $('#allocationPreview').hide();
+                    return;
+                }
+
+                const allocation = calculateAllocationBreakdown(requestedDays, leaveTypeId, selectedAlternativeTypes);
+
+                let previewHtml = '<strong>📊 Allocation Breakdown:</strong><ul class="mb-0 mt-2">';
+
+                allocation.breakdown.forEach(item => {
+                    previewHtml += `<li>${item.typeName}: ${item.days} day(s)</li>`;
+                });
+
+                if (allocation.unpaidDays > 0) {
+                    previewHtml += `<li class="text-warning"><strong>Unpaid Leave: ${allocation.unpaidDays} day(s)</strong></li>`;
+                }
+
+                previewHtml += '</ul>';
+
+                $('#allocationPreview').html(previewHtml).show();
+                allocationBreakdown = allocation;
+            }
+
+            // Show Alternative Leave Options
+            function showAlternativeLeaveOptions(requestedDays, availableDays, excessDays, leaveTypeId, leaveTypeName) {
+                const alternativeSection = $('#alternativeLeaveSection');
+                const alternativeDetails = $('#alternativeLeaveDetails');
+                const availableAlternatives = $('#availableAlternatives');
+
+                // Get alternative leave types
+                const alternatives = getAlternativeLeaveTypes(leaveTypeId);
+
+                if (alternatives.length === 0) {
+                    // No alternatives available, show unpaid leave section directly
+                    showUnpaidLeaveSection(true, requestedDays, availableDays, excessDays, leaveTypeName);
+                    return;
+                }
+
+                isAlternativeLeaveMode = true;
+
+                // Update details
+                alternativeDetails.html(`
+                    <strong>⚠️ Insufficient ${leaveTypeName} Balance</strong><br>
+                    <div class="mt-2">
+                        <div class="row">
+                            <div class="col-6"><strong>Requested:</strong></div>
+                            <div class="col-6">${requestedDays} days</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6"><strong>Available in ${leaveTypeName}:</strong></div>
+                            <div class="col-6">${availableDays} days</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6"><strong>Shortfall:</strong></div>
+                            <div class="col-6 text-danger"><strong>${excessDays} days</strong></div>
+                        </div>
+                    </div>
+                `);
+
+                // Build alternative types checkboxes
+                let alternativesHtml = '';
+                alternatives.forEach(alt => {
+                    alternativesHtml += `
+                        <div class="form-check mb-2">
+                            <input class="form-check-input alternative-leave-type" type="checkbox"
+                                   value="${alt.id}" id="alt_${alt.id}">
+                            <label class="form-check-label" for="alt_${alt.id}">
+                                <strong>${alt.name}</strong> - ${alt.remaining} days available
+                            </label>
+                        </div>
+                    `;
+                });
+
+                availableAlternatives.html(alternativesHtml);
+                alternativeSection.show();
+
+                calculatedExcessDays = excessDays;
+                currentLeaveTypeName = leaveTypeName;
+            }
+
+            // Hide Alternative Leave Options
+            function hideAlternativeLeaveOptions() {
+                isAlternativeLeaveMode = false;
+                selectedAlternativeTypes = [];
+                allocationBreakdown = {};
+
+                $('#alternativeLeaveSection').hide();
+                $('#allocationPreview').hide();
+                $('#AlternativeLeaveChoice').val('');
+                $('#AlternativeLeaveTypeIds').val('');
+
+                // Clear radio buttons
+                $('input[name="LeaveAllocationChoice"]').prop('checked', false);
+            }
+
             // Show/Hide Unpaid Leave Section
-            function showUnpaidLeaveSection(show, requestedDays, availableDays, excessDays, leaveTypeName) {
+            function showUnpaidLeaveSection(show, requestedDays = 0, availableDays = 0, excessDays = 0, leaveTypeName = '') {
                 const unpaidSection = $('#unpaidLeaveSection');
                 const standardReasonSection = $('#standardReasonSection');
                 const unpaidLeaveDetails = $('#unpaidLeaveDetails');
@@ -388,8 +598,6 @@
 
                 if (show) {
                     isUnpaidLeaveMode = true;
-                    calculatedExcessDays = excessDays;
-                    currentLeaveTypeName = leaveTypeName;
 
                     // Hide standard reason field and show unpaid leave section
                     standardReasonSection.hide();
@@ -435,8 +643,6 @@
                     $('#JustificationReason').prop('required', true);
                 } else {
                     isUnpaidLeaveMode = false;
-                    calculatedExcessDays = 0;
-                    currentLeaveTypeName = '';
 
                     // Show standard reason field and hide unpaid leave section
                     standardReasonSection.show();
@@ -454,7 +660,7 @@
                 }
             }
 
-            // Enhanced Calculate Duration with Unpaid Leave Check
+            // Enhanced Calculate Duration with Alternative Leave Check
             function calculateDuration() {
                 const startDate = $('#StartDate').val();
                 const endDate = $('#EndDate').val();
@@ -492,20 +698,67 @@
 
                             if (daysDiff > availableBalance) {
                                 const excessDays = (daysDiff - availableBalance).toFixed(1);
-                                showUnpaidLeaveSection(true, daysDiff, availableBalance, excessDays, leaveTypeName);
+                                showAlternativeLeaveOptions(daysDiff, availableBalance, excessDays, leaveTypeId, leaveTypeName);
                             } else {
+                                hideAlternativeLeaveOptions();
                                 showUnpaidLeaveSection(false);
                             }
                         }
                     } else {
                         $('#durationInfo').hide();
+                        hideAlternativeLeaveOptions();
                         showUnpaidLeaveSection(false);
                     }
                 } else {
                     $('#durationInfo').hide();
+                    hideAlternativeLeaveOptions();
                     showUnpaidLeaveSection(false);
                 }
             }
+
+            // Handle alternative leave allocation choice
+            $(document).on('change', 'input[name="LeaveAllocationChoice"]', function() {
+                const choice = $(this).val();
+                const alternativeTypesSelection = $('#alternativeTypesSelection');
+
+                if (choice === 'alternative') {
+                    alternativeTypesSelection.show();
+                    showUnpaidLeaveSection(false);
+                    $('#AlternativeLeaveChoice').val('alternative');
+                } else if (choice === 'unpaid') {
+                    alternativeTypesSelection.hide();
+                    $('#allocationPreview').hide();
+                    hideAlternativeLeaveOptions();
+
+                    const requestedDays = parseFloat($('#calculatedDuration').text()) || 0;
+                    const leaveTypeId = $('#LeaveTypeID').val();
+                    const availableBalance = leaveBalances[leaveTypeId].remaining;
+                    const excessDays = (requestedDays - availableBalance).toFixed(1);
+                    const leaveTypeName = leaveBalances[leaveTypeId].typeName;
+
+                    showUnpaidLeaveSection(true, requestedDays, availableBalance, excessDays, leaveTypeName);
+                    $('#AlternativeLeaveChoice').val('unpaid');
+                }
+            });
+
+            // Handle alternative leave type selection
+            $(document).on('change', '.alternative-leave-type', function() {
+                selectedAlternativeTypes = [];
+
+                $('.alternative-leave-type:checked').each(function() {
+                    selectedAlternativeTypes.push($(this).val());
+                });
+
+                $('#AlternativeLeaveTypeIds').val(selectedAlternativeTypes.join(','));
+                updateAllocationPreview();
+
+                // Check if any unpaid days remain
+                if (allocationBreakdown.unpaidDays > 0) {
+                    $('#JustificationReason').prop('required', true);
+                } else {
+                    $('#JustificationReason').prop('required', false);
+                }
+            });
 
             // Handle medical certificate file selection
             $('#MedicalCertificate').on('change', function() {
@@ -561,6 +814,10 @@
                     dayTypeSection.hide();
                 }
 
+                // Reset all sections when leave type changes
+                hideAlternativeLeaveOptions();
+                showUnpaidLeaveSection(false);
+
                 // Show/hide medical certificate section
                 const isMedicalLeave = leaveTypeId && leaveBalances[leaveTypeId] &&
                                       leaveBalances[leaveTypeId].typeName.toLowerCase().includes('medical');
@@ -581,14 +838,12 @@
                 if (!leaveTypeId) {
                     availableDaysDiv.text('Select a leave type to see available days');
                     availableDaysDiv.removeClass('text-danger text-success text-warning').addClass('text-muted');
-                    showUnpaidLeaveSection(false);
                     return;
                 }
 
                 if (!isValidLeaveType(leaveTypeId)) {
                     availableDaysDiv.text('Invalid leave type selected');
                     availableDaysDiv.removeClass('text-muted text-success text-warning').addClass('text-danger');
-                    showUnpaidLeaveSection(false);
                     return;
                 }
 
@@ -690,6 +945,36 @@
                         $('#Reason').focus();
                         e.preventDefault();
                         return false;
+                    }
+                }
+
+                // Alternative leave validation
+                if (isAlternativeLeaveMode) {
+                    const choice = $('input[name="LeaveAllocationChoice"]:checked').val();
+
+                    if (!choice) {
+                        alert('Please select how you want to handle the excess leave days.');
+                        e.preventDefault();
+                        return false;
+                    }
+
+                    if (choice === 'alternative') {
+                        if (selectedAlternativeTypes.length === 0) {
+                            alert('Please select at least one alternative leave type to use.');
+                            e.preventDefault();
+                            return false;
+                        }
+
+                        // Check if justification is needed for remaining unpaid days
+                        if (allocationBreakdown.unpaidDays > 0) {
+                            const justificationText = $('#JustificationReason').val().trim();
+                            if (!justificationText) {
+                                alert('Please provide justification for the remaining unpaid days.');
+                                $('#JustificationReason').focus();
+                                e.preventDefault();
+                                return false;
+                            }
+                        }
                     }
                 }
 
