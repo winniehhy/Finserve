@@ -54,6 +54,7 @@
 
   <ItemGroup>
     <Folder Include="Services\" />
+    <Folder Include="Views\Admins\Payroll\" />
   </ItemGroup>
 
   <ItemGroup>

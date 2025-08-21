@@ -30,14 +30,16 @@ namespace FinserveNew.Controllers
             _userManager = userManager;
         }
 
+        // ========================== HR Actions ========================== //
         // GET: /Payroll - Main entry point (Process page as default)
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> Index()
         {
             return await Process();
         }
 
         // GET: /Payroll/Process
-        [Authorize(Roles = "Admin,HR")]
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> Process(int month = 0, int year = 0, string employeeId = null)
         {
             if (month == 0) month = DateTime.Now.Month;
@@ -85,6 +87,7 @@ namespace FinserveNew.Controllers
         }
 
         // GET: /Payroll/Summary
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> Summary(int month = 0, int year = 0)
         {
             if (month == 0) month = DateTime.Now.Month;
@@ -109,6 +112,7 @@ namespace FinserveNew.Controllers
 
 
         // POST: /Payroll/Process
+        [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Process(PayrollProcessViewModel model)
@@ -244,11 +248,11 @@ namespace FinserveNew.Controllers
             return View("~/Views/HR/Payroll/History.cshtml", viewModel);
         }
 
-
         // POST: Payroll/SendApprovalRequest
+        [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SendApprovalRequest(int payrollId)
+        public async Task<IActionResult> SendApprovalRequest(string payrollId)
         {
             var payroll = await _context.Payrolls
                 .Include(p => p.Employee)
@@ -261,15 +265,33 @@ namespace FinserveNew.Controllers
 
             // Update status to pending approval
             payroll.PaymentStatus = "Pending Approval";
+
+            // Record approval audit entry
+            var requestedBy = await _userManager.GetUserAsync(User);
+            var requestedByName = requestedBy != null
+                ? $"{requestedBy.FirstName} {requestedBy.LastName}"
+                : User.Identity?.Name;
+            var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
+
+            _context.Approvals.Add(new Approval
+            {
+                ApprovalDate = DateTime.Now,
+                Action = "Send for Approval",
+                ActionBy = requestedByName ?? string.Empty,
+                Status = "Pending Approval",
+                Remarks = "Sent for approval",
+                EmployeeID = payroll.EmployeeID,
+                PayrollID = payroll.PayrollID
+            });
+
             await _context.SaveChangesAsync();
 
-            // Notify admins of the approval request
-            var adminUsers = await _userManager.GetUsersInRoleAsync("Admin");
-            foreach (var adminUser in adminUsers)
+            // Notify Senior HR of the approval request
+            var seniorHRUsers = await _userManager.GetUsersInRoleAsync("Senior HR");
+            foreach (var seniorHRUser in seniorHRUsers)
             {
-                if (!string.IsNullOrEmpty(adminUser.Email))
+                if (!string.IsNullOrEmpty(seniorHRUser.Email))
                 {
-                    var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
                     var subject = $"Payroll Approval Request for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
                     var body = $@"
                 <h2>Payroll Approval Request</h2>
@@ -283,8 +305,8 @@ namespace FinserveNew.Controllers
                 </ul>
                 <p><a href='{Url.Action("PayrollDetails", "Payroll", new { id = payroll.PayrollID }, Request.Scheme)}'>Click here to review this payroll</a></p>";
 
-                    //await _emailSender.SendEmailAsync(adminUser.Email, subject, body);
-                    await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
+                    await _emailSender.SendEmailAsync(seniorHRUser.Email, subject, body);
+                    //await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
                 }
             }
 
@@ -293,9 +315,10 @@ namespace FinserveNew.Controllers
         }
 
         // POST: Payroll/MarkAsPaid
+        [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MarkAsPaid(int payrollId)
+        public async Task<IActionResult> MarkAsPaid(string payrollId)
         {
             var payroll = await _context.Payrolls
                 .Include(p => p.Employee)
@@ -312,14 +335,31 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
             }
 
-            // Update status to completed
+            // Update status to completed and record approval trail
             payroll.PaymentStatus = "Completed";
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            var paidByName = currentUser != null
+                ? $"{currentUser.FirstName} {currentUser.LastName}"
+                : User.Identity?.Name;
+            var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
+
+            _context.Approvals.Add(new Approval
+            {
+                ApprovalDate = DateTime.Now,
+                Action = "Mark as Paid",
+                ActionBy = paidByName ?? string.Empty,
+                Status = "Completed",
+                Remarks = "Marked as paid",
+                EmployeeID = payroll.EmployeeID,
+                PayrollID = payroll.PayrollID
+            });
+
             await _context.SaveChangesAsync();
 
             // Notify employee
             if (!string.IsNullOrEmpty(payroll.Employee?.Email))
             {
-                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
                 var subject = $"Your Salary for {monthName} {payroll.Year} Has Been Paid";
                 var body = $@"
             <h2>Salary Payment Notification</h2>
@@ -339,7 +379,9 @@ namespace FinserveNew.Controllers
         }
 
 
+        // ========================== Senior HR Actions ========================== //
         // GET: Payroll/ApprovePayrolls
+        [Authorize(Roles = "Senior HR")]
         public async Task<IActionResult> ApprovePayrolls()
         {
             try
@@ -351,7 +393,7 @@ namespace FinserveNew.Controllers
                     .ToListAsync();
 
                 // Specify the exact path to the view
-                return View("~/Views/Admins/Payroll/ApprovePayrolls.cshtml", payrolls);
+                return View("~/Views/SeniorHR/Payroll/ApprovePayrolls.cshtml", payrolls);
             }
             catch (Exception ex)
             {
@@ -364,11 +406,14 @@ namespace FinserveNew.Controllers
             }
         }
 
+
         // GET: Payroll/PayrollDetails/{id}
-        public async Task<IActionResult> PayrollDetails(int id)
+        [Authorize(Roles = "Senior HR")]
+        public async Task<IActionResult> PayrollDetails(string id)
         {
             var payroll = await _context.Payrolls
                 .Include(p => p.Employee)
+                .Include(p => p.Approvals)
                 .FirstOrDefaultAsync(p => p.PayrollID == id);
 
             if (payroll == null)
@@ -377,15 +422,14 @@ namespace FinserveNew.Controllers
             }
 
             // Specify the exact path to the view
-            return View("~/Views/Admins/Payroll/PayrollDetails.cshtml", payroll);
+            return View("~/Views/SeniorHR/Payroll/PayrollDetails.cshtml", payroll);
         }
 
-
-
         // POST: Payroll/ApprovePayroll/{id}
+        [Authorize(Roles = "Senior HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ApprovePayroll(int id, string comments)
+        public async Task<IActionResult> ApprovePayroll(string id, string comments)
         {
             var payroll = await _context.Payrolls
                 .Include(p => p.Employee)
@@ -400,8 +444,20 @@ namespace FinserveNew.Controllers
             string approverName = currentUser != null
                 ? $"{currentUser.FirstName} {currentUser.LastName}" : User.Identity.Name;
 
-            // Update status to approved
+            // Update status to approved and record approval entry
             payroll.PaymentStatus = "Approved";
+            var monthName = GetMonthName(payroll.Month);
+            _context.Approvals.Add(new Approval
+            {
+                ApprovalDate = DateTime.Now,
+                Action = "Approve payroll",
+                ActionBy = approverName ?? string.Empty,
+                Status = "Approved",
+                Remarks = comments,
+                EmployeeID = payroll.EmployeeID,
+                PayrollID = payroll.PayrollID
+            });
+
             await _context.SaveChangesAsync();
 
             // Notify HR
@@ -426,9 +482,10 @@ namespace FinserveNew.Controllers
         }
 
         // POST: Payroll/RejectPayroll/{id}
+        [Authorize(Roles = "Senior HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RejectPayroll(int id, string reason)
+        public async Task<IActionResult> RejectPayroll(string id, string reason)
         {
             if (string.IsNullOrEmpty(reason))
             {
@@ -445,8 +502,25 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // Update status to rejected
+            // Update status to rejected and record approval entry
             payroll.PaymentStatus = "Rejected";
+            var currentUser = await _userManager.GetUserAsync(User);
+            var rejectedByName = currentUser != null
+                ? $"{currentUser.FirstName} {currentUser.LastName}"
+                : User.Identity?.Name;
+            var monthName = GetMonthName(payroll.Month);
+
+            _context.Approvals.Add(new Approval
+            {
+                ApprovalDate = DateTime.Now,
+                Action = "Reject payroll",
+                ActionBy = rejectedByName ?? string.Empty,
+                Status = "Rejected",
+                Remarks = reason,
+                EmployeeID = payroll.EmployeeID,
+                PayrollID = payroll.PayrollID
+            });
+
             await _context.SaveChangesAsync();
 
             // Notify HR
@@ -477,7 +551,7 @@ namespace FinserveNew.Controllers
         }
 
 
-
+        // ========================== Employee Actions ========================== //
         // GET: /Payroll/Payslips
         [Authorize] // Ensure users are logged in
         public async Task<IActionResult> Payslips(int? year)
@@ -516,7 +590,7 @@ namespace FinserveNew.Controllers
 
         // GET: /Payroll/ViewPayslip/{id}
         [Authorize]
-        public async Task<IActionResult> ViewPayslip(int id)
+        public async Task<IActionResult> ViewPayslip(string id)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user == null || string.IsNullOrEmpty(user.EmployeeID))
@@ -542,10 +616,9 @@ namespace FinserveNew.Controllers
             return View("~/Views/Employee/Payslips/ViewPayslip.cshtml", payslip);
         }
 
-        // ========================== Employee Actions ========================== //
         // GET: /Payroll/DownloadPayslip/{id}
         [Authorize]
-        public async Task<IActionResult> DownloadPayslip(int id)
+        public async Task<IActionResult> DownloadPayslip(string id)
         {
             var user = await _userManager.GetUserAsync(User);
             if (user == null || string.IsNullOrEmpty(user.EmployeeID))
@@ -575,4 +648,4 @@ namespace FinserveNew.Controllers
             };
         }
     }
-} 
+}

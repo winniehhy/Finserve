@@ -6,7 +6,7 @@ namespace FinserveNew.Models
     public class Payroll
     {
         [Key]
-        public int PayrollID { get; set; }
+        public string PayrollID { get; set; }
 
         [Required]
         public string EmployeeID { get; set; }
@@ -71,6 +71,9 @@ namespace FinserveNew.Models
         // Navigation property
         [ForeignKey("EmployeeID")]
         public virtual Employee Employee { get; set; }
+
+        // Navigations to approvals history
+        public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();
     }
 
 }

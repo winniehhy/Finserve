@@ -13,15 +13,24 @@ namespace FinserveNew.Models
         [DataType(DataType.Date)]
         public DateTime ApprovalDate { get; set; }
 
-        [Required(ErrorMessage = "Purpose is required")]
-        [Display(Name = "Purpose")]
+        [Required(ErrorMessage = "Action is required")]
+        [Display(Name = "Action")]
         [MaxLength(500)]
-        public string Purpose { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Approved by is required")]
-        [Display(Name = "Approved By")]
+        [Required(ErrorMessage = "Action by is required")]
+        [Display(Name = "Action By")]
         [MaxLength(100)]
-        public string ApprovedBy { get; set; } = string.Empty;
+        public string ActionBy { get; set; } = string.Empty;
+
+        [MaxLength(30)]
+        public string? Status { get; set; }
+
+        [MaxLength(1000)]
+        public string? Remarks { get; set; }
+
+        // Optional link to a specific Payroll record
+        public string? PayrollID { get; set; }
 
         // Foreign Key - Based on  ERD, Approval links to Employee
         [Required(ErrorMessage = "Employee is required")]
@@ -32,8 +41,11 @@ namespace FinserveNew.Models
         [ForeignKey("EmployeeID")]
         public virtual Employee Employee { get; set; } = null!;
 
+        [ForeignKey("PayrollID")]
+        public virtual Payroll? Payroll { get; set; }
+
     
-        public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
+        // public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
         //public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();
     }
 }

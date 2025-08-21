@@ -62,6 +62,8 @@ namespace FinserveNew.Controllers
                     {
                         _logger.LogInformation("User {Email} logged in.", model.Email);
 
+                        await _signInManager.RefreshSignInAsync(user);
+
                         // Redirect based on user role
                         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                         {
@@ -110,6 +112,10 @@ namespace FinserveNew.Controllers
             if (roles.Contains("Admin"))
             {
                 return RedirectToAction("AdminDashboard", "Home");
+            }
+            else if (roles.Contains("Senior HR"))
+            {
+                return RedirectToAction("SeniorHRDashboard", "Home");
             }
             else if (roles.Contains("HR"))
             {

@@ -148,6 +148,62 @@
                     </button>
                 </div>
             </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-light">
+                    <h6 class="card-title mb-0">Employee Information</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Name:</td>
+                            <td>@Model.Employee.FirstName @Model.Employee.LastName</td>
+                        </tr>
+                        <tr>
+                            <td>Email:</td>
+                            <td>@Model.Employee.Email</td>
+                        </tr>
+                        <tr>
+                            <td>Position:</td>
+                            <td>@Model.Employee.Position</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            @if (Model.Approvals != null && Model.Approvals.Any())
+            {
+                <div class="card mt-3">
+                    <div class="card-header bg-light">
+                        <h6 class="card-title mb-0">Approval History</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>By</th>
+                                        <th>Status</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var approval in Model.Approvals.OrderByDescending(a => a.ApprovalDate))
+                                    {
+                                        <tr>
+                                            <td>@approval.ApprovalDate.ToString("dd MMM yyyy HH:mm")</td>
+                                            <td>@approval.ActionBy</td>
+                                            <td><span class="badge bg-secondary">@approval.Status</span></td>
+                                            <td>@approval.Remarks</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     </div>
 </div>
@@ -162,9 +218,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <strong>Warning:</strong> You are about to reject this payroll entry. Please provide a clear reason for rejection.
+                    </div>
                     <div class="mb-3">
-                        <label for="reason" class="form-label">Reason for Rejection</label>
-                        <textarea class="form-control" id="reason" name="reason" rows="3" required></textarea>
+                        <label for="reason" class="form-label">Reason for Rejection <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="reason" name="reason" rows="4" required placeholder="Please provide detailed reason for rejection..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
