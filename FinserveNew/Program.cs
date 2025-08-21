@@ -59,8 +59,11 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
     options.AddPolicy("HROnly", policy => policy.RequireRole("HR"));
+    options.AddPolicy("SeniorHROnly", policy => policy.RequireRole("Senior HR"));
     options.AddPolicy("EmployeeOnly", policy => policy.RequireRole("Employee"));
     options.AddPolicy("AdminOrHR", policy => policy.RequireRole("Admin", "HR"));
+    options.AddPolicy("AdminOrSeniorHR", policy => policy.RequireRole("Admin", "Senior HR"));
+    options.AddPolicy("HROrSeniorHR", policy => policy.RequireRole("HR", "Senior HR"));
     options.AddPolicy("AdminOrHROrEmployee", policy => policy.RequireRole("Admin", "HR", "Employee"));
 });
 

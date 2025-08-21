@@ -29,6 +29,10 @@ namespace FinserveNew.Controllers
             {
                 return RedirectToAction("AdminDashboard");
             }
+            else if (User.IsInRole("Senior HR"))
+            {
+                return RedirectToAction("SeniorHRDashboard");
+            }
             else if (User.IsInRole("HR"))
             {
                 return RedirectToAction("HRDashboard");
@@ -37,8 +41,9 @@ namespace FinserveNew.Controllers
             {
                 return RedirectToAction("EmployeeDashboard");
             }
-            // Fallback for users without proper roles
-            return RedirectToAction("Login", "Account");
+            
+            // If user has no recognized role, log them out instead of redirect loop
+            return RedirectToAction("Logout", "Account");
         }
 
         // Admin Dashboard - Only accessible by Admin
@@ -372,6 +377,98 @@ namespace FinserveNew.Controllers
             }
         }
 
+        // Senior HR Dashboard - Only accessible by Senior HR
+        [Authorize(Roles = "Senior HR")]
+        public async Task<IActionResult> SeniorHRDashboard()
+        {
+            try
+            {
+                ViewData["Title"] = "Senior HR Dashboard";
+                ViewData["UserRole"] = "Senior HR";
+
+                var currentYear = DateTime.Now.Year;
+                var currentMonth = DateTime.Now.Month;
+
+                // Get payroll statistics
+                var pendingPayrolls = await _context.Payrolls
+                    .Include(p => p.Employee)
+                    .Where(p => p.PaymentStatus == "Pending Approval")
+                    .ToListAsync();
+
+                var approvedPayrolls = await _context.Payrolls
+                    .Include(p => p.Employee)
+                    .Where(p => p.PaymentStatus == "Approved" && p.Year == currentYear && p.Month == currentMonth)
+                    .ToListAsync();
+
+                var recentPayrollActivities = await _context.Payrolls
+                    .Include(p => p.Employee)
+                    .OrderByDescending(p => p.Year)
+                    .ThenByDescending(p => p.Month)
+                    .Take(10)
+                    .ToListAsync();
+
+                // Get employee statistics
+                var totalEmployees = await _context.Employees.CountAsync();
+                var activeEmployees = await _context.Employees
+                    .Where(e => e.ResignationDate == null || e.ResignationDate > DateOnly.FromDateTime(DateTime.Now))
+                    .CountAsync();
+
+                // Calculate totals
+                var totalPayrollAmount = approvedPayrolls.Sum(p => p.TotalWages);
+                var totalPayrolls = await _context.Payrolls
+                    .Where(p => p.Year == currentYear && p.Month == currentMonth)
+                    .CountAsync();
+
+                // Get payroll status summary
+                var payrollStatusSummary = await _context.Payrolls
+                    .Where(p => p.Year == currentYear && p.Month == currentMonth)
+                    .GroupBy(p => p.PaymentStatus)
+                    .Select(g => new { Status = g.Key, Count = g.Count() })
+                    .ToListAsync();
+
+                var payrollStatusList = payrollStatusSummary.Select(x => new
+                {
+                    Status = x.Status,
+                    Count = x.Count
+                }).Cast<object>().ToList();
+
+                // Set ViewBag properties
+                ViewBag.PendingPayrollCount = pendingPayrolls.Count;
+                ViewBag.ApprovedPayrollCount = approvedPayrolls.Count;
+                ViewBag.TotalEmployees = totalEmployees;
+                ViewBag.ActiveEmployees = activeEmployees;
+                ViewBag.TotalPayrollAmount = totalPayrollAmount;
+                ViewBag.TotalPayrolls = totalPayrolls;
+                ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
+                
+                ViewBag.PendingPayrolls = pendingPayrolls.Take(5).ToList();
+                ViewBag.RecentPayrollActivities = recentPayrollActivities.Take(5).ToList();
+                ViewBag.PayrollStatusSummary = payrollStatusList;
+
+                _logger.LogInformation("✅ Senior HR Dashboard loaded successfully");
+                return View("~/Views/SeniorHR/Dashboard.cshtml");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "💥 Error loading Senior HR dashboard");
+
+                // Set default values
+                ViewBag.PendingPayrollCount = 0;
+                ViewBag.ApprovedPayrollCount = 0;
+                ViewBag.TotalEmployees = 0;
+                ViewBag.ActiveEmployees = 0;
+                ViewBag.TotalPayrollAmount = 0;
+                ViewBag.TotalPayrolls = 0;
+                ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
+                ViewBag.PendingPayrolls = new List<Payroll>();
+                ViewBag.RecentPayrollActivities = new List<Payroll>();
+                ViewBag.PayrollStatusSummary = new List<object>();
+
+                TempData["Error"] = "An error occurred while loading the dashboard.";
+                return View("~/Views/SeniorHR/Dashboard.cshtml");
+            }
+        }
+
         // ================== HELPER METHODS ==================
 
         private async Task<string> GetCurrentEmployeeId()
@@ -543,4 +640,4 @@ namespace FinserveNew.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
     }
-}   
+}

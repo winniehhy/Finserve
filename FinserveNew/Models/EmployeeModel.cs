@@ -63,7 +63,6 @@ namespace FinserveNew.Models
         [DataType(DataType.Date)]
         public DateOnly JoinDate { get; set; }
 
-        //[Required(ErrorMessage = "Resignation date is required")]
         [Display(Name = "Resignation Date")]
         [DataType(DataType.Date)]
         public DateOnly? ResignationDate { get; set; }
@@ -126,8 +125,8 @@ namespace FinserveNew.Models
         // Link to ApplicationUser (Identity)
         //[Required(ErrorMessage = "Application User is required")]
         //[ForeignKey("ApplicationUserId")]
-        public string? ApplicationUserId { get; set; } // FK to AspNetUsers table
+        //public string? ApplicationUserId { get; set; } // FK to AspNetUsers table
 
-        public virtual ApplicationUser ApplicationUser { get; set; }  // Navigation property
+        //public virtual ApplicationUser ApplicationUser { get; set; }  // Navigation property
     }
 }

@@ -4,6 +4,7 @@ using FinserveNew.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250820081327_RemoveConflictNav")]
+    partial class RemoveConflictNav
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -95,51 +98,6 @@ namespace FinserveNew.Migrations
                         .HasDatabaseName("UserNameIndex");
 
                     b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
-                {
-                    b.Property<int>("ApprovalID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ApprovalID"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("ActionBy")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime>("ApprovalDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("EmployeeID")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("PayrollID")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Remarks")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("Status")
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)");
-
-                    b.HasKey("ApprovalID");
-
-                    b.HasIndex("EmployeeID");
-
-                    b.HasIndex("PayrollID");
-
-                    b.ToTable("Approvals");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
@@ -676,8 +634,11 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Payroll", b =>
                 {
-                    b.Property<string>("PayrollID")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("PayrollID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("PayrollID"));
 
                     b.Property<decimal>("BasicSalary")
                         .HasColumnType("decimal(18,2)");
@@ -873,24 +834,6 @@ namespace FinserveNew.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Approval", b =>
-                {
-                    b.HasOne("FinserveNew.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("FinserveNew.Models.Payroll", "Payroll")
-                        .WithMany("Approvals")
-                        .HasForeignKey("PayrollID")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("Payroll");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
@@ -1109,11 +1052,6 @@ namespace FinserveNew.Migrations
                     b.Navigation("LeaveDetails");
 
                     b.Navigation("Leaves");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Payroll", b =>
-                {
-                    b.Navigation("Approvals");
                 });
 #pragma warning restore 612, 618
         }

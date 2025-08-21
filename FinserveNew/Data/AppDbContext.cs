@@ -17,7 +17,7 @@ namespace FinserveNew.Data
         public DbSet<EmergencyContact> EmergencyContacts { get; set; }
         public DbSet<JobRole> Roles { get; set; }
         public DbSet<Payroll> Payrolls { get; set; }
-        //public DbSet<Approval> Approvals { get; set; }
+        public DbSet<Approval> Approvals { get; set; }
         public DbSet<ClaimDetails> ClaimDetails { get; set; }
         public DbSet<ClaimType> ClaimTypes { get; set; }
         public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
@@ -42,8 +42,8 @@ namespace FinserveNew.Data
 
             // IGNORE UNUSED IDENTITY TABLES 
             //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserClaim<string>>();
-            modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserLogin<string>>();
-            modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>();
+            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserLogin<string>>();
+            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>();
             //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>>();
 
             // Configure Employee table
@@ -64,7 +64,7 @@ namespace FinserveNew.Data
                 entity.Property(e => e.IncomeTaxNumber).IsRequired().HasMaxLength(15);
                 entity.Property(e => e.EPFNumber).IsRequired().HasMaxLength(15);
 
-
+                // Foreign key relationships
                 entity.HasOne(e => e.BankInformation)
                     .WithMany(b => b.Employees)
                     .HasForeignKey(e => e.BankID)
@@ -82,10 +82,10 @@ namespace FinserveNew.Data
             });
 
             // Configure the relationship between ApplicationUser and Employee
-            modelBuilder.Entity<Employee>()
-                .HasOne(e => e.ApplicationUser)
-                .WithOne()
-                .HasForeignKey<Employee>(e => e.ApplicationUserId);
+            //modelBuilder.Entity<Employee>()
+            //    .HasOne(e => e.ApplicationUser)
+            //    .WithOne()
+            //    .HasForeignKey<Employee>(e => e.ApplicationUserId);
 
             // Configure the Claim table (updated for RBAC approach)
             modelBuilder.Entity<Claim>(entity =>
@@ -152,6 +152,26 @@ namespace FinserveNew.Data
             //        .HasForeignKey(s => s.EmployeeID)
             //        .OnDelete(DeleteBehavior.Cascade);
             //});
+
+            // Configure Approval table and its relationships
+            modelBuilder.Entity<Approval>(entity =>
+            {
+                entity.HasKey(a => a.ApprovalID);
+                entity.Property(a => a.Action).IsRequired().HasMaxLength(500);
+                entity.Property(a => a.ActionBy).IsRequired().HasMaxLength(100);
+                entity.Property(a => a.Status).HasMaxLength(30);
+                entity.Property(a => a.Remarks).HasMaxLength(1000);
+
+                entity.HasOne(a => a.Employee)
+                    .WithMany()
+                    .HasForeignKey(a => a.EmployeeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(a => a.Payroll)
+                    .WithMany(p => p.Approvals)
+                    .HasForeignKey(a => a.PayrollID)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             //modelBuilder.Entity<PayrollBatch>(entity =>
             //{
