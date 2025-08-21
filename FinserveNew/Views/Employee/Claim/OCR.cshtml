@@ -3,6 +3,15 @@
     ViewData["Title"] = "OCR Processing - Verify Claim Information";
 }
 
+@* Debug information *@
+@if (ViewBag.DebugInfo != null)
+{
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+    <strong>Debug Info:</strong> @ViewBag.DebugInfo
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+}
+
 @* Add anti-forgery token for form submissions *@
 @Html.AntiForgeryToken()
 
@@ -163,29 +172,30 @@
                         </div>
                     </div>
 
-                    <!-- Original Claim Info -->
+                    <!-- FIXED: Original Claim Info with data-field attributes -->
                     <div class="claim-info">
                         <div class="info-group mb-3">
                             <label class="form-label fw-bold">Employee ID:</label>
-                            <div class="info-value">@(Model?.EmployeeID ?? "EM001")</div>
+                            <div class="info-value" data-field="employeeId">@(Model?.EmployeeID ?? "EM001")</div>
                         </div>
 
                         <div class="info-group mb-3">
                             <label class="form-label fw-bold">Claim Type:</label>
                             <div class="info-value">
-                                <span class="badge bg-primary">@(Model?.ClaimType ?? "Not specified")</span>
+                                <span class="badge bg-primary" data-field="claimType">@(Model?.ClaimType ?? "Travel")</span>
+                                <br><small class="text-info" id="claimTypeDebug">Debug: Value="@(Model?.ClaimType ?? "null")"</small>
                             </div>
                         </div>
 
                         <div class="info-group mb-3">
                             <label class="form-label fw-bold">Claim Date:</label>
-                            <div class="info-value">@(Model?.ClaimDate.ToString("dd/MM/yyyy") ?? DateTime.Now.ToString("dd/MM/yyyy"))</div>
+                            <div class="info-value" data-field="claimDate">@(Model?.ClaimDate.ToString("dd/MM/yyyy") ?? DateTime.Now.ToString("dd/MM/yyyy"))</div>
                         </div>
 
                         <div class="info-group mb-3">
                             <label class="form-label fw-bold">Claim Amount:</label>
                             <div class="info-value">
-                                <span class="fs-5 text-success fw-bold" id="displayClaimAmount">
+                                <span class="fs-5 text-success fw-bold" id="displayClaimAmount" data-field="claimAmount">
                                     RM @(Model?.ClaimAmount ?? 0)
                                 </span>
                             </div>
@@ -194,16 +204,17 @@
                         <div class="info-group mb-3">
                             <label class="form-label fw-bold">Description:</label>
                             <div class="info-value">
-                                <div class="bg-light p-2 rounded border" style="min-height: 40px;">
+                                <div class="bg-light p-2 rounded border" style="min-height: 40px;" data-field="description">
                                     <small class="text-muted">
                                         @if (!string.IsNullOrWhiteSpace(Model?.Description))
-                                      {
-                                                            @Model.Description
-                                      }
-                                      else
-                                      {
-                                                            <em>N/A</em>
-                                      }
+                                        {
+                                        @Model.Description
+                                        }
+                                        else
+                                        {
+                                        <em>N/A</em>
+                                        }
+                                        <br><small class="text-info" id="descriptionDebug">Debug: Length=@(Model?.Description?.Length ?? 0), Value="@(Model?.Description ?? "null")"</small>
                                     </small>
                                 </div>
                             </div>
@@ -213,6 +224,16 @@
                             <label class="form-label fw-bold">Uploaded Files:</label>
                             <div class="info-value">
                                 <span id="fileCount" class="badge bg-secondary">0 files</span>
+                            </div>
+                        </div>
+
+                        <!-- ADDED: Data Source Indicator -->
+                        <div class="info-group mb-3">
+                            <div class="alert alert-light border py-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span id="dataSourceIndicator">Data Source: Loading...</span>
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -276,14 +297,14 @@
 <!-- Toast Container -->
 <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
 
-<!-- Hidden form for final submission -->
+<!-- FIXED: Hidden form for final submission with proper data binding -->
 <form id="finalSubmissionForm" method="post" action="@Url.Action("ProcessOCRAndSubmit", "Claim")" style="display: none;">
     @Html.AntiForgeryToken()
-    <input type="hidden" name="EmployeeID" value="@Model.EmployeeID" />
-    <input type="hidden" name="ClaimType" value="@Model.ClaimType" />
-    <input type="hidden" name="ClaimDate" value="@Model.ClaimDate.ToString("yyyy-MM-dd")" />
-    <input type="hidden" name="ClaimAmount" value="@Model.ClaimAmount" id="hiddenClaimAmount" />
-    <input type="hidden" name="Description" value="@Html.Raw(Html.Encode(Model.Description ?? ""))" />
+    <input type="hidden" name="EmployeeID" value="@Model.EmployeeID" data-field="employeeId" />
+    <input type="hidden" name="ClaimType" value="@Model.ClaimType" data-field="claimType" />
+    <input type="hidden" name="ClaimDate" value="@Model.ClaimDate.ToString("yyyy-MM-dd")" data-field="claimDate" />
+    <input type="hidden" name="ClaimAmount" value="@Model.ClaimAmount" id="hiddenClaimAmount" data-field="claimAmount" />
+    <input type="hidden" name="Description" value="@(Model.Description ?? "")" data-field="description" />
     <input type="hidden" name="ocrResults" id="ocrResultsField" />
 </form>
 
@@ -298,7 +319,69 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            console.log('=== OCR PAGE INITIALIZATION STARTED ===');
+            console.log('=== FIXED OCR PAGE INITIALIZATION STARTED ===');
+
+            // FIXED: Enhanced model data debugging
+            const modelData = {
+                employeeId: '@Model.EmployeeID',
+                claimType: '@Model.ClaimType',
+                claimAmount: '@Model.ClaimAmount',
+                claimDate: '@Model.ClaimDate.ToString("yyyy-MM-dd")',
+                description: '@Model.Description',
+                descriptionLength: '@(Model.Description?.Length ?? 0)'
+            };
+            console.log('FIXED: Model data received from server:', modelData);
+
+            // FIXED: Enhanced session data recovery
+            let sessionClaimData = null;
+            try {
+                const claimDataStr = sessionStorage.getItem('claimData');
+                if (claimDataStr) {
+                    sessionClaimData = JSON.parse(claimDataStr);
+                    console.log('FIXED: Session data recovered:', {
+                        claimType: sessionClaimData.ClaimType,
+                        description: sessionClaimData.Description,
+                        hasFiles: sessionClaimData.Files && sessionClaimData.Files.length > 0,
+                        metadata: sessionClaimData.Metadata
+                    });
+                }
+            } catch (e) {
+                console.error('FIXED: Session data parsing error:', e);
+            }
+
+            // FIXED: Data reconciliation - prefer session data if available and complete
+            let finalClaimData = {
+                employeeId: modelData.employeeId || 'EM001',
+                claimType: modelData.claimType || 'Travel',
+                claimAmount: parseFloat(modelData.claimAmount) || 0,
+                claimDate: modelData.claimDate || new Date().toISOString().split('T')[0],
+                description: modelData.description || ''
+            };
+
+            let dataSource = 'fallback';
+
+            // PRIORITY: Use session data if it exists and has required fields
+            if (sessionClaimData && sessionClaimData.ClaimType && sessionClaimData.ClaimType !== '') {
+                finalClaimData = {
+                    employeeId: sessionClaimData.EmployeeId || finalClaimData.employeeId,
+                    claimType: sessionClaimData.ClaimType,
+                    claimAmount: parseFloat(sessionClaimData.ClaimAmount) || finalClaimData.claimAmount,
+                    claimDate: sessionClaimData.ClaimDate || finalClaimData.claimDate,
+                    description: sessionClaimData.Description || ''
+                };
+                dataSource = 'session';
+                console.log('✅ FIXED: Using session data (complete and reliable)');
+            } else if (modelData.claimType && modelData.claimType !== '' && modelData.claimType !== 'Travel') {
+                dataSource = 'model';
+                console.log('✅ FIXED: Using model data (session incomplete)');
+            } else {
+                console.log('⚠️ FIXED: Using fallback data (both sources incomplete)');
+            }
+
+            console.log('FIXED: Final reconciled data:', finalClaimData);
+
+            // FIXED: Update DOM elements with correct data
+            updateClaimDisplayElements(finalClaimData, dataSource);
 
             // Initialize variables
             let uploadedFiles = [];
@@ -311,6 +394,116 @@
 
             // Initialize files
             initializeUploadedFiles();
+
+            // FIXED: Function to update claim display elements
+            function updateClaimDisplayElements(claimData, source) {
+                console.log('FIXED: Updating display elements with:', claimData, 'Source:', source);
+
+                // Update data source indicator
+                const sourceIndicator = document.getElementById('dataSourceIndicator');
+                if (sourceIndicator) {
+                    const sourceText = {
+                        'session': '✅ Session Storage (User Input)',
+                        'model': '⚠️ Server Model (Fallback)',
+                        'fallback': '❌ Default Values (Error)'
+                    };
+                    sourceIndicator.innerHTML = `Data Source: ${sourceText[source]}`;
+                    sourceIndicator.className = `text-${source === 'session' ? 'success' : source === 'model' ? 'warning' : 'danger'}`;
+                }
+
+                // Update Employee ID
+                const employeeIdElements = document.querySelectorAll('[data-field="employeeId"]');
+                employeeIdElements.forEach(el => {
+                    if (el.tagName === 'INPUT') {
+                        el.value = claimData.employeeId;
+                    } else {
+                        el.textContent = claimData.employeeId;
+                    }
+                });
+
+                // FIXED: Update Claim Type display
+                const claimTypeBadge = document.querySelector('[data-field="claimType"].badge');
+                const claimTypeInputs = document.querySelectorAll('input[data-field="claimType"]');
+
+                if (claimTypeBadge) {
+                    claimTypeBadge.textContent = claimData.claimType;
+                    claimTypeBadge.className = `badge bg-${getClaimTypeColor(claimData.claimType)}`;
+                }
+
+                claimTypeInputs.forEach(input => {
+                    input.value = claimData.claimType;
+                });
+
+                // Update debug info
+                const claimTypeDebug = document.getElementById('claimTypeDebug');
+                if (claimTypeDebug) {
+                    claimTypeDebug.textContent = `Debug: Using "${claimData.claimType}" from ${source}`;
+                    claimTypeDebug.className = `text-${source === 'session' ? 'success' : source === 'model' ? 'warning' : 'danger'}`;
+                }
+
+                // FIXED: Update Description display
+                const descriptionContainer = document.querySelector('[data-field="description"]');
+                const descriptionInputs = document.querySelectorAll('input[data-field="description"]');
+
+                if (descriptionContainer) {
+                    const descriptionValue = claimData.description && claimData.description.trim() !== ''
+                        ? claimData.description
+                        : 'N/A';
+
+                    descriptionContainer.innerHTML = `
+                        <small class="text-muted">
+                            ${descriptionValue !== 'N/A' ? claimData.description : '<em>N/A</em>'}
+                            <br><small class="text-${source === 'session' ? 'success' : source === 'model' ? 'warning' : 'danger'}" id="descriptionDebug">
+                                Debug: "${claimData.description}" (${claimData.description.length} chars) from ${source}
+                            </small>
+                        </small>
+                    `;
+                }
+
+                descriptionInputs.forEach(input => {
+                    input.value = claimData.description || '';
+                });
+
+                // Update Claim Amount
+                const amountDisplays = document.querySelectorAll('[data-field="claimAmount"]:not(input)');
+                const amountInputs = document.querySelectorAll('input[data-field="claimAmount"]');
+
+                amountDisplays.forEach(el => {
+                    el.textContent = `RM ${claimData.claimAmount.toFixed(2)}`;
+                });
+
+                amountInputs.forEach(input => {
+                    input.value = claimData.claimAmount;
+                });
+
+                // Update Claim Date
+                const dateDisplays = document.querySelectorAll('[data-field="claimDate"]:not(input)');
+                const dateInputs = document.querySelectorAll('input[data-field="claimDate"]');
+                const formattedDate = new Date(claimData.claimDate).toLocaleDateString('en-GB');
+
+                dateDisplays.forEach(el => {
+                    el.textContent = formattedDate;
+                });
+
+                dateInputs.forEach(input => {
+                    input.value = claimData.claimDate;
+                });
+
+                console.log('✅ FIXED: All display elements updated successfully');
+            }
+
+            // Helper function for claim type colors
+            function getClaimTypeColor(claimType) {
+                const colorMap = {
+                    'Travel': 'primary',
+                    'Medical': 'success',
+                    'Equipment': 'info',
+                    'Training': 'warning',
+                    'Entertainment': 'secondary',
+                    'Other': 'dark'
+                };
+                return colorMap[claimType] || 'primary';
+            }
 
             // Initialize OCR worker
             async function initOCRWorker() {
@@ -337,34 +530,26 @@
                 }
             }
 
-            // Initialize uploaded files
+            // FIXED: Initialize uploaded files with enhanced debugging
             function initializeUploadedFiles() {
-                console.log('Initializing uploaded files...');
+                console.log('FIXED: Initializing uploaded files...');
 
                 // Try server files first
                 if (typeof window.serverUploadedFiles !== 'undefined' && window.serverUploadedFiles.length > 0) {
                     uploadedFiles = window.serverUploadedFiles;
-                    console.log(`Found ${uploadedFiles.length} files from server`);
+                    console.log(`✅ FIXED: Found ${uploadedFiles.length} files from server`);
+                } else if (sessionClaimData && sessionClaimData.Files && sessionClaimData.Files.length > 0) {
+                    // Use session storage files
+                    uploadedFiles = sessionClaimData.Files.map(file => ({
+                        name: file.name,
+                        type: file.type,
+                        size: file.size || 0,
+                        data: file.data,
+                        url: `data:${file.type};base64,${file.data}`
+                    }));
+                    console.log(`✅ FIXED: Found ${uploadedFiles.length} files from session`);
                 } else {
-                    // Fallback to session storage
-                    const claimDataStr = sessionStorage.getItem('claimData');
-                    if (claimDataStr) {
-                        try {
-                            const claimData = JSON.parse(claimDataStr);
-                            if (claimData.Files && claimData.Files.length > 0) {
-                                uploadedFiles = claimData.Files.map(file => ({
-                                    name: file.name,
-                                    type: file.type,
-                                    size: file.size || 0,
-                                    data: file.data,
-                                    url: `data:${file.type};base64,${file.data}`
-                                }));
-                                console.log(`Found ${uploadedFiles.length} files from session`);
-                            }
-                        } catch (e) {
-                            console.error('Error parsing session data:', e);
-                        }
-                    }
+                    console.log('⚠️ FIXED: No files found in any source');
                 }
 
                 if (uploadedFiles.length > 0) {
@@ -1017,16 +1202,23 @@
                         totalAmount: totalCalculatedAmount,
                         processedFiles: processedFilesCount,
                         confirmedFiles: ocrResults.filter(r => r && r.amountConfirmed).length,
-                        filesData: uploadedFiles // CRITICAL: Include the actual file data with base64
+                        filesData: uploadedFiles, // CRITICAL: Include the actual file data with base64
+                        claimData: finalClaimData // FIXED: Include the correct claim data
                     };
 
-                    console.log('Preparing submission with file data:', {
+                    console.log('Preparing submission with corrected data:', {
+                        claimType: finalClaimData.claimType,
+                        description: finalClaimData.description,
                         totalFiles: uploadedFiles.length,
                         ocrResultsCount: ocrResults.length,
                         hasFileData: uploadedFiles.length > 0 && uploadedFiles[0].data
                     });
 
                     document.getElementById('ocrResultsField').value = JSON.stringify(ocrDataForSubmission);
+
+                    // FIXED: Update hidden form fields with correct data
+                    document.querySelector('input[name="ClaimType"]').value = finalClaimData.claimType;
+                    document.querySelector('input[name="Description"]').value = finalClaimData.description;
                     document.getElementById('hiddenClaimAmount').value = totalCalculatedAmount;
 
                     // Submit the form
@@ -1040,8 +1232,35 @@
             window.resetToExtracted = resetToExtracted;
             window.removeFromCalculation = removeFromCalculation;
 
-            console.log('=== OCR PAGE INITIALIZATION COMPLETED ===');
+            // Add debugging panel for troubleshooting
+            if (window.location.search.includes('debug=true')) {
+                setTimeout(() => {
+                    const debugPanel = document.createElement('div');
+                    debugPanel.className = 'alert alert-info position-fixed';
+                    debugPanel.style.cssText = 'top: 10px; right: 10px; z-index: 9999; max-width: 300px;';
+                    debugPanel.innerHTML = `
+                        <h6>🔍 Debug Panel</h6>
+                        <small>
+                            <strong>Claim Type:</strong> ${finalClaimData.claimType}<br>
+                            <strong>Description:</strong> "${finalClaimData.description}"<br>
+                            <strong>Data Source:</strong> ${dataSource}<br>
+                            <strong>Files:</strong> ${uploadedFiles.length}<br>
+                            <button onclick="this.parentElement.parentElement.remove()" class="btn btn-sm btn-outline-secondary mt-2">
+                                Close Debug
+                            </button>
+                        </small>
+                    `;
+                    document.body.appendChild(debugPanel);
+                }, 1000);
+            }
+
+            console.log('=== FIXED OCR PAGE INITIALIZATION COMPLETED ===');
+            console.log('Final State:', {
+                claimType: finalClaimData.claimType,
+                description: finalClaimData.description,
+                dataSource: dataSource,
+                filesCount: uploadedFiles.length
+            });
         });
     </script>
 }
-
