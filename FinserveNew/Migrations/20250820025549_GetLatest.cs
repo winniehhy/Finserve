@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FinserveNew.Migrations
 {
     /// <inheritdoc />
-    public partial class UpdateLeave : Migration
+    public partial class GetLatest : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -340,7 +340,9 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     LastName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    IC = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    IC = table.Column<string>(type: "varchar(12)", maxLength: 12, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PassportNumber = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Nationality = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
@@ -358,6 +360,10 @@ namespace FinserveNew.Migrations
                     BankID = table.Column<int>(type: "int", nullable: false),
                     EmergencyID = table.Column<int>(type: "int", nullable: false),
                     RoleID = table.Column<int>(type: "int", nullable: false),
+                    IncomeTaxNumber = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    EPFNumber = table.Column<string>(type: "varchar(15)", maxLength: 15, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     ApplicationUserId = table.Column<string>(type: "varchar(255)", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
@@ -529,7 +535,7 @@ namespace FinserveNew.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Month = table.Column<int>(type: "int", nullable: false),
                     Year = table.Column<int>(type: "int", nullable: false),
-                    ProjectName = table.Column<string>(type: "longtext", nullable: false)
+                    ProjectName = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     BasicSalary = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     EmployerEpf = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
@@ -556,6 +562,51 @@ namespace FinserveNew.Migrations
                         principalTable: "Employees",
                         principalColumn: "EmployeeID",
                         onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "UnpaidLeaveRequests",
+                columns: table => new
+                {
+                    UnpaidLeaveRequestID = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    EmployeeID = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LeaveTypeID = table.Column<int>(type: "int", nullable: false),
+                    StartDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    EndDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    RequestedDays = table.Column<double>(type: "double", precision: 4, scale: 1, nullable: false),
+                    ExcessDays = table.Column<double>(type: "double", precision: 4, scale: 1, nullable: false),
+                    Reason = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    JustificationReason = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Pending")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SubmissionDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ApprovalDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ApprovedBy = table.Column<string>(type: "varchar(450)", maxLength: 450, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ApprovalRemarks = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UnpaidLeaveRequests", x => x.UnpaidLeaveRequestID);
+                    table.ForeignKey(
+                        name: "FK_UnpaidLeaveRequests_Employees_EmployeeID",
+                        column: x => x.EmployeeID,
+                        principalTable: "Employees",
+                        principalColumn: "EmployeeID",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UnpaidLeaveRequests_LeaveTypes_LeaveTypeID",
+                        column: x => x.LeaveTypeID,
+                        principalTable: "LeaveTypes",
+                        principalColumn: "LeaveTypeID",
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -734,6 +785,16 @@ namespace FinserveNew.Migrations
                 table: "Payrolls",
                 column: "EmployeeID");
 
+            migrationBuilder.CreateIndex(
+                name: "IX_UnpaidLeaveRequests_EmployeeID",
+                table: "UnpaidLeaveRequests",
+                column: "EmployeeID");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UnpaidLeaveRequests_LeaveTypeID",
+                table: "UnpaidLeaveRequests",
+                column: "LeaveTypeID");
+
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUserClaims_AspNetUsers_UserId",
                 table: "AspNetUserClaims",
@@ -791,6 +852,9 @@ namespace FinserveNew.Migrations
 
             migrationBuilder.DropTable(
                 name: "ProcessOCRSubmissions");
+
+            migrationBuilder.DropTable(
+                name: "UnpaidLeaveRequests");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

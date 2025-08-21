@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250818062145_UpdateLeave")]
-    partial class UpdateLeave
+    [Migration("20250820025549_GetLatest")]
+    partial class GetLatest
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -380,6 +380,11 @@ namespace FinserveNew.Migrations
                     b.Property<DateOnly>("DateOfBirth")
                         .HasColumnType("date");
 
+                    b.Property<string>("EPFNumber")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -394,9 +399,13 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(100)");
 
                     b.Property<string>("IC")
+                        .HasMaxLength(12)
+                        .HasColumnType("varchar(12)");
+
+                    b.Property<string>("IncomeTaxNumber")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)");
 
                     b.Property<DateOnly>("JoinDate")
                         .HasColumnType("date");
@@ -410,6 +419,10 @@ namespace FinserveNew.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
+
+                    b.Property<string>("PassportNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("Password")
                         .IsRequired()
@@ -805,7 +818,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(30)");
 
                     b.Property<string>("ProjectName")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<decimal>("TotalEmployerCost")
@@ -857,6 +869,79 @@ namespace FinserveNew.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ProcessOCRSubmissions");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.UnpaidLeaveRequestModel", b =>
+                {
+                    b.Property<int>("UnpaidLeaveRequestID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UnpaidLeaveRequestID"));
+
+                    b.Property<DateTime?>("ApprovalDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ApprovalRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("ApprovedBy")
+                        .HasMaxLength(450)
+                        .HasColumnType("varchar(450)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EmployeeID")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<double>("ExcessDays")
+                        .HasPrecision(4, 1)
+                        .HasColumnType("double");
+
+                    b.Property<string>("JustificationReason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<int>("LeaveTypeID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<double>("RequestedDays")
+                        .HasPrecision(4, 1)
+                        .HasColumnType("double");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("Pending");
+
+                    b.Property<DateTime>("SubmissionDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("UnpaidLeaveRequestID");
+
+                    b.HasIndex("EmployeeID");
+
+                    b.HasIndex("LeaveTypeID");
+
+                    b.ToTable("UnpaidLeaveRequests");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -1089,6 +1174,25 @@ namespace FinserveNew.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("FinserveNew.Models.UnpaidLeaveRequestModel", b =>
+                {
+                    b.HasOne("FinserveNew.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FinserveNew.Models.LeaveTypeModel", "LeaveType")
+                        .WithMany()
+                        .HasForeignKey("LeaveTypeID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("LeaveType");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

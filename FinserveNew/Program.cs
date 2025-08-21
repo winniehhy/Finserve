@@ -97,15 +97,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
-// ✅ IMPORTANT: Authentication must come before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
-
-// ✅ Register Rotativa for PDF generation
 app.UseRotativa();
-
-// ✅ Set default route to redirect to login if not authenticated
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");

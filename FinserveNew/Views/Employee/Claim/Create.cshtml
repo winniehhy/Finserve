@@ -6,34 +6,34 @@
 
 @if (TempData["Success"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    @TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
 }
 
 @if (TempData["Error"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["Error"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    @TempData["Error"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
 }
 
 @if (TempData["FileUploadStatus"] != null)
 {
-    <div class="alert alert-info alert-dismissible fade show" role="alert">
-        <strong>File Upload Status:</strong> @TempData["FileUploadStatus"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+    <strong>File Upload Status:</strong> @TempData["FileUploadStatus"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
 }
 
 @if (TempData["DebugInfo"] != null)
 {
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-        <strong>Debug Info:</strong> @TempData["DebugInfo"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <strong>Debug Info:</strong> @TempData["DebugInfo"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
 }
 
 <div class="form-container">
@@ -111,8 +111,9 @@
 
         <div class="mb-3">
             <label asp-for="Description" class="form-label">Description (Optional)</label>
-            <textarea asp-for="Description" class="form-control" rows="3" placeholder="Enter additional details about your claim..."></textarea>
+            <textarea asp-for="Description" id="descriptionInput" class="form-control" rows="3" placeholder="Enter additional details about your claim..."></textarea>
             <span asp-validation-for="Description" class="text-danger"></span>
+            <small class="form-text text-muted">This will be preserved and shown in the OCR review page.</small>
         </div>
 
         <div class="d-grid gap-2 d-md-flex justify-content-md-start">
@@ -133,7 +134,7 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
     <script>
-                const exchangeRates = {
+        const exchangeRates = {
             USD_TO_MYR: 4.29,
             MYR_TO_USD: 0.233
         };
@@ -153,9 +154,7 @@
             const conversionText = document.getElementById('conversionText');
             const exchangeRateInfo = document.getElementById('exchangeRateInfo');
             const claimDateInput = document.querySelector('[name="ClaimDate"]');
-
-            // REMOVED: Auto-setting date to today - let user choose their own date
-            // The date input will now be empty, requiring user to select a date
+            const descriptionInput = document.getElementById('descriptionInput');
 
             // Currency conversion
             function updateConversion() {
@@ -193,7 +192,7 @@
             // Initialize currency conversion
             updateConversion();
 
-            // UPDATED FORM SUBMISSION HANDLER
+            // ENHANCED FORM SUBMISSION HANDLER
             form.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 console.log('Form submission started...');
@@ -205,7 +204,16 @@
                 const claimAmount = claimAmountInput.value;
                 const claimDate = claimDateInput.value;
                 const employeeId = document.querySelector('[name="EmployeeId"]').value;
-                const description = document.querySelector('[name="Description"]').value;
+                // FIXED: Get description value properly
+                const description = descriptionInput.value.trim();
+
+                console.log('Form data collected:', {
+                    claimType,
+                    claimAmount,
+                    claimDate,
+                    employeeId,
+                    description: description || '(empty)'
+                });
 
                 // Validation - including date validation
                 if (!claimType || !claimAmount || !claimDate || !employeeId) {
@@ -240,27 +248,27 @@
                 let originalAmount = finalAmount;
                 let originalCurrency = selectedCurrency;
 
-                console.log(`Original values - Type: ${claimType}, Amount: ${originalAmount}, Currency: ${originalCurrency}, Date: ${claimDate}`);
+                console.log(`Original values - Type: ${claimType}, Amount: ${originalAmount}, Currency: ${originalCurrency}, Date: ${claimDate}, Description: "${description}"`);
 
                 // Convert to MYR if needed
                 if (selectedCurrency === 'USD') {
                     finalAmount = finalAmount * exchangeRates.USD_TO_MYR;
                 }
 
-                // Prepare claim data
+                // Prepare claim data - FIXED: Include description properly
                 const claimData = {
                     EmployeeId: employeeId,
                     ClaimType: claimType,
                     ClaimDate: claimDate,
                     ClaimAmount: finalAmount.toFixed(2),
-                    Description: description || '',
+                    Description: description, // FIXED: Include description
                     Currency: 'MYR',
                     OriginalAmount: originalAmount.toString(),
                     OriginalCurrency: originalCurrency,
                     Files: []
                 };
 
-                console.log('Prepared claim data:', claimData);
+                console.log('Prepared claim data with description:', claimData);
 
                 // Process files
                 const files = Array.from(fileInput.files);
@@ -286,9 +294,23 @@
                     }
                 }
 
-                // Store in session storage for fallback
+                // Store in session storage for fallback - FIXED: Store complete data
                 sessionStorage.setItem('claimData', JSON.stringify(claimData));
-                console.log('Data stored in sessionStorage');
+                console.log('Data stored in sessionStorage with description:', {
+                    hasDescription: !!claimData.Description,
+                    description: claimData.Description
+                });
+
+                console.log('Final claimData being sent:', {
+                    ...claimData,
+                    Files: claimData.Files.map(f => ({
+                        name: f.name,
+                        size: f.size,
+                        type: f.type,
+                        hasData: !!f.data,
+                        dataPreview: f.data ? f.data.substring(0, 50) + '...' : 'No data'
+                    }))
+                });
 
                 // Send data via fetch with proper headers and error handling
                 try {
@@ -427,49 +449,4 @@
             fileDebugInfo.style.display = 'block';
         }
     </script>
-
-    <style>
-        .form-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-
-        .alert {
-            border-radius: 8px;
-        }
-
-        .form-control, .form-select {
-            border-radius: 6px;
-        }
-
-        .btn {
-            border-radius: 6px;
-        }
-
-        .card {
-            border-radius: 8px;
-            border: 1px solid #dee2e6;
-        }
-
-        .card-header {
-            background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        #conversionDisplay {
-            min-height: 38px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #currencySelect {
-            min-width: 60px;
-            cursor: pointer;
-        }
-
-        .border-bottom:last-child {
-            border-bottom: none !important;
-        }
-    </style>
 }
