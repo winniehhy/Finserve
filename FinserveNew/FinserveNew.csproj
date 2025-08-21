@@ -12,6 +12,8 @@
     <Compile Remove="Efmigrationshistory.cs" />
     <Compile Remove="Employee.cs" />
     <Compile Remove="FinserveNewDbContext.cs" />
+    <Compile Remove="Migrations\20250820025549_GetLatest.cs" />
+    <Compile Remove="Migrations\20250820025549_GetLatest.Designer.cs" />
     <Compile Remove="Models\NewPayrollRecord.cs" />
     <Compile Remove="Models\PayrollBatch.cs" />
     <Compile Remove="Models\PayrollComponent.cs" />
@@ -53,7 +55,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Services\" />
     <Folder Include="Views\Admins\Payroll\" />
   </ItemGroup>
 

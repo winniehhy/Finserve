@@ -67,6 +67,9 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminOrHROrEmployee", policy => policy.RequireRole("Admin", "HR", "Employee"));
 });
 
+// ✅ Register the ID generation services
+builder.Services.AddScoped<IIdGenerationService, IdGenerationService>();
+
 // ✅ Register the email sender service
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 

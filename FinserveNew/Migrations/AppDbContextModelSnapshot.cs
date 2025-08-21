@@ -99,11 +99,9 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Approval", b =>
                 {
-                    b.Property<int>("ApprovalID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ApprovalID"));
+                    b.Property<string>("ApprovalID")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
 
                     b.Property<string>("Action")
                         .IsRequired()
@@ -123,7 +121,7 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.Property<string>("PayrollID")
-                        .HasColumnType("varchar(255)");
+                        .HasColumnType("varchar(10)");
 
                     b.Property<string>("Remarks")
                         .HasMaxLength(1000)
@@ -798,7 +796,8 @@ namespace FinserveNew.Migrations
             modelBuilder.Entity("FinserveNew.Models.Payroll", b =>
                 {
                     b.Property<string>("PayrollID")
-                        .HasColumnType("varchar(255)");
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
 
                     b.Property<decimal>("BasicSalary")
                         .HasColumnType("decimal(18,2)");

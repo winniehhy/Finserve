@@ -177,19 +177,22 @@ namespace FinserveNew.Data
                 entity.HasKey(r => r.RoleID);
             });
 
-            //modelBuilder.Entity<Payroll>(entity =>
-            //{
-            //    entity.HasKey(s => s.PayrollID);
-            //    entity.HasOne<Employee>()
-            //        .WithMany(e => e.Payrolls)
-            //        .HasForeignKey(s => s.EmployeeID)
-            //        .OnDelete(DeleteBehavior.Cascade);
-            //});
+            // Configure Payroll table with string primary key
+            modelBuilder.Entity<Payroll>(entity =>
+            {
+                entity.HasKey(p => p.PayrollID);
+                entity.Property(p => p.PayrollID).IsRequired().HasMaxLength(10);
+                entity.HasOne(p => p.Employee)
+                    .WithMany(e => e.Payrolls)
+                    .HasForeignKey(p => p.EmployeeID)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
-            // Configure Approval table and its relationships
+            // Configure Approval table with string primary key and relationships
             modelBuilder.Entity<Approval>(entity =>
             {
                 entity.HasKey(a => a.ApprovalID);
+                entity.Property(a => a.ApprovalID).IsRequired().HasMaxLength(10);
                 entity.Property(a => a.Action).IsRequired().HasMaxLength(500);
                 entity.Property(a => a.ActionBy).IsRequired().HasMaxLength(100);
                 entity.Property(a => a.Status).HasMaxLength(30);

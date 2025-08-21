@@ -40,7 +40,7 @@ public class DbInitializer
         // Save changes to the custom Roles table
         await context.SaveChangesAsync();
 
-        // Create HR user (HR staff cannot access employee claims directly)
+        // Create HR user (HR staff with single role only)
         var hrUser = await userManager.FindByEmailAsync("hr@finserve.com");
         if (hrUser == null)
         {
@@ -53,8 +53,13 @@ public class DbInitializer
             await userManager.CreateAsync(user, "Test@123");
             await userManager.AddToRoleAsync(user, "HR");
         }
+        else
+        {
+            // Ensure HR user has only HR role
+            await EnsureSingleRoleAsync(userManager, hrUser, "HR");
+        }
 
-        // Create regular Employee user
+        // Create regular Employee user (Employee role only)
         var employeeUser = await userManager.FindByEmailAsync("employee@finserve.com");
         if (employeeUser == null)
         {
@@ -67,8 +72,13 @@ public class DbInitializer
             await userManager.CreateAsync(user, "Test@123");
             await userManager.AddToRoleAsync(user, "Employee");
         }
+        else
+        {
+            // Ensure Employee user has only Employee role
+            await EnsureSingleRoleAsync(userManager, employeeUser, "Employee");
+        }
 
-        // Create Senior HR user
+        // Create Senior HR user (Senior HR role only)
         var seniorHrUser = await userManager.FindByEmailAsync("seniorhr@finserve.com");
         if (seniorHrUser == null)
         {
@@ -80,11 +90,14 @@ public class DbInitializer
             };
             await userManager.CreateAsync(user, "Test@123");
             await userManager.AddToRoleAsync(user, "Senior HR");
-            await userManager.AddToRoleAsync(user, "HR");
-            await userManager.AddToRoleAsync(user, "Employee");
+        }
+        else
+        {
+            // Ensure Senior HR user has only Senior HR role
+            await EnsureSingleRoleAsync(userManager, seniorHrUser, "Senior HR");
         }
 
-        // Create Admin user (Admins have all roles including Employee)
+        // Create Admin user (Admin role only)
         var adminUser = await userManager.FindByEmailAsync("admin@finserve.com");
         if (adminUser == null)
         {
@@ -96,8 +109,32 @@ public class DbInitializer
             };
             await userManager.CreateAsync(user, "Test@123");
             await userManager.AddToRoleAsync(user, "Admin");
-            await userManager.AddToRoleAsync(user, "HR");
-            await userManager.AddToRoleAsync(user, "Employee"); // Admin can access everything
+        }
+        else
+        {
+            // Ensure Admin user has only Admin role
+            await EnsureSingleRoleAsync(userManager, adminUser, "Admin");
+        }
+    }
+
+    /// <summary>
+    /// Helper method to ensure a user has only one specific role
+    /// </summary>
+    private static async Task EnsureSingleRoleAsync(UserManager<ApplicationUser> userManager, ApplicationUser user, string targetRole)
+    {
+        // Get all current roles for the user
+        var currentRoles = await userManager.GetRolesAsync(user);
+        
+        // Remove all existing roles
+        if (currentRoles.Any())
+        {
+            await userManager.RemoveFromRolesAsync(user, currentRoles);
+        }
+        
+        // Add only the target role
+        if (!await userManager.IsInRoleAsync(user, targetRole))
+        {
+            await userManager.AddToRoleAsync(user, targetRole);
         }
     }
 

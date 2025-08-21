@@ -1,12 +1,13 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using FinserveNew.Models;
 
 namespace FinserveNew.Models
 {
     public class Approval
     {
         [Key]
-        public int ApprovalID { get; set; }
+        public string ApprovalID { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Approval date is required")]
         [Display(Name = "Approval Date")]
@@ -46,6 +47,5 @@ namespace FinserveNew.Models
 
     
         // public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
-        //public virtual ICollection<Salary> Salaries { get; set; } = new List<Salary>();
     }
 }
