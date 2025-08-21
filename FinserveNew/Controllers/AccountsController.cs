@@ -1,18 +1,19 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using FinserveNew.Data;
 using FinserveNew.Models;
-using System.Threading.Tasks;
 using FinserveNew.Models.ViewModels;
+using ISO3166;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Data;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.Hosting;
-using System.IO;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using ISO3166;
-using System.Data;
+using System.Threading.Tasks;
 
 namespace FinserveNew.Controllers
 {
@@ -37,6 +38,7 @@ namespace FinserveNew.Controllers
 
         // --------------------------- HR Side ----------------------------- //
         // GET: Accounts/AllAccounts
+        [Authorize(Roles = "HR, Senior HR")]
         public async Task<IActionResult> AllAccounts(
             int page = 1,
             int pageSize = 10,
@@ -110,6 +112,7 @@ namespace FinserveNew.Controllers
         }
 
         // GET: Accounts/ViewDetails/5
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> ViewDetails(string id)
         {
             if (string.IsNullOrEmpty(id))
@@ -126,7 +129,9 @@ namespace FinserveNew.Controllers
                 return NotFound();
 
             // Get the user's system role
-            var user = await _userManager.FindByIdAsync(employee.ApplicationUserId);
+            //var user = await _userManager.FindByIdAsync(employee.ApplicationUserId);
+
+            var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeID == id);
             //string systemRole = "Employee"; // Default
             if (user != null)
             {
@@ -175,6 +180,7 @@ namespace FinserveNew.Controllers
         }
 
         // GET: Accounts/Add
+        [Authorize(Roles = "HR")]
         [HttpGet]
         public async Task<IActionResult> AddAsync()
         {
@@ -203,6 +209,7 @@ namespace FinserveNew.Controllers
         }
 
         // POST: Accounts/Add
+        [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Add(AddEmployeeViewModel vm)
@@ -456,7 +463,7 @@ namespace FinserveNew.Controllers
                     await _userManager.AddToRoleAsync(user, systemRole);
 
                     // Update Employee record with ApplicationUserId
-                    employee.ApplicationUserId = user.Id;
+                    //employee.ApplicationUserId = user.Id;
                     await _context.SaveChangesAsync();
 
                     await transaction.CommitAsync();
@@ -499,123 +506,8 @@ namespace FinserveNew.Controllers
             //return RedirectToAction(nameof(AllAccounts));
         }
 
-        //// GET: Accounts/Edit/5
-        //public async Task<IActionResult> Edit(string id)
-        //{
-        //    if (string.IsNullOrEmpty(id))
-        //        return NotFound();
-
-        //    var employee = await _context.Employees
-        //        .Include(e => e.BankInformation)
-        //        .Include(e => e.EmergencyContact)
-        //        .FirstOrDefaultAsync(e => e.EmployeeID == id);
-
-        //    if (employee == null)
-        //        return NotFound();
-
-        //    var vm = new EditEmployeeViewModel
-        //    {
-        //        EmployeeID = employee.EmployeeID,
-        //        FirstName = employee.FirstName,
-        //        LastName = employee.LastName,
-        //        IC = employee.IC,
-        //        Nationality = employee.Nationality,
-        //        Email = employee.Email,
-        //        TelephoneNumber = employee.TelephoneNumber,
-        //        DateOfBirth = employee.DateOfBirth,
-        //        JoinDate = employee.JoinDate,
-        //        ResignationDate = employee.ResignationDate,
-        //        ConfirmationStatus = employee.ConfirmationStatus,
-        //        Position = employee.Position,
-        //        BankName = employee.BankInformation?.BankName,
-        //        BankType = employee.BankInformation?.BankType,
-        //        BankAccountNumber = employee.BankInformation?.BankAccountNumber,
-        //        EmergencyContactName = employee.EmergencyContact?.Name,
-        //        EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber,
-        //        EmergencyContactRelationship = employee.EmergencyContact?.Relationship,
-        //        Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
-        //        BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" },
-        //        BankTypes = new[] { "Savings", "Current" }
-        //    };
-
-        //    return View(vm);
-        //}
-
-        //// POST: Accounts/Edit/5
-        //[HttpPost]
-        //[ValidateAntiForgeryToken]
-        //public async Task<IActionResult> Edit(string id, EmployeeDetailsViewModel vm)
-        //{
-        //    if (id != vm.EmployeeID)
-        //        return NotFound();
-
-        //    var roles = await _context.Roles.ToListAsync();
-
-        //    // Get all countries using ISO3166 library
-        //    var countries = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
-
-        //    if (!ModelState.IsValid)
-        //    {
-        //        vm.Nationalities = countries;
-        //        vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
-        //        vm.BankTypes = new[] { "Savings", "Current" };
-                                
-        //        return View(vm);
-        //    }
-
-        //    var employee = await _context.Employees
-        //        .Include(e => e.BankInformation)
-        //        .Include(e => e.EmergencyContact)
-        //        .FirstOrDefaultAsync(e => e.EmployeeID == id);
-
-        //    if (employee == null)
-        //        return NotFound();
-
-        //    // Update employee details
-        //    employee.FirstName = vm.FirstName;
-        //    employee.LastName = vm.LastName;
-        //    employee.IC = vm.IC;
-        //    employee.Nationality = vm.Nationality;
-        //    employee.Email = vm.Email;
-        //    employee.TelephoneNumber = vm.TelephoneNumber;
-        //    employee.DateOfBirth = vm.DateOfBirth;
-        //    employee.JoinDate = vm.JoinDate;
-        //    employee.ResignationDate = vm.ResignationDate;
-        //    employee.ConfirmationStatus = vm.ConfirmationStatus;
-        //    employee.Position = vm.Position;
-            
-        //    // Update bank information
-        //    if (employee.BankInformation != null)
-        //    {
-        //        employee.BankInformation.BankName = vm.BankName;
-        //        employee.BankInformation.BankType = vm.BankType;
-        //        employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
-        //    }
-
-        //    // Update emergency contact
-        //    if (employee.EmergencyContact != null)
-        //    {
-        //        employee.EmergencyContact.Name = vm.EmergencyContactName;
-        //        employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
-        //        employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
-        //    }
-
-        //    try
-        //    {
-        //        await _context.SaveChangesAsync();
-        //        TempData["Success"] = "Employee updated successfully!";
-        //        return RedirectToAction(nameof(AllAccounts));
-        //    }
-        //    catch (DbUpdateConcurrencyException)
-        //    {
-        //        if (!EmployeeExists(id))
-        //            return NotFound();
-        //        else
-        //            throw;
-        //    }
-        //}
-
         // POST: Accounts/UpdateEmployee
+        [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateEmployee(EmployeeDetailsViewModel vm)

@@ -4,6 +4,7 @@ using FinserveNew.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250821023745_LinkPayrollToApproval")]
+    partial class LinkPayrollToApproval
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -183,7 +186,7 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("ApprovalRemarks")
                         .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("ApprovedBy")
                         .HasMaxLength(255)
@@ -193,9 +196,6 @@ namespace FinserveNew.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("ClaimDate")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<string>("ClaimType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -204,58 +204,14 @@ namespace FinserveNew.Migrations
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(3)
-                        .HasColumnType("varchar(3)")
-                        .HasDefaultValue("MYR");
-
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(1000)");
 
                     b.Property<string>("EmployeeID")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
-
-                    b.Property<decimal?>("ExchangeRate")
-                        .HasPrecision(10, 6)
-                        .HasColumnType("decimal(10,6)");
-
-                    b.Property<bool>("IsOCRProcessed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("OCRAmountVerified")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int?>("OCRConfidence")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("OCRDetectedAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("OCRDetectedCurrency")
-                        .HasMaxLength(3)
-                        .HasColumnType("varchar(3)");
-
-                    b.Property<string>("OCRPriceAnalysis")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("OCRProcessedDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("OCRRawText")
-                        .HasColumnType("LONGTEXT");
-
-                    b.Property<decimal?>("OriginalAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("OriginalCurrency")
-                        .HasMaxLength(3)
-                        .HasColumnType("varchar(3)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -288,12 +244,6 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
                     b.Property<int>("ClaimID")
                         .HasColumnType("int");
 
@@ -307,22 +257,10 @@ namespace FinserveNew.Migrations
 
                     b.Property<string>("DocumentPath")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<long?>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("OriginalFileName")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<DateTime>("UploadDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClaimID");
+                    b.HasKey("ClaimID", "ClaimTypeID");
 
                     b.HasIndex("ClaimTypeID");
 
@@ -331,39 +269,21 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("ClaimTypeID")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ClaimTypeID"));
 
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<decimal?>("MaxAmount")
-                        .HasPrecision(18, 2)
+                    b.Property<decimal>("MaxAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("TypeName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
-                    b.Property<bool>("RequiresApproval")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.HasKey("Id");
+                    b.HasKey("ClaimTypeID");
 
                     b.ToTable("ClaimTypes");
                 });
@@ -563,14 +483,12 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(3)")
                         .HasDefaultValue("MYR");
 
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("DeletedDate")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<DateTime>("DueDate")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EmployeeID")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("FilePath")
                         .HasMaxLength(255)
@@ -580,9 +498,6 @@ namespace FinserveNew.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("IssueDate")
                         .HasColumnType("datetime(6)");
@@ -607,42 +522,9 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("InvoiceID");
 
+                    b.HasIndex("EmployeeID");
+
                     b.ToTable("Invoices");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
-                {
-                    b.Property<int>("InvoiceItemID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("InvoiceItemID"));
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<int>("InvoiceID")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("LineTotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("InvoiceItemID");
-
-                    b.HasIndex("InvoiceID");
-
-                    b.ToTable("InvoiceItems");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
@@ -736,8 +618,8 @@ namespace FinserveNew.Migrations
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
 
-                    b.Property<double>("LeaveDays")
-                        .HasColumnType("double");
+                    b.Property<int>("LeaveDays")
+                        .HasColumnType("int");
 
                     b.Property<int>("LeaveTypeID")
                         .HasColumnType("int");
@@ -862,114 +744,6 @@ namespace FinserveNew.Migrations
                     b.HasIndex("EmployeeID");
 
                     b.ToTable("Payrolls");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.ProcessOCRSubmissionModel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("ClaimAmount")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<DateTime>("ClaimDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ClaimType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("EmployeeID")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("ocrResults")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ProcessOCRSubmissions");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.UnpaidLeaveRequestModel", b =>
-                {
-                    b.Property<int>("UnpaidLeaveRequestID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UnpaidLeaveRequestID"));
-
-                    b.Property<DateTime?>("ApprovalDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ApprovalRemarks")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("ApprovedBy")
-                        .HasMaxLength(450)
-                        .HasColumnType("varchar(450)");
-
-                    b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("EmployeeID")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<DateOnly>("EndDate")
-                        .HasColumnType("date");
-
-                    b.Property<double>("ExcessDays")
-                        .HasPrecision(4, 1)
-                        .HasColumnType("double");
-
-                    b.Property<string>("JustificationReason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<int>("LeaveTypeID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<double>("RequestedDays")
-                        .HasPrecision(4, 1)
-                        .HasColumnType("double");
-
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("Pending");
-
-                    b.Property<DateTime>("SubmissionDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("UnpaidLeaveRequestID");
-
-                    b.HasIndex("EmployeeID");
-
-                    b.HasIndex("LeaveTypeID");
-
-                    b.ToTable("UnpaidLeaveRequests");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -1134,7 +908,7 @@ namespace FinserveNew.Migrations
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
                 {
                     b.HasOne("FinserveNew.Models.Claim", "Claim")
-                        .WithMany("ClaimDetails")
+                        .WithMany()
                         .HasForeignKey("ClaimID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1142,7 +916,7 @@ namespace FinserveNew.Migrations
                     b.HasOne("FinserveNew.Models.ClaimType", "ClaimType")
                         .WithMany("ClaimDetails")
                         .HasForeignKey("ClaimTypeID")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Claim");
@@ -1188,15 +962,15 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employee");
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
+            modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
                 {
-                    b.HasOne("FinserveNew.Models.Invoice", "Invoice")
-                        .WithMany("InvoiceItems")
-                        .HasForeignKey("InvoiceID")
-                        .OnDelete(DeleteBehavior.Cascade)
+                    b.HasOne("FinserveNew.Models.ApplicationUser", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeID")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Invoice");
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
@@ -1246,25 +1020,6 @@ namespace FinserveNew.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.UnpaidLeaveRequestModel", b =>
-                {
-                    b.HasOne("FinserveNew.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FinserveNew.Models.LeaveTypeModel", "LeaveType")
-                        .WithMany()
-                        .HasForeignKey("LeaveTypeID")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("LeaveType");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1323,11 +1078,6 @@ namespace FinserveNew.Migrations
                     b.Navigation("Employees");
                 });
 
-            modelBuilder.Entity("FinserveNew.Models.Claim", b =>
-                {
-                    b.Navigation("ClaimDetails");
-                });
-
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
                 {
                     b.Navigation("ClaimDetails");
@@ -1345,11 +1095,6 @@ namespace FinserveNew.Migrations
                     b.Navigation("EmployeeDocuments");
 
                     b.Navigation("Payrolls");
-                });
-
-            modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
-                {
-                    b.Navigation("InvoiceItems");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>

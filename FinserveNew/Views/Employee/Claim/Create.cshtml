@@ -133,7 +133,7 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
-    <script>
+<script>
         const exchangeRates = {
             USD_TO_MYR: 4.29,
             MYR_TO_USD: 0.233
@@ -192,173 +192,194 @@
             // Initialize currency conversion
             updateConversion();
 
-            // ENHANCED FORM SUBMISSION HANDLER
-            form.addEventListener('submit', async function (e) {
-                e.preventDefault();
-                console.log('Form submission started...');
+            // FIXED: Enhanced form submission handler with proper data preservation
+form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    console.log('Form submission started...');
 
-                submitBtn.disabled = true;
-                submitText.textContent = 'Processing...';
+    submitBtn.disabled = true;
+    submitText.textContent = 'Processing...';
 
-                const claimType = document.querySelector('[name="ClaimType"]').value;
-                const claimAmount = claimAmountInput.value;
-                const claimDate = claimDateInput.value;
-                const employeeId = document.querySelector('[name="EmployeeId"]').value;
-                // FIXED: Get description value properly
-                const description = descriptionInput.value.trim();
+    // FIXED: Get form values more reliably
+    const claimTypeElement = document.querySelector('[name="ClaimType"]');
+    const claimAmountInput = document.getElementById('claimAmountInput');
+    const claimDateInput = document.querySelector('[name="ClaimDate"]');
+    const employeeIdElement = document.querySelector('[name="EmployeeId"]');
+    const descriptionInput = document.getElementById('descriptionInput');
 
-                console.log('Form data collected:', {
-                    claimType,
-                    claimAmount,
-                    claimDate,
-                    employeeId,
-                    description: description || '(empty)'
+    const claimType = claimTypeElement ? claimTypeElement.value : '';
+    const claimAmount = claimAmountInput ? claimAmountInput.value : '';
+    const claimDate = claimDateInput ? claimDateInput.value : '';
+    const employeeId = employeeIdElement ? employeeIdElement.value : '';
+    const description = descriptionInput ? descriptionInput.value.trim() : '';
+
+    console.log('FIXED: Form data collected:', {
+        claimType: `"${claimType}"`,
+        claimAmount: `"${claimAmount}"`,
+        claimDate: `"${claimDate}"`,
+        employeeId: `"${employeeId}"`,
+        description: `"${description}"`,
+        descriptionLength: description.length
+    });
+
+    // Enhanced validation with specific error messages
+    const missingFields = [];
+    if (!claimType) missingFields.push('Claim Type');
+    if (!claimAmount) missingFields.push('Claim Amount');
+    if (!claimDate) missingFields.push('Claim Date');
+    if (!employeeId) missingFields.push('Employee ID');
+
+    if (missingFields.length > 0) {
+        console.error('Validation failed: Missing fields:', missingFields);
+        submitBtn.disabled = false;
+        submitText.textContent = 'Add';
+        alert(`Please fill in the following required fields:\n• ${missingFields.join('\n• ')}`);
+        return false;
+    }
+
+    // Validate date
+    const selectedDate = new Date(claimDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    if (selectedDate > today) {
+        alert('Claim date cannot be in the future. Please select a valid date.');
+        submitBtn.disabled = false;
+        submitText.textContent = 'Add';
+        return false;
+    }
+
+    // Currency conversion
+    const selectedCurrency = currencySelect.value;
+    let finalAmount = parseFloat(claimAmount);
+    let originalAmount = finalAmount;
+    let originalCurrency = selectedCurrency;
+
+    if (selectedCurrency === 'USD') {
+        finalAmount = finalAmount * exchangeRates.USD_TO_MYR;
+    }
+
+    // FIXED: Create comprehensive claim data object
+    const claimData = {
+        EmployeeId: employeeId,
+        ClaimType: claimType,  // CRITICAL: Ensure this is preserved
+        ClaimDate: claimDate,
+        ClaimAmount: finalAmount.toFixed(2),
+        Description: description,  // CRITICAL: Ensure this is preserved
+        Currency: 'MYR',
+        OriginalAmount: originalAmount.toString(),
+        OriginalCurrency: originalCurrency,
+        Files: [],
+        // ADDED: Additional metadata for debugging
+        Metadata: {
+            submittedAt: new Date().toISOString(),
+            originalFormData: {
+                claimType,
+                description,
+                claimAmount: originalAmount,
+                currency: originalCurrency
+            }
+        }
+    };
+
+    console.log('FIXED: Comprehensive claim data with metadata:', claimData);
+
+    // Process files (existing code remains the same)
+    const files = Array.from(fileInput.files);
+    if (files.length > 0) {
+        try {
+            console.log(`Processing ${files.length} files...`);
+            for (const file of files) {
+                const base64String = await convertFileToBase64(file);
+                claimData.Files.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: base64String
                 });
+            }
+            console.log(`Successfully processed ${claimData.Files.length} files`);
+        } catch (error) {
+            console.error('File conversion failed:', error);
+            submitBtn.disabled = false;
+            submitText.textContent = 'Add';
+            alert('Failed to process files. Please try again.');
+            return false;
+        }
+    }
 
-                // Validation - including date validation
-                if (!claimType || !claimAmount || !claimDate || !employeeId) {
-                    console.error('Validation failed: Missing required fields');
-                    submitBtn.disabled = false;
-                    submitText.textContent = 'Add';
+    // FIXED: Enhanced session storage with verification
+    try {
+        const claimDataStr = JSON.stringify(claimData);
+        sessionStorage.setItem('claimData', claimDataStr);
 
-                    // Show specific validation message for missing date
-                    if (!claimDate) {
-                        alert('Please select a claim date');
-                    } else {
-                        alert('Please fill in all required fields');
-                    }
-                    return false;
-                }
+        // ADDED: Verification step
+        const verifyData = JSON.parse(sessionStorage.getItem('claimData'));
+        console.log('VERIFICATION: Data stored and retrieved successfully:', {
+            originalClaimType: claimData.ClaimType,
+            retrievedClaimType: verifyData.ClaimType,
+            originalDescription: claimData.Description,
+            retrievedDescription: verifyData.Description,
+            match: claimData.ClaimType === verifyData.ClaimType && claimData.Description === verifyData.Description
+        });
 
-                // Validate that claim date is not in the future
-                const selectedDate = new Date(claimDate);
-                const today = new Date();
-                today.setHours(23, 59, 59, 999); // Set to end of day for comparison
+        if (claimData.ClaimType !== verifyData.ClaimType || claimData.Description !== verifyData.Description) {
+            throw new Error('Data verification failed - storage corrupted');
+        }
 
-                if (selectedDate > today) {
-                    alert('Claim date cannot be in the future. Please select a valid date.');
-                    submitBtn.disabled = false;
-                    submitText.textContent = 'Add';
-                    return false;
-                }
+    } catch (error) {
+        console.error('Session storage failed:', error);
+        alert('Failed to prepare data for transfer. Please try again.');
+        submitBtn.disabled = false;
+        submitText.textContent = 'Add';
+        return false;
+    }
 
-                // Calculate converted amount for storage
-                const selectedCurrency = currencySelect.value;
-                let finalAmount = parseFloat(claimAmount);
-                let originalAmount = finalAmount;
-                let originalCurrency = selectedCurrency;
+    // FIXED: Enhanced server data transfer
+    try {
+        const formData = new FormData();
+        formData.append('ClaimDataJson', JSON.stringify(claimData));
 
-                console.log(`Original values - Type: ${claimType}, Amount: ${originalAmount}, Currency: ${originalCurrency}, Date: ${claimDate}, Description: "${description}"`);
+        // Get anti-forgery token
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        if (!tokenInput) {
+            throw new Error('Anti-forgery token not found');
+        }
 
-                // Convert to MYR if needed
-                if (selectedCurrency === 'USD') {
-                    finalAmount = finalAmount * exchangeRates.USD_TO_MYR;
-                }
+        console.log('FIXED: Sending enhanced data to server...');
+        const response = await fetch('@Url.Action("OCRWithData", "Claim")', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                '__RequestVerificationToken': tokenInput.value
+            }
+        });
 
-                // Prepare claim data - FIXED: Include description properly
-                const claimData = {
-                    EmployeeId: employeeId,
-                    ClaimType: claimType,
-                    ClaimDate: claimDate,
-                    ClaimAmount: finalAmount.toFixed(2),
-                    Description: description, // FIXED: Include description
-                    Currency: 'MYR',
-                    OriginalAmount: originalAmount.toString(),
-                    OriginalCurrency: originalCurrency,
-                    Files: []
-                };
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-                console.log('Prepared claim data with description:', claimData);
+        const result = await response.json();
+        console.log('Server response:', result);
 
-                // Process files
-                const files = Array.from(fileInput.files);
-                if (files.length > 0) {
-                    try {
-                        console.log(`Processing ${files.length} files...`);
-                        for (const file of files) {
-                            const base64String = await convertFileToBase64(file);
-                            claimData.Files.push({
-                                name: file.name,
-                                type: file.type,
-                                size: file.size,
-                                data: base64String
-                            });
-                        }
-                        console.log(`Successfully processed ${claimData.Files.length} files`);
-                    } catch (error) {
-                        console.error('File conversion failed:', error);
-                        submitBtn.disabled = false;
-                        submitText.textContent = 'Add';
-                        alert('Failed to process files. Please try again.');
-                        return false;
-                    }
-                }
+        if (result.success) {
+            console.log('✅ Data sent successfully, redirecting to OCR page');
+            // ADDED: Additional verification parameter
+            window.location.href = `@Url.Action("OCR", "Claim")?verify=${Date.now()}`;
+        } else {
+            throw new Error(result.error || 'Server returned failure');
+        }
+    } catch (error) {
+        console.warn('⚠️ Server data transfer failed, using client-side fallback:', error);
 
-                // Store in session storage for fallback - FIXED: Store complete data
-                sessionStorage.setItem('claimData', JSON.stringify(claimData));
-                console.log('Data stored in sessionStorage with description:', {
-                    hasDescription: !!claimData.Description,
-                    description: claimData.Description
-                });
-
-                console.log('Final claimData being sent:', {
-                    ...claimData,
-                    Files: claimData.Files.map(f => ({
-                        name: f.name,
-                        size: f.size,
-                        type: f.type,
-                        hasData: !!f.data,
-                        dataPreview: f.data ? f.data.substring(0, 50) + '...' : 'No data'
-                    }))
-                });
-
-                // Send data via fetch with proper headers and error handling
-                try {
-                    const formData = new FormData();
-                    formData.append('ClaimDataJson', JSON.stringify(claimData));
-
-                    // Get the anti-forgery token
-                    const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-                    if (!tokenInput) {
-                        throw new Error('Anti-forgery token not found');
-                    }
-                    const token = tokenInput.value;
-
-                    console.log('Sending data to server...');
-                    const response = await fetch('@Url.Action("OCRWithData", "Claim")', {
-                        method: 'POST',
-                        body: formData,
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            '__RequestVerificationToken': token
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    console.log('Server response:', result);
-
-                    if (result.success) {
-                        console.log('✅ Data sent successfully, redirecting to OCR page');
-                        window.location.href = '@Url.Action("OCR", "Claim")';
-                    } else {
-                        throw new Error(result.error || 'Server returned failure');
-                    }
-                } catch (error) {
-                    console.warn('⚠️ Server data transfer failed, using client-side fallback:', error);
-
-                    // Show user what's happening
-                    console.log('Redirecting with sessionStorage fallback...');
-
-                    // Add a small delay to ensure sessionStorage is written
-                    setTimeout(() => {
-                        window.location.href = '@Url.Action("OCR", "Claim")';
-                    }, 100);
-                }
-            });
+        // Fallback with additional delay for data integrity
+        console.log('Using enhanced sessionStorage fallback...');
+        setTimeout(() => {
+            window.location.href = `@Url.Action("OCR", "Claim")?fallback=true&verify=${Date.now()}`;
+        }, 200);
+    }
+});
 
             // File to Base64 conversion
             function convertFileToBase64(file) {
@@ -370,10 +391,10 @@
                 });
             }
 
-            console.log('Employee claim form initialized');
+            console.log('Employee claim form initialized with enhanced file handling');
         });
 
-        // Handle file selection UI
+        // Handle file selection UI - ENHANCED
         function handleFileSelection(input) {
             const files = input.files;
             const fileLabel = document.getElementById('file-label');
@@ -427,13 +448,21 @@
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                const fileIcon = getFileIcon(file.type);
+
                 fileListHTML += `
-                    <div class="d-flex justify-content-between align-items-center border-bottom py-1">
-                        <div>
-                            <small class="fw-bold">${file.name}</small><br>
-                            <small class="text-muted">${fileSize} MB • ${file.type || 'Unknown'}</small>
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div class="d-flex align-items-center">
+                            <i class="${fileIcon} me-2 text-primary"></i>
+                            <div>
+                                <small class="fw-bold">${file.name}</small><br>
+                                <small class="text-muted">${fileSize} MB • ${file.type || 'Unknown'}</small>
+                            </div>
                         </div>
-                        <span class="badge bg-success">Valid</span>
+                        <div class="text-end">
+                            <span class="badge bg-success mb-1">Valid</span><br>
+                            <small class="text-muted">Ready for OCR</small>
+                        </div>
                     </div>
                 `;
             }
@@ -442,11 +471,26 @@
             fileList.style.display = 'block';
 
             fileDebugInfo.innerHTML = `
-                <strong>Files Selected:</strong><br>
+                <strong>Files Ready for Processing:</strong><br>
                 • Count: ${files.length}/${maxFiles}<br>
-                • Total Size: ${(totalSize / 1024 / 1024).toFixed(2)} MB
+                • Total Size: ${(totalSize / 1024 / 1024).toFixed(2)} MB<br>
+                • Status: All files will be processed with OCR
             `;
             fileDebugInfo.style.display = 'block';
+
+            console.log('Files selected for upload:', Array.from(files).map(f => ({
+                name: f.name,
+                size: (f.size / 1024 / 1024).toFixed(2) + 'MB',
+                type: f.type
+            })));
         }
-    </script>
+
+        // Get appropriate icon for file type
+        function getFileIcon(fileType) {
+            if (fileType.startsWith('image/')) return 'fas fa-image';
+            if (fileType === 'application/pdf') return 'fas fa-file-pdf';
+            if (fileType.includes('document') || fileType.includes('word')) return 'fas fa-file-word';
+            return 'fas fa-file';
+        }
+</script>
 }

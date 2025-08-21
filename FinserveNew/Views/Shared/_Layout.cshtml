@@ -113,6 +113,33 @@
                     </li>
                 }
 
+                <!-- Senior HR Only Sections -->
+                @if (User.IsInRole("Senior HR"))
+                {
+                    <li class="menu-section">
+                        <div class="menu-section-title">MANAGEMENT</div>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                            <i class="fas fa-check-circle menu-icon"></i>
+                            <span>Approve Payrolls</span>
+                            @{
+                                var pendingCount = await Component.InvokeAsync("PendingPayrollCount");
+                                if (pendingCount != null && int.TryParse(pendingCount.ToString(), out int count) && count > 0)
+                                {
+                                    <span class="badge bg-danger ms-2">@count</span>
+                                }
+                            }
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
+                            <i class="fas fa-users menu-icon"></i>
+                            Employee Management
+                        </a>
+                    </li>
+                }
+
                 <!-- HR Only Sections -->
                 @if (User.IsInRole("HR"))
                 {
