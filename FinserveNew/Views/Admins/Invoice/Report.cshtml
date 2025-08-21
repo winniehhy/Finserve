@@ -1,0 +1,937 @@
+﻿@model List<FinserveNew.Models.Invoice>
+@{
+    ViewData["Title"] = "Invoice Reports & Analytics";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var reportData = ViewBag.ReportData;
+    var selectedYear = ViewBag.SelectedYear;
+    var selectedMonth = ViewBag.SelectedMonth;
+    var selectedStatus = ViewBag.SelectedStatus as string;
+    var selectedPeriod = ViewBag.SelectedPeriod as string ?? "yearly";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-bar me-2"></i>Invoice Reports & Analytics</h4>
+                </div>
+                <div class="card-body">
+
+                    <!-- Filter Form -->
+                    <form method="get" class="mb-4">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-2">
+                                <label for="period" class="form-label">Period Type</label>
+                                <select name="period" id="period" class="form-select" onchange="toggleMonthField()">
+                                    <option value="yearly" selected="@(selectedPeriod == "yearly")">Yearly</option>
+                                    <option value="monthly" selected="@(selectedPeriod == "monthly")">Monthly</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="year" class="form-label">Year</label>
+                                <select name="year" id="year" class="form-select">
+                                    @if (reportData?.AvailableYears != null)
+                                    {
+                                        @foreach (var year in reportData.AvailableYears)
+                                        {
+                                            <option value="@year" selected="@(selectedYear == year)">@year</option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="2024" selected="@(selectedYear == 2024)">2024</option>
+                                        <option value="2023" selected="@(selectedYear == 2023)">2023</option>
+                                        <option value="2022" selected="@(selectedYear == 2022)">2022</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-2" id="monthField" style="@(selectedPeriod == "monthly" ? "" : "display:none;")">
+                                <label for="month" class="form-label">Month</label>
+                                <select name="month" id="month" class="form-select">
+                                    <option value="">All Months</option>
+                                    <option value="1" selected="@(selectedMonth == 1)">January</option>
+                                    <option value="2" selected="@(selectedMonth == 2)">February</option>
+                                    <option value="3" selected="@(selectedMonth == 3)">March</option>
+                                    <option value="4" selected="@(selectedMonth == 4)">April</option>
+                                    <option value="5" selected="@(selectedMonth == 5)">May</option>
+                                    <option value="6" selected="@(selectedMonth == 6)">June</option>
+                                    <option value="7" selected="@(selectedMonth == 7)">July</option>
+                                    <option value="8" selected="@(selectedMonth == 8)">August</option>
+                                    <option value="9" selected="@(selectedMonth == 9)">September</option>
+                                    <option value="10" selected="@(selectedMonth == 10)">October</option>
+                                    <option value="11" selected="@(selectedMonth == 11)">November</option>
+                                    <option value="12" selected="@(selectedMonth == 12)">December</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="status" class="form-label">Status</label>
+                                <select name="status" id="status" class="form-select">
+                                    <option value="">All Status</option>
+                                    <option value="Pending" selected="@(selectedStatus == "Pending")">Pending</option>
+                                    <option value="Sent" selected="@(selectedStatus == "Sent")">Sent</option>
+                                    <option value="Paid" selected="@(selectedStatus == "Paid")">Paid</option>
+                                    <option value="Overdue" selected="@(selectedStatus == "Overdue")">Overdue</option>
+                                    <option value="Cancelled" selected="@(selectedStatus == "Cancelled")">Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter me-1"></i>Apply Filter
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="@Url.Action("GenerateReport")" class="btn btn-outline-secondary">
+                                    <i class="fas fa-refresh me-1"></i>Reset
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- PDF Export Button -->
+                    <div class="row mb-4">
+                        <div class="col-12 text-end">
+                            <button type="button" class="btn btn-outline-danger" onclick="generatePDF()">
+                                <i class="fas fa-file-pdf me-1"></i>Export to PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-2">
+                            <div class="card text-center border-primary">
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary">Total Invoices</h5>
+                                    <h3 class="text-primary">@(reportData?.TotalInvoices ?? 0)</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-info">
+                                <div class="card-body">
+                                    <h5 class="card-title text-info">Total Amount</h5>
+                                    <h3 class="text-info">RM @((reportData?.TotalAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-success">
+                                <div class="card-body">
+                                    <h5 class="card-title text-success">Paid</h5>
+                                    <h3 class="text-success">RM @((reportData?.PaidAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-warning">
+                                <div class="card-body">
+                                    <h5 class="card-title text-warning">Pending</h5>
+                                    <h3 class="text-warning">RM @((reportData?.PendingAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-info">
+                                <div class="card-body">
+                                    <h5 class="card-title text-info">Sent</h5>
+                                    <h3 class="text-info">RM @((reportData?.SentAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="card text-center border-danger">
+                                <div class="card-body">
+                                    <h5 class="card-title text-danger">Overdue</h5>
+                                    <h3 class="text-danger">RM @((reportData?.OverdueAmount ?? 0m).ToString("N2"))</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row mb-4">
+                        <div class="col-md-6" id="pieChartContainer">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-chart-pie me-2"></i>Invoice Status Distribution</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setChartView('pie')">
+                                        <i class="fas fa-chart-pie"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="statusPieChart" style="max-height: 400px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="lineChartContainer">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5><i class="fas fa-chart-line me-2"></i>@(selectedPeriod == "monthly" ? "Daily" : "Monthly") Trend</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setChartView('line')">
+                                        <i class="fas fa-chart-line"></i>
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="trendLineChart" style="max-height: 400px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart Type Toggle Buttons -->
+                    <div class="row mb-3">
+                        <div class="col-12 text-center">
+                            <div class="btn-group" role="group" aria-label="Chart Type">
+                                <button type="button" class="btn btn-outline-primary chart-toggle-btn active" data-chart="both" onclick="setChartView('both')">
+                                    <i class="fas fa-chart-area me-1"></i>Both Charts
+                                </button>
+                                <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="pie" onclick="setChartView('pie')">
+                                    <i class="fas fa-chart-pie me-1"></i>Pie Chart Only
+                                </button>
+                                <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="line" onclick="setChartView('line')">
+                                    <i class="fas fa-chart-line me-1"></i>Line Chart Only
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invoice List -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list me-2"></i>Invoice Details (@Model.Count records)</h5>
+                        </div>
+                        <div class="card-body">
+                            @if (Model.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Invoice #</th>
+                                                <th>Client</th>
+                                                <th>Issue Date</th>
+                                                <th>Due Date</th>
+                                                <th>Amount</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var invoice in Model)
+                                            {
+                                                <tr>
+                                                    <td>@invoice.InvoiceNumber</td>
+                                                    <td>
+                                                        <strong>@invoice.ClientName</strong>
+                                                        @if (!string.IsNullOrEmpty(invoice.ClientCompany))
+                                                        {
+                                                            <br>
+                                                            <small class="text-muted">@invoice.ClientCompany</small>
+                                                        }
+                                                    </td>
+                                                    <td>@invoice.IssueDate.ToString("dd/MM/yyyy")</td>
+                                                    <td>@invoice.DueDate.ToString("dd/MM/yyyy")</td>
+                                                    <td>RM @invoice.TotalAmount.ToString("N2")</td>
+                                                    <td>
+                                                        @{
+                                                            string badgeClass = invoice.Status switch
+                                                            {
+                                                                "Pending" => "bg-warning text-dark",
+                                                                "Sent" => "bg-info",
+                                                                "Paid" => "bg-success",
+                                                                "Overdue" => "bg-danger",
+                                                                "Cancelled" => "bg-secondary",
+                                                                _ => "bg-secondary"
+                                                            };
+                                                        }
+                                                        <span class="badge @badgeClass">@invoice.Status</span>
+                                                    </td>
+                                                    <td>
+                                                        <a href="@Url.Action("Details", new { id = invoice.InvoiceID })"
+                                                           class="btn btn-sm btn-outline-info" title="View Details">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-5">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No invoices found</h5>
+                                    <p class="text-muted">Try adjusting your filter criteria</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Preview Modal -->
+<div class="modal fade" id="pdfPreviewModal" tabindex="-1" aria-labelledby="pdfPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pdfPreviewModalLabel">
+                    <i class="fas fa-file-pdf me-2"></i>PDF Preview - Invoice Report
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="pdfPreviewContent">
+                    <!-- PDF preview content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="downloadPDF()">
+                    <i class="fas fa-download me-1"></i>Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSS Styles (Should come before scripts) -->
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+        margin-bottom: 1rem;
+    }
+
+    .card-header {
+        background-color: rgba(0, 0, 0, 0.03);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+
+    .table th {
+        border-top: none;
+        font-weight: 600;
+    }
+
+    .chart-toggle-btn.active {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+
+    .chart-toggle-btn:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+        color: white;
+    }
+
+    /* PDF Preview Styles */
+    .pdf-preview {
+        font-family: Arial, sans-serif;
+        line-height: 1.4;
+    }
+
+        .pdf-preview .card {
+            margin-bottom: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .pdf-preview .card-body {
+            padding: 0.75rem;
+        }
+
+        .pdf-preview h6 {
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .pdf-preview h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0;
+        }
+
+        .pdf-preview .table {
+            font-size: 0.85rem;
+        }
+
+            .pdf-preview .table th,
+            .pdf-preview .table td {
+                padding: 0.4rem;
+                vertical-align: top;
+            }
+
+    /* Modal adjustments */
+    .modal-xl {
+        max-width: 90%;
+    }
+
+    #pdfPreviewModal .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+</style>
+
+<!-- External Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+    // ==============================================
+    // GLOBAL VARIABLES
+    // ==============================================
+    let pieChart = null;
+    let lineChart = null;
+    let currentChartView = 'both';
+
+    // ==============================================
+    // UTILITY FUNCTIONS
+    // ==============================================
+
+    // Toggle month field based on period selection
+    function toggleMonthField() {
+        const period = document.getElementById('period').value;
+        const monthField = document.getElementById('monthField');
+        if (period === 'monthly') {
+            monthField.style.display = 'block';
+        } else {
+            monthField.style.display = 'none';
+            document.getElementById('month').value = '';
+        }
+    }
+
+    // ==============================================
+    // CHART VIEW FUNCTIONS
+    // ==============================================
+
+    // Fixed chart view function
+    function setChartView(viewType) {
+        currentChartView = viewType;
+        const pieContainer = document.getElementById('pieChartContainer');
+        const lineContainer = document.getElementById('lineChartContainer');
+        const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+
+        // Remove active class from all buttons and add to selected
+        toggleButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.chart === viewType) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Reset containers to original state first
+        pieContainer.className = 'col-md-6';
+        lineContainer.className = 'col-md-6';
+        pieContainer.style.display = 'block';
+        lineContainer.style.display = 'block';
+
+        // Apply view-specific changes
+        switch(viewType) {
+            case 'pie':
+                pieContainer.className = 'col-md-12';
+                lineContainer.style.display = 'none';
+                break;
+            case 'line':
+                lineContainer.className = 'col-md-12';
+                pieContainer.style.display = 'none';
+                break;
+            case 'both':
+                // Already reset above, no additional changes needed
+                break;
+        }
+
+        // Resize charts after layout change
+        setTimeout(() => {
+            if (pieChart && pieContainer.style.display !== 'none') {
+                pieChart.resize();
+            }
+            if (lineChart && lineContainer.style.display !== 'none') {
+                lineChart.resize();
+            }
+        }, 100);
+    }
+
+    // ==============================================
+    // PDF GENERATION FUNCTIONS
+    // ==============================================
+
+    function generatePDF() {
+        // Show loading state
+        const exportBtn = document.querySelector('button[onclick="generatePDF()"]');
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating Preview...';
+        exportBtn.disabled = true;
+
+        // Create PDF preview content
+        createPDFPreview().then(() => {
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('pdfPreviewModal'));
+            modal.show();
+
+            // Reset button
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+        }).catch(error => {
+            console.error('Error generating PDF preview:', error);
+            alert('Error generating PDF preview. Please try again.');
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+        });
+    }
+
+    async function createPDFPreview() {
+        const previewContent = document.getElementById('pdfPreviewContent');
+        const currentDate = new Date().toLocaleDateString('en-MY', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Get filter information
+        const period = document.getElementById('period').value;
+        const year = document.getElementById('year').value;
+        const month = document.getElementById('month').value;
+        const status = document.getElementById('status').value;
+
+        let filterText = `Period: ${period === 'yearly' ? 'Yearly' : 'Monthly'}, Year: ${year}`;
+        if (period === 'monthly' && month) {
+            const monthNames = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            filterText += `, Month: ${monthNames[parseInt(month)]}`;
+        }
+        if (status) {
+            filterText += `, Status: ${status}`;
+        }
+
+        // Create preview HTML with actual data from server
+        previewContent.innerHTML = `
+            <div class="pdf-preview" style="padding: 20px; background: white; min-height: 800px;">
+                <div class="text-center mb-4">
+                    <h2 style="color: #007bff; margin-bottom: 5px;">Invoice Reports & Analytics</h2>
+                    <p class="text-muted">Generated on ${currentDate}</p>
+                    <p class="text-info">${filterText}</p>
+                </div>
+
+                <div class="row mb-4" id="summaryCards">
+                    <div class="col-md-2">
+                        <div class="card text-center border-primary">
+                            <div class="card-body">
+                                <h6 class="text-primary">Total Invoices</h6>
+                                <h4 class="text-primary">@(reportData?.TotalInvoices ?? 0)</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card text-center border-info">
+                            <div class="card-body">
+                                <h6 class="text-info">Total Amount</h6>
+                                <h4 class="text-info">RM @((reportData?.TotalAmount ?? 0m).ToString("N2"))</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card text-center border-success">
+                            <div class="card-body">
+                                <h6 class="text-success">Paid</h6>
+                                <h4 class="text-success">RM @((reportData?.PaidAmount ?? 0m).ToString("N2"))</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card text-center border-warning">
+                            <div class="card-body">
+                                <h6 class="text-warning">Pending</h6>
+                                <h4 class="text-warning">RM @((reportData?.PendingAmount ?? 0m).ToString("N2"))</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card text-center border-info">
+                            <div class="card-body">
+                                <h6 class="text-info">Sent</h6>
+                                <h4 class="text-info">RM @((reportData?.SentAmount ?? 0m).ToString("N2"))</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="card text-center border-danger">
+                            <div class="card-body">
+                                <h6 class="text-danger">Overdue</h6>
+                                <h4 class="text-danger">RM @((reportData?.OverdueAmount ?? 0m).ToString("N2"))</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-center">
+                            <canvas id="pdfPieChart" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h5>Invoice Details (@Model.Count records)</h5>
+                    @if (Model.Any())
+                    {
+                            <table class="table table-striped table-sm">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Client</th>
+                                        <th>Issue Date</th>
+                                        <th>Due Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var invoice in Model)
+                                    {
+                                            <tr>
+                                                <td>@invoice.InvoiceNumber</td>
+                                                <td>
+                                                    @invoice.ClientName
+                                                    @if (!string.IsNullOrEmpty(invoice.ClientCompany))
+                                                    {
+                                                            <br>
+                                            
+                                                            <small class="text-muted">@invoice.ClientCompany</small>
+                                                    }
+                                                </td>
+                                                <td>@invoice.IssueDate.ToString("dd/MM/yyyy")</td>
+                                                <td>@invoice.DueDate.ToString("dd/MM/yyyy")</td>
+                                                <td>RM @invoice.TotalAmount.ToString("N2")</td>
+                                                <td>
+                                                    @{
+                                                            string badgeClass = invoice.Status switch
+                                                            {
+                                                                    "Pending" => "bg-warning text-dark",
+                                                                    "Sent" => "bg-info",
+                                                                    "Paid" => "bg-success",
+                                                                    "Overdue" => "bg-danger",
+                                                                    "Cancelled" => "bg-secondary",
+                                                                    _ => "bg-secondary"
+                                                            };
+                                                    }
+                                                    <span class="badge @badgeClass">@invoice.Status</span>
+                                                </td>
+                                            </tr>
+                                    }
+                                </tbody>
+                            </table>
+                    }
+                    else
+                    {
+                            <p class="text-center text-muted">No invoices found for the selected criteria.</p>
+                    }
+                </div>
+            </div>
+        `;
+
+        // Create pie chart for PDF
+        await createPDFChart();
+    }
+
+    async function createPDFChart() {
+        @if (reportData?.StatusCounts != null)
+        {
+                <text>
+                const statusData = @Html.Raw(Json.Serialize(reportData.StatusCounts));
+                const pdfPieCtx = document.getElementById('pdfPieChart').getContext('2d');
+
+                const statusColors = {
+                    'Pending': '#ffc107',
+                    'Sent': '#17a2b8',
+                    'Paid': '#28a745',
+                    'Overdue': '#dc3545',
+                    'Cancelled': '#6c757d'
+                };
+
+                new Chart(pdfPieCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: statusData.map(item => item.status),
+                        datasets: [{
+                            data: statusData.map(item => item.count),
+                            backgroundColor: statusData.map(item => statusColors[item.status] || '#6c757d'),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: false,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 15,
+                                    usePointStyle: true,
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        },
+                        cutout: '50%'
+                    }
+                });
+                </text>
+        }
+    }
+
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const element = document.getElementById('pdfPreviewContent');
+
+        // Show loading state
+        const downloadBtn = document.querySelector('button[onclick="downloadPDF()"]');
+        const originalText = downloadBtn.innerHTML;
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating PDF...';
+        downloadBtn.disabled = true;
+
+        const options = {
+            margin: 10,
+            filename: `Invoice_Report_${new Date().toISOString().split('T')[0]}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                height: window.innerHeight,
+                width: window.innerWidth
+            },
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            }
+        };
+
+        html2canvas(element, options.html2canvas).then(canvas => {
+            const imgData = canvas.toDataURL('image/jpeg', 0.98);
+            const pdf = new jsPDF(options.jsPDF);
+
+            const imgWidth = 190;
+            const pageHeight = 295;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 10;
+
+            // Add first page
+            pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            // Add additional pages if needed
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight + 10;
+                pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            // Save the PDF
+            pdf.save(options.filename);
+
+            // Close modal and reset button
+            bootstrap.Modal.getInstance(document.getElementById('pdfPreviewModal')).hide();
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+        }).catch(error => {
+            console.error('Error generating PDF:', error);
+            alert('Error generating PDF. Please try again.');
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+        });
+    }
+
+    // ==============================================
+    // CHART INITIALIZATION
+    // ==============================================
+
+    // Status Pie Chart
+    @if (reportData?.StatusCounts != null)
+    {
+            <text>
+            const statusData = @Html.Raw(Json.Serialize(reportData.StatusCounts));
+            const pieCtx = document.getElementById('statusPieChart').getContext('2d');
+
+            const statusColors = {
+                'Pending': '#ffc107',
+                'Sent': '#17a2b8',
+                'Paid': '#28a745',
+                'Overdue': '#dc3545',
+                'Cancelled': '#6c757d'
+            };
+
+            pieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: statusData.map(item => item.status),
+                    datasets: [{
+                        data: statusData.map(item => item.count),
+                        backgroundColor: statusData.map(item => statusColors[item.status] || '#6c757d'),
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = statusData.reduce((sum, item) => sum + item.count, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+            </text>
+    }
+    else
+    {
+            <text>
+            // No data available for pie chart
+            const pieCtx = document.getElementById('statusPieChart').getContext('2d');
+            pieCtx.font = '16px Arial';
+            pieCtx.textAlign = 'center';
+            pieCtx.fillStyle = '#6c757d';
+            pieCtx.fillText('No data available', pieCtx.canvas.width / 2, pieCtx.canvas.height / 2);
+            </text>
+    }
+
+    // Trend Line Chart
+    @if (reportData?.TrendData != null)
+    {
+            <text>
+            const trendData = @Html.Raw(Json.Serialize(reportData.TrendData));
+            const lineCtx = document.getElementById('trendLineChart').getContext('2d');
+
+            lineChart = new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: trendData.map(item => item.periodName),
+                    datasets: [{
+                        label: 'Invoice Count',
+                        data: trendData.map(item => item.count),
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Amount (RM)',
+                        data: trendData.map(item => item.amount),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '@(selectedPeriod == "monthly" ? "Day" : "Month")'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Count'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Amount (RM)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return 'RM ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            </text>
+    }
+    else
+    {
+            <text>
+            // No data available for line chart
+            const lineCtx = document.getElementById('trendLineChart').getContext('2d');
+            lineCtx.font = '16px Arial';
+            lineCtx.textAlign = 'center';
+            lineCtx.fillStyle = '#6c757d';
+            lineCtx.fillText('No data available', lineCtx.canvas.width / 2, lineCtx.canvas.height / 2);
+            </text>
+    }
+
+    // ==============================================
+    // PAGE INITIALIZATION
+    // ==============================================
+
+    // Initialize chart view on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set initial view to both charts
+        setChartView('both');
+    });
+</script>

@@ -5,7 +5,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="page-title mb-0">Create New Invoice</h2>
-    <a href="@Url.Action("Index", "Invoice")" class="btn btn-outline-secondary">
+    <a href="@Url.Action("InvoiceRecord", "Invoice")" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left me-2"></i>
         Back to List
     </a>
@@ -14,7 +14,7 @@
 <div class="form-container">
     <div class="card">
         <div class="card-body">
-            <form asp-action="Create" method="post" enctype="multipart/form-data">
+            <form asp-action="Create" method="post" enctype="multipart/form-data" id="invoiceForm">
                 <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                 <div class="row">
@@ -73,10 +73,11 @@
                                 <div class="mb-3">
                                     <label asp-for="TotalAmount" class="form-label"></label>
                                     <div class="input-group">
-                                        <input asp-for="TotalAmount" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" />
+                                        <input asp-for="TotalAmount" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" readonly />
                                         <span class="input-group-text">@Model.Currency</span>
                                     </div>
                                     <span asp-validation-for="TotalAmount" class="text-danger"></span>
+                                    <small class="text-muted">Total is calculated automatically from items below</small>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -85,8 +86,6 @@
                                     <select asp-for="Currency" class="form-select">
                                         <option value="MYR">MYR (RM)</option>
                                         <option value="USD">USD ($)</option>
-                                        <option value="SGD">SGD (S$)</option>
-                                        <option value="EUR">EUR (€)</option>
                                     </select>
                                     <span asp-validation-for="Currency" class="text-danger"></span>
                                 </div>
@@ -94,13 +93,80 @@
                         </div>
 
                         <div class="mb-3">
-                            <label asp-for="Status" class="form-label"></label>
-                            <select asp-for="Status" class="form-select">
-                                <option value="Draft">Draft</option>
-                                <option value="Pending">Pending</option>
-                            </select>
-                            <span asp-validation-for="Status" class="text-danger"></span>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                New invoices are automatically created with <strong>Pending</strong> status.
+                                You can send them to clients after creation.
+                            </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Invoice Items Section -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-list me-2"></i>
+                            Invoice Items
+                        </h5>
+
+                        <div id="invoiceItems">
+                            @if (Model.InvoiceItems != null && Model.InvoiceItems.Any())
+                            {
+                                @for (int i = 0; i < Model.InvoiceItems.Count; i++)
+                                {
+                                    <div class="row invoice-item mb-2" data-index="@i">
+                                        <div class="col-md-4">
+                                            <input asp-for="InvoiceItems[@i].Description" class="form-control item-description" placeholder="Item Description" />
+                                            <span asp-validation-for="InvoiceItems[@i].Description" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" />
+                                            <span asp-validation-for="InvoiceItems[@i].Quantity" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                                            <span asp-validation-for="InvoiceItems[@i].UnitPrice" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            @if (i > 0)
+                                            {
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="row invoice-item mb-2" data-index="0">
+                                    <div class="col-md-4">
+                                        <input name="InvoiceItems[0].Description" type="text" class="form-control item-description" placeholder="Item Description" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <!-- First item cannot be removed -->
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addInvoiceItem()">
+                            <i class="fas fa-plus me-2"></i>Add Item
+                        </button>
                     </div>
                 </div>
 
@@ -138,14 +204,18 @@
                     <div class="col-12">
                         <hr />
                         <div class="d-flex justify-content-between">
-                            <a href="@Url.Action("Index", "Invoice")" class="btn btn-outline-secondary">
+                            <a href="@Url.Action("InvoiceRecord", "Invoice")" class="btn btn-outline-secondary">
                                 <i class="fas fa-times me-2"></i>
                                 Cancel
                             </a>
                             <div>
+                                <button type="button" class="btn btn-outline-primary me-2" onclick="previewInvoice()">
+                                    <i class="fas fa-eye me-2"></i>
+                                    Preview Invoice
+                                </button>
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save me-2"></i>
-                                    Create Invoice
+                                    Save Invoice
                                 </button>
                             </div>
                         </div>
@@ -156,12 +226,38 @@
     </div>
 </div>
 
+<!-- PDF Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="previewModalLabel">Invoice Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="pdfPreview" style="width: 100%; height: 500px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="downloadPDF()">
+                    <i class="fas fa-download me-2"></i>Download PDF
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <script>
+        let currentPDF = null;
+        let itemIndex = @(Model.InvoiceItems?.Count ?? 1);
+
         // Auto-calculate due date when issue date changes (30 days later)
         document.getElementById('IssueDate').addEventListener('change', function() {
             var issueDate = new Date(this.value);
@@ -175,7 +271,7 @@
         // File size validation
         document.getElementById('invoiceFile').addEventListener('change', function() {
             var file = this.files[0];
-            if (file && file.size > 5 * 1024 * 1024) { // 5MB limit
+            if (file && file.size > 5 * 1024 * 1024) {
                 alert('File size must be less than 5MB');
                 this.value = '';
             }
@@ -184,10 +280,282 @@
         // Update currency symbol when currency changes
         document.querySelector('select[name="Currency"]').addEventListener('change', function() {
             var symbol = this.value === 'MYR' ? 'RM' :
-                        this.value === 'USD' ? '$' :
-                        this.value === 'SGD' ? 'S$' :
-                        this.value === 'EUR' ? '€' : this.value;
+                        this.value === 'USD' ? '$' : this.value;
             document.querySelector('.input-group-text').textContent = symbol;
         });
+
+        // Add new invoice item
+        function addInvoiceItem() {
+            const itemsContainer = document.getElementById('invoiceItems');
+            const newItem = document.createElement('div');
+            newItem.className = 'row invoice-item mb-2';
+            newItem.setAttribute('data-index', itemIndex);
+            newItem.innerHTML = `
+                <div class="col-md-4">
+                    <input name="InvoiceItems[${itemIndex}].Description" type="text" class="form-control item-description" placeholder="Item Description" />
+                </div>
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
+                </div>
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                </div>
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            itemsContainer.appendChild(newItem);
+
+            // Add event listeners for calculation
+            const quantityInput = newItem.querySelector('.item-quantity');
+            const priceInput = newItem.querySelector('.item-price');
+
+            quantityInput.addEventListener('input', calculateItemAmount);
+            priceInput.addEventListener('input', calculateItemAmount);
+
+            itemIndex++;
+        }
+
+        // Remove invoice item
+        function removeItem(button) {
+            const item = button.closest('.invoice-item');
+            item.remove();
+            updateTotalAmount();
+            reindexItems();
+        }
+
+        // Reindex items after removal
+        function reindexItems() {
+            const items = document.querySelectorAll('.invoice-item');
+            items.forEach((item, index) => {
+                item.setAttribute('data-index', index);
+                const inputs = item.querySelectorAll('input[name*="InvoiceItems"]');
+                inputs.forEach(input => {
+                    const nameAttr = input.getAttribute('name');
+                    if (nameAttr) {
+                        if (nameAttr.includes('.Description')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].Description`);
+                        } else if (nameAttr.includes('.Quantity')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].Quantity`);
+                        } else if (nameAttr.includes('.UnitPrice')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].UnitPrice`);
+                        } else if (nameAttr.includes('.LineTotal')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].LineTotal`);
+                        }
+                    }
+                });
+            });
+            itemIndex = items.length;
+        }
+
+        // Calculate item amount
+        function calculateItemAmount(event) {
+            const row = event.target.closest('.invoice-item');
+            const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const amount = quantity * price;
+
+            row.querySelector('.item-amount').value = amount.toFixed(2);
+            updateTotalAmount();
+        }
+
+        // Update total amount
+        function updateTotalAmount() {
+            const amounts = document.querySelectorAll('.item-amount');
+            let total = 0;
+            amounts.forEach(amount => {
+                total += parseFloat(amount.value) || 0;
+            });
+            document.querySelector('input[name="TotalAmount"]').value = total.toFixed(2);
+        }
+
+        // Add event listeners to existing items
+        document.addEventListener('DOMContentLoaded', function() {
+            const quantityInputs = document.querySelectorAll('.item-quantity');
+            const priceInputs = document.querySelectorAll('.item-price');
+
+            quantityInputs.forEach(input => {
+                input.addEventListener('input', calculateItemAmount);
+            });
+
+            priceInputs.forEach(input => {
+                input.addEventListener('input', calculateItemAmount);
+            });
+
+            // Calculate initial totals if items exist
+            updateTotalAmount();
+
+            // Set default dates if not set
+            if (!document.getElementById('IssueDate').value) {
+                document.getElementById('IssueDate').value = new Date().toISOString().split('T')[0];
+            }
+            if (!document.getElementById('DueDate').value) {
+                var dueDate = new Date();
+                dueDate.setDate(dueDate.getDate() + 30);
+                document.getElementById('DueDate').value = dueDate.toISOString().split('T')[0];
+            }
+        });
+
+        // Preview and download functions
+        function previewInvoice() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Get form data
+            const clientName = document.querySelector('input[name="ClientName"]').value || 'Client Name';
+            const clientCompany = document.querySelector('input[name="ClientCompany"]').value || '';
+            const clientEmail = document.querySelector('input[name="ClientEmail"]').value || '';
+            const issueDate = document.querySelector('input[name="IssueDate"]').value || '';
+            const dueDate = document.querySelector('input[name="DueDate"]').value || '';
+            const totalAmount = document.querySelector('input[name="TotalAmount"]').value || '0.00';
+            const currency = document.querySelector('select[name="Currency"]').value || 'MYR';
+            const remark = document.querySelector('textarea[name="Remark"]').value || '';
+
+            // Get invoice items
+            const items = [];
+            const itemRows = document.querySelectorAll('.invoice-item');
+            itemRows.forEach(row => {
+                const description = row.querySelector('.item-description').value;
+                const quantity = row.querySelector('.item-quantity').value;
+                const price = row.querySelector('.item-price').value;
+                const amount = row.querySelector('.item-amount').value;
+
+                if (description && quantity && price) {
+                    items.push({ description, quantity, price, amount });
+                }
+            });
+
+            // Generate PDF
+            generateInvoicePDF(doc, {
+                clientName,
+                clientCompany,
+                clientEmail,
+                issueDate,
+                dueDate,
+                totalAmount,
+                currency,
+                remark,
+                items
+            });
+
+            currentPDF = doc;
+
+            const pdfOutput = doc.output('datauristring');
+            document.getElementById('pdfPreview').innerHTML =
+                `<iframe src="${pdfOutput}" width="100%" height="100%" style="border: none;"></iframe>`;
+
+            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+            modal.show();
+        }
+
+        function generateInvoicePDF(doc, data) {
+            const currencySymbol = data.currency === 'MYR' ? 'RM' : '$';
+
+            // Header
+            doc.setFontSize(24);
+            doc.setFont(undefined, 'bold');
+            doc.text('Finserve', 20, 30);
+
+            doc.setFontSize(20);
+            doc.text('Invoice', 150, 30);
+
+            // Invoice details (top right)
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('INVOICE', 150, 45);
+            doc.text(`Issue Date: ${data.issueDate || 'Not specified'}`, 150, 55);
+            doc.text(`Due Date: ${data.dueDate || 'Not specified'}`, 150, 65);
+
+            // From section
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('FROM:', 20, 60);
+            doc.setFont(undefined, 'normal');
+            doc.text('Finserve', 20, 70);
+            doc.text('Jalan Genting Kelang,', 20, 80);
+            doc.text('53300 Kuala Lumpur, Malaysia', 20, 90);
+
+            // To section
+            doc.setFont(undefined, 'bold');
+            doc.text('TO:', 20, 110);
+            doc.setFont(undefined, 'normal');
+            doc.text(data.clientName, 20, 120);
+            if (data.clientCompany) {
+                doc.text(data.clientCompany, 20, 130);
+                doc.text(data.clientEmail, 20, 140);
+            } else {
+                doc.text(data.clientEmail, 20, 130);
+            }
+
+            // Table header
+            const startY = 160;
+            doc.setFont(undefined, 'bold');
+            doc.rect(20, startY, 170, 10);
+            doc.setFillColor(240, 240, 240);
+            doc.rect(20, startY, 170, 10, 'F');
+
+            doc.text('Item Description', 25, startY + 7);
+            doc.text('Quantity', 110, startY + 7);
+            doc.text('Price', 135, startY + 7);
+            doc.text('Amount', 160, startY + 7);
+
+            // Table rows
+            doc.setFont(undefined, 'normal');
+            let currentY = startY + 10;
+            let subtotal = 0;
+
+            data.items.forEach((item, index) => {
+                doc.rect(20, currentY, 170, 10);
+                doc.text(item.description, 25, currentY + 7);
+                doc.text(item.quantity.toString(), 110, currentY + 7);
+                doc.text(`${currencySymbol} ${parseFloat(item.price).toFixed(2)}`, 135, currentY + 7);
+                doc.text(`${currencySymbol} ${parseFloat(item.amount).toFixed(2)}`, 160, currentY + 7);
+                currentY += 10;
+                subtotal += parseFloat(item.amount);
+            });
+
+            // Add empty rows if needed
+            for (let i = data.items.length; i < 5; i++) {
+                doc.rect(20, currentY, 170, 10);
+                currentY += 10;
+            }
+
+            // Totals section
+            currentY += 10;
+            doc.setFont(undefined, 'bold');
+            doc.text('Subtotal', 135, currentY);
+            doc.text(`${currencySymbol} ${subtotal.toFixed(2)}`, 160, currentY);
+
+            currentY += 10;
+            doc.text('Tax', 135, currentY);
+            doc.text(`${currencySymbol} 0.00`, 160, currentY);
+
+            currentY += 10;
+            doc.setFontSize(14);
+            doc.text('BALANCE DUE', 135, currentY);
+            doc.text(`${currencySymbol} ${parseFloat(data.totalAmount).toFixed(2)}`, 160, currentY);
+
+            // Notes section
+            if (data.remark) {
+                currentY += 20;
+                doc.setFontSize(12);
+                doc.text('Notes', 20, currentY);
+
+                doc.rect(20, currentY + 5, 170, 30);
+                doc.setFontSize(10);
+                doc.text(data.remark, 25, currentY + 15);
+            }
+        }
+
+        function downloadPDF() {
+            if (currentPDF) {
+                currentPDF.save('invoice-preview.pdf');
+            }
+        }
     </script>
 }

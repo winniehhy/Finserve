@@ -29,15 +29,15 @@
                         <strong>Status:</strong><br>
                         @if (Model.Status == "Pending")
                         {
-                            <span class="badge bg-warning">@Model.Status</span>
+                        <span class="badge bg-warning">@Model.Status</span>
                         }
                         else if (Model.Status == "Approved")
                         {
-                            <span class="badge bg-success">@Model.Status</span>
+                        <span class="badge bg-success">@Model.Status</span>
                         }
                         else
                         {
-                            <span class="badge bg-danger">@Model.Status</span>
+                        <span class="badge bg-danger">@Model.Status</span>
                         }
                     </div>
                 </div>
@@ -52,11 +52,11 @@
                         <span class="text-muted">
                             @if (Model.SubmissionDate.HasValue)
                             {
-                                @Model.SubmissionDate.Value.ToString("dd/MM/yyyy HH:mm")
+                            @Model.SubmissionDate.Value.ToString("dd/MM/yyyy HH:mm")
                             }
                             else
                             {
-                                <text>Not set</text>
+                            <text>Not set</text>
                             }
                         </span>
                     </div>
@@ -72,99 +72,136 @@
                 <!-- Supporting Document Section -->
                 @if (ViewBag.HasSupportingDocument == true)
                 {
-                    <div class="mb-3 supporting-document-section">
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <strong><i class="fas fa-file-alt me-2"></i>Supporting Document</strong>
+                <div class="mb-3 supporting-document-section">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <strong>
+                                <i class="fas fa-file-alt me-2"></i>Supporting Documents
+                                @if (ViewBag.DocumentCount != null && ViewBag.DocumentCount > 1)
+                                {
+                                <span class="badge bg-primary">@ViewBag.DocumentCount files</span>
+                                }
+                            </strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-success mb-3">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Supporting document(s) uploaded successfully</strong>
                             </div>
-                            <div class="card-body">
-                                <div class="alert alert-success mb-3">
-                                    <i class="fas fa-check-circle me-2"></i>
-                                    <strong>Supporting document uploaded successfully</strong>
-                                </div>
 
-                                <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-file-alt text-success me-3 fa-2x"></i>
-                                        <div>
-                                            <div class="fw-bold">@ViewBag.SupportingDocumentFileName</div>
-                                            <small class="text-muted">
-                                                @if (ViewBag.SupportingDocumentSize != null)
-                                                {
-                                                    <span>Size: @ViewBag.SupportingDocumentSize</span>
-                                                }
-                                                @if (ViewBag.SupportingDocumentUploadDate != null)
-                                                {
-                                                    <span> | Uploaded: @ViewBag.SupportingDocumentUploadDate</span>
-                                                }
-                                            </small>
-                                        </div>
+                            @if (ViewBag.Documents != null && ((List<FinserveNew.Models.ClaimDetails>)ViewBag.Documents).Count > 0)
+                            {
+                                <!-- Multiple documents from ClaimDetails -->
+                                var documents = (List<FinserveNew.Models.ClaimDetails>)ViewBag.Documents;
+                                foreach (var doc in documents)
+                                {
+                            <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-alt text-success me-3 fa-2x"></i>
+                                    <div>
+                                        <div class="fw-bold">@(doc.OriginalFileName ?? System.IO.Path.GetFileName(doc.DocumentPath))</div>
+                                        <small class="text-muted">
+                                            Size: @FormatFileSize(doc.FileSize ?? 0) | Uploaded: @doc.UploadDate.ToString("dd/MM/yyyy HH:mm")
+                                        </small>
                                     </div>
-                                    @* <div class="d-flex gap-2">
-                                        <a href="@ViewBag.SupportingDocumentUrl" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-eye me-1"></i>View
-                                        </a>
-                                        <a href="@ViewBag.SupportingDocumentUrl" download="@ViewBag.SupportingDocumentFileName" class="btn btn-sm btn-outline-secondary">
-                                            <i class="fas fa-download me-1"></i>Download
-                                        </a>
-                                    </div> *@
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="@doc.DocumentPath" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                    <a href="@doc.DocumentPath" download="@doc.OriginalFileName" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
                                 </div>
                             </div>
+                                }
+                            }
+                            else
+                            {
+ <!-- Single document (backward compatibility) -->
+                            <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-alt text-success me-3 fa-2x"></i>
+                                    <div>
+                                        <div class="fw-bold">@ViewBag.SupportingDocumentFileName</div>
+                                        <small class="text-muted">
+                                            @if (ViewBag.SupportingDocumentSize != null)
+                                            {
+                                            <span>Size: @ViewBag.SupportingDocumentSize</span>
+                                            }
+                                            @if (ViewBag.SupportingDocumentUploadDate != null)
+                                            {
+                                            <span> | Uploaded: @ViewBag.SupportingDocumentUploadDate</span>
+                                            }
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a href="@ViewBag.SupportingDocumentUrl" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </a>
+                                    <a href="@ViewBag.SupportingDocumentUrl" download="@ViewBag.SupportingDocumentFileName" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                </div>
+                            </div>
+                            }
                         </div>
                     </div>
+                </div>
                 }
                 else
                 {
-                    <div class="mb-3 supporting-document-section">
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <strong><i class="fas fa-file-alt me-2"></i>Supporting Document</strong>
-                            </div>
-                            <div class="card-body">
-                                <div class="alert alert-warning">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    <strong>No supporting document uploaded</strong>
-                                    <br>
-                                    <small>Supporting documents help verify claim details.</small>
-                                </div>
+                <div class="mb-3 supporting-document-section">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <strong><i class="fas fa-file-alt me-2"></i>Supporting Document</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>No supporting document uploaded</strong>
+                                <br>
+                                <small>Supporting documents help verify claim details.</small>
                             </div>
                         </div>
                     </div>
+                </div>
                 }
 
                 @if (Model.Status == "Approved" || Model.Status == "Rejected")
                 {
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <strong>Processed Date:</strong><br>
-                            <span class="text-muted">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</span>
-                        </div>
-                        <div class="col-md-6">
-                            <strong>Processed By:</strong><br>
-                            <span class="text-muted">@(ViewBag.ApproverName ?? "HR Department")</span>
-                        </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Processed Date:</strong><br>
+                        <span class="text-muted">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</span>
                     </div>
+                    <div class="col-md-6">
+                        <strong>Processed By:</strong><br>
+                        <span class="text-muted">@(ViewBag.ApproverName ?? "HR Department")</span>
+                    </div>
+                </div>
 
-                    @if (!string.IsNullOrEmpty(Model.ApprovalRemarks))
-                    {
-                        <div class="mb-3">
-                            <strong>HR Remarks:</strong><br>
-                            <div class="bg-light p-3 rounded mt-2">
-                                <p class="mb-0">@Model.ApprovalRemarks</p>
-                            </div>
-                        </div>
-                    }
+                if (!string.IsNullOrEmpty(Model.ApprovalRemarks))
+                {
+                <div class="mb-3">
+                    <strong>HR Remarks:</strong><br>
+                    <div class="bg-light p-3 rounded mt-2">
+                        <p class="mb-0">@Model.ApprovalRemarks</p>
+                    </div>
+                </div>
+                }
                 }
 
                 <div class="d-flex justify-content-end gap-2">
                     @if (Model.Status == "Pending")
                     {
-                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
-                            <i class="fas fa-edit me-2"></i>Edit
-                        </a>
-                        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
-                            <i class="fas fa-trash me-2"></i>Delete
-                        </a>
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Edit
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete
+                    </a>
                     }
                     <a asp-action="Index" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-2"></i>Back to List
@@ -190,11 +227,11 @@
                             <p class="timeline-text">
                                 @if (Model.SubmissionDate.HasValue)
                                 {
-                                    @Model.SubmissionDate.Value.ToString("dd/MM/yyyy HH:mm")
+                                @Model.SubmissionDate.Value.ToString("dd/MM/yyyy HH:mm")
                                 }
                                 else
                                 {
-                                    @Model.CreatedDate.ToString("dd/MM/yyyy HH:mm")
+                                @Model.CreatedDate.ToString("dd/MM/yyyy HH:mm")
                                 }
                             </p>
                         </div>
@@ -202,45 +239,45 @@
 
                     @if (Model.Status == "Approved")
                     {
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-success"></div>
-                            <div class="timeline-content">
-                                <h6 class="timeline-title">Application Approved</h6>
-                                <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
-                                @if (!string.IsNullOrEmpty(ViewBag.ApproverName?.ToString()))
-                                {
-                                    <small class="text-muted">by @ViewBag.ApproverName</small>
-                                }
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Application Approved</h6>
+                            <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
+                            @if (!string.IsNullOrEmpty(ViewBag.ApproverName?.ToString()))
+                            {
+                            <small class="text-muted">by @ViewBag.ApproverName</small>
+                            }
                         </div>
+                    </div>
                     }
                     else if (Model.Status == "Rejected")
                     {
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-danger"></div>
-                            <div class="timeline-content">
-                                <h6 class="timeline-title">Application Rejected</h6>
-                                <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
-                                @if (!string.IsNullOrEmpty(ViewBag.ApproverName?.ToString()))
-                                {
-                                    <small class="text-muted">by @ViewBag.ApproverName</small>
-                                }
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-danger"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Application Rejected</h6>
+                            <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
+                            @if (!string.IsNullOrEmpty(ViewBag.ApproverName?.ToString()))
+                            {
+                            <small class="text-muted">by @ViewBag.ApproverName</small>
+                            }
                         </div>
+                    </div>
                     }
                     else
                     {
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-warning"></div>
-                            <div class="timeline-content">
-                                <h6 class="timeline-title">Pending Review</h6>
-                                <p class="timeline-text">Waiting for HR approval</p>
-                                @if (ViewBag.PendingTime != null)
-                                {
-                                    <small class="text-muted">Pending for @ViewBag.PendingTime</small>
-                                }
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-warning"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Pending Review</h6>
+                            <p class="timeline-text">Waiting for HR approval</p>
+                            @if (ViewBag.PendingTime != null)
+                            {
+                            <small class="text-muted">Pending for @ViewBag.PendingTime</small>
+                            }
                         </div>
+                    </div>
                     }
                 </div>
             </div>
@@ -256,39 +293,50 @@
             <div class="card-body">
                 @if (ViewBag.HasSupportingDocument == true)
                 {
-                    <div class="d-flex align-items-center mb-3">
-                        <i class="fas fa-check-circle text-success me-2"></i>
-                        <span class="text-success fw-bold">Document Uploaded</span>
-                    </div>
-                    <div class="mb-2">
-                        <strong>File Name:</strong><br>
-                        <small class="text-muted">@ViewBag.SupportingDocumentFileName</small>
-                    </div>
-                    <div class="d-grid gap-2">
-                        <a href="@ViewBag.SupportingDocumentUrl" target="_blank" class="btn btn-sm btn-outline-primary">
-                            <i class="fas fa-eye me-1"></i>View Document
-                        </a>
-                        <a href="@ViewBag.SupportingDocumentUrl" download="@ViewBag.SupportingDocumentFileName" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-download me-1"></i>Download
-                        </a>
-                    </div>
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <span class="text-success fw-bold">
+                        @if (ViewBag.DocumentCount != null && ViewBag.DocumentCount > 1)
+                        {
+                        <text>@ViewBag.DocumentCount Documents Uploaded</text>
+                        }
+                        else
+                        {
+                        <text>Document Uploaded</text>
+                        }
+                    </span>
+                </div>
+                if (ViewBag.DocumentCount != null && ViewBag.DocumentCount > 1)
+                {
+                <div class="mb-2">
+                    <strong>Total Files:</strong><br>
+                    <small class="text-muted">@ViewBag.DocumentCount supporting documents</small>
+                </div>
                 }
                 else
                 {
-                    <div class="d-flex align-items-center mb-2">
-                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                        <span class="text-warning fw-bold">No Document</span>
-                    </div>
-                    <small class="text-muted">No supporting document was uploaded for this claim application.</small>
-                    @if (Model.Status == "Pending")
-                    {
-                        <div class="mt-2">
-                            <small class="text-info">
-                                <i class="fas fa-info-circle me-1"></i>
-                                You can upload a supporting document by editing this application.
-                            </small>
-                        </div>
-                    }
+                <div class="mb-2">
+                    <strong>File Name:</strong><br>
+                    <small class="text-muted">@ViewBag.SupportingDocumentFileName</small>
+                </div>
+                }
+                }
+                else
+                {
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    <span class="text-warning fw-bold">No Document</span>
+                </div>
+                <small class="text-muted">No supporting document was uploaded for this claim application.</small>
+                if (Model.Status == "Pending")
+                {
+                <div class="mt-2">
+                    <small class="text-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        You can upload a supporting document by editing this application.
+                    </small>
+                </div>
+                }
                 }
             </div>
         </div>
@@ -322,6 +370,25 @@
         </div>
     </div>
 </div>
+
+@functions {
+    public static string FormatFileSize(long bytes)
+    {
+        if (bytes == 0) return "0 Bytes";
+
+        string[] sizes = { "Bytes", "KB", "MB", "GB" };
+        int order = 0;
+        double size = bytes;
+
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+
+        return $"{size:0.##} {sizes[order]}";
+    }
+}
 
 <style>
     .timeline {

@@ -1,82 +1,130 @@
-﻿
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FinserveNew.Models
 {
     public class Claim
     {
-        // Primary key for the Claim
         [Key]
         public int Id { get; set; }
 
-        // The type/category of the claim (e.g. Travel, Medical, etc.)
-        [Required(ErrorMessage = "Claim type is required")]
-        [Display(Name = "Claim Type")]
-        [MaxLength(50)]
+        [Required, MaxLength(50)]
         public string ClaimType { get; set; } = string.Empty;
 
-        // The amount being claimed
-        [Required(ErrorMessage = "Claim amount is required")]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Claim amount must be greater than 0")]
-        [Display(Name = "Claim Amount")]
-        [Column(TypeName = "decimal(18,2)")]
+        [Required, DataType(DataType.Date)]
+        public DateTime ClaimDate { get; set; }
+
+        [Required, Column(TypeName = "decimal(18,2)")]
         public decimal ClaimAmount { get; set; }
 
-        // Optional description for additional details
-        [Display(Name = "Description")]
-        [MaxLength(1000)]
+        [MaxLength(3)]
+        public string Currency { get; set; } = "MYR";
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? OriginalAmount { get; set; }
+
+        [MaxLength(3)]
+        public string? OriginalCurrency { get; set; }
+
+        [Column(TypeName = "decimal(10,6)")]
+        public decimal? ExchangeRate { get; set; }
+
+        // ⚠️ Changed from varchar(1000) to TEXT
+        [Column(TypeName = "TEXT")]
         public string? Description { get; set; }
 
-        // Date when the claim was created (automatically set to current date)
-        [Display(Name = "Created Date")]
         public DateTime CreatedDate { get; set; } = DateTime.Now;
 
-        // File path where the uploaded document is stored
-        [Display(Name = "Supporting Document Path")]
         [MaxLength(500)]
         public string? SupportingDocumentPath { get; set; }
 
-        // Original name of the uploaded document
-        [Display(Name = "Supporting Document Name")]
         [MaxLength(255)]
         public string? SupportingDocumentName { get; set; }
 
-        // Current status of the claim (e.g. Pending, Approved, Rejected)
-        [Required]
-        [Display(Name = "Status")]
-        [MaxLength(20)]
+        [Required, MaxLength(20)]
         public string Status { get; set; } = "Pending";
 
-        // Employee ID who created the claim
-        [Required(ErrorMessage = "Employee ID is required")]
-        [Display(Name = "Employee ID")]
-        [MaxLength(255)]
+        [Required, MaxLength(255)]
         public string EmployeeID { get; set; } = string.Empty;
 
-        // Date the claim was submitted
-        [Display(Name = "Submission Date")]
         [DataType(DataType.Date)]
         public DateTime? SubmissionDate { get; set; }
 
-        // Date the claim was approved/rejected
-        [Display(Name = "Approval Date")]
         [DataType(DataType.Date)]
         public DateTime? ApprovalDate { get; set; }
 
-        // User ID of the person who approved/rejected (HR/Admin)
-        [Display(Name = "Approved By")]
         [MaxLength(255)]
         public string? ApprovedBy { get; set; }
 
-        // Optional remarks from the approver
-        [Display(Name = "Approval Remarks")]
-        [MaxLength(1000)]
+        // ⚠️ Changed from varchar(1000) to TEXT
+        [Column(TypeName = "TEXT")]
         public string? ApprovalRemarks { get; set; }
 
-        // Optional total amount field (for grouped claims)
-        [Display(Name = "Total Amount")]
         [Column(TypeName = "decimal(18,2)")]
         public decimal? TotalAmount { get; set; }
+
+        public bool IsOCRProcessed { get; set; } = false;
+
+        // ⚠️ Changed from varchar(10000) to LONGTEXT
+        [Column(TypeName = "LONGTEXT")]
+        public string? OCRRawText { get; set; }
+
+        [Range(0, 100)]
+        public int? OCRConfidence { get; set; }
+
+        // ⚠️ Changed from varchar(5000) to TEXT
+        [Column(TypeName = "TEXT")]
+        public string? OCRPriceAnalysis { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? OCRDetectedAmount { get; set; }
+
+        [MaxLength(3)]
+        public string? OCRDetectedCurrency { get; set; }
+
+        public bool OCRAmountVerified { get; set; } = false;
+
+        public DateTime? OCRProcessedDate { get; set; }
+
+        public virtual ICollection<ClaimDetails>? ClaimDetails { get; set; }
+
+        // --- [NotMapped] properties stay unchanged ---
+        [NotMapped] public List<IFormFile>? UploadedFiles { get; set; }
+
+        [NotMapped]
+        public string DisplayAmount => $"{(Currency == "USD" ? "$" : Currency == "MYR" ? "RM" : Currency)} {ClaimAmount:N2}";
+
+        [NotMapped]
+        public string? ConversionInfo
+        {
+            get
+            {
+                if (OriginalAmount.HasValue && !string.IsNullOrEmpty(OriginalCurrency) &&
+                    OriginalCurrency != Currency && ExchangeRate.HasValue)
+                {
+                    var symbol = OriginalCurrency switch
+                    {
+                        "USD" => "$",
+                        "MYR" => "RM",
+                        _ => OriginalCurrency
+                    };
+                    return $"Original: {symbol} {OriginalAmount:N2} (Rate: {ExchangeRate:N4})";
+                }
+                return null;
+            }
+        }
+
+        [NotMapped]
+        public int DocumentCount => (ClaimDetails?.Any() == true) ? ClaimDetails.Count : (!string.IsNullOrEmpty(SupportingDocumentPath) ? 1 : 0);
+
+        [NotMapped] public bool HasDocuments => DocumentCount > 0;
+
+        [NotMapped] public string FormattedClaimDate => ClaimDate.ToString("dd/MM/yyyy");
+
+        [NotMapped]
+        public string OCRStatus => !IsOCRProcessed ? "Not Processed" : OCRAmountVerified ? "Verified" : "Pending Verification";
+
+        [NotMapped]
+        public string OCRConfidenceDisplay => OCRConfidence.HasValue ? $"{OCRConfidence}%" : "N/A";
     }
 }

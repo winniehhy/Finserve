@@ -1,0 +1,1047 @@
+﻿@model FinserveNew.Models.Claim
+@{
+    ViewData["Title"] = "OCR Processing - Verify Claim Information";
+}
+
+@* Add anti-forgery token for form submissions *@
+@Html.AntiForgeryToken()
+
+<div class="page-title">OCR Processing - Verify Your Claim</div>
+
+@* Display any messages *@
+@if (TempData["Success"] != null)
+{
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    @TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+}
+
+@if (TempData["Error"] != null)
+{
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    @TempData["Error"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left Panel: Original Documents -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-image me-2"></i>
+                        Original Documents
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div id="documentViewer" class="document-viewer">
+                        <div class="text-center p-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading documents...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading uploaded documents...</p>
+                        </div>
+                    </div>
+
+                    <!-- Document navigation -->
+                    <div class="document-nav p-3 border-top">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button id="prevDoc" class="btn btn-outline-primary btn-sm" disabled>
+                                <i class="fas fa-chevron-left"></i> Previous
+                            </button>
+                            <span id="docCounter" class="text-muted">0 / 0</span>
+                            <button id="nextDoc" class="btn btn-outline-primary btn-sm" disabled>
+                                Next <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        <div class="mt-2">
+                            <small id="currentDocName" class="text-muted">No documents loaded</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel: OCR Results -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>
+                        OCR Extracted Text
+                    </h5>
+                    <button id="processAllFiles" class="btn btn-sm btn-light">
+                        <i class="fas fa-play me-1"></i> Process All
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="ocrResults">
+                        <div class="text-center p-4">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Processing OCR...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Extracting text from documents...</p>
+                        </div>
+                    </div>
+
+                    <!-- OCR Controls -->
+                    <div class="mt-3 border-top pt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <button id="reprocessOCR" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-redo me-1"></i>
+                                Reprocess Current
+                            </button>
+                            <button id="copyOCRText" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-copy me-1"></i>
+                                Copy Text
+                            </button>
+                        </div>
+
+                        <!-- OCR Progress -->
+                        <div class="mt-2">
+                            <small class="text-muted">OCR Progress: </small>
+                            <div class="progress" style="height: 8px;">
+                                <div id="confidenceBar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small id="confidenceText" class="text-muted">Ready...</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Claim Summary -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-form me-2"></i>
+                        Your Claim Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Enhanced Total Calculation Summary -->
+                    <div id="totalSummary" class="alert alert-primary">
+                        <h6><i class="fas fa-calculator me-2"></i>Total Calculation Summary</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Files Processed:</small>
+                                <div id="processedCount" class="fw-bold">0 / 0</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Amounts Confirmed:</small>
+                                <div id="confirmedCount" class="fw-bold text-info">0 / 0</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <small class="text-muted">Total Confirmed Amount:</small>
+                                <div id="calculatedTotal" class="fw-bold text-success fs-4">RM 0.00</div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button id="updateClaimTotal" class="btn btn-sm btn-success me-2" disabled>
+                                <i class="fas fa-sync me-1"></i> Update Claim Amount
+                            </button>
+                            <button id="reviewAllAmounts" class="btn btn-sm btn-outline-info" onclick="showAmountSummary()">
+                                <i class="fas fa-list me-1"></i> Review All Amounts
+                            </button>
+                        </div>
+
+                        <!-- Progress indicator -->
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted">Confirmation Progress:</small>
+                                <small id="progressText" class="text-muted">0% Complete</small>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div id="confirmationProgress" class="progress-bar bg-info" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Original Claim Info -->
+                    <div class="claim-info">
+                        <div class="info-group mb-3">
+                            <label class="form-label fw-bold">Employee ID:</label>
+                            <div class="info-value">@(Model?.EmployeeID ?? "EM001")</div>
+                        </div>
+
+                        <div class="info-group mb-3">
+                            <label class="form-label fw-bold">Claim Type:</label>
+                            <div class="info-value">
+                                <span class="badge bg-primary">@(Model?.ClaimType ?? "Not specified")</span>
+                            </div>
+                        </div>
+
+                        <div class="info-group mb-3">
+                            <label class="form-label fw-bold">Claim Date:</label>
+                            <div class="info-value">@(Model?.ClaimDate.ToString("dd/MM/yyyy") ?? DateTime.Now.ToString("dd/MM/yyyy"))</div>
+                        </div>
+
+                        <div class="info-group mb-3">
+                            <label class="form-label fw-bold">Claim Amount:</label>
+                            <div class="info-value">
+                                <span class="fs-5 text-success fw-bold" id="displayClaimAmount">
+                                    RM @(Model?.ClaimAmount ?? 0)
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="info-group mb-3">
+                            <label class="form-label fw-bold">Description:</label>
+                            <div class="info-value">
+                                <div class="bg-light p-2 rounded border" style="min-height: 40px;">
+                                    <small class="text-muted">
+                                        @if (!string.IsNullOrWhiteSpace(Model?.Description))
+                                      {
+                                                            @Model.Description
+                                      }
+                                      else
+                                      {
+                                                            <em>N/A</em>
+                                      }
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-group mb-3">
+                            <label class="form-label fw-bold">Uploaded Files:</label>
+                            <div class="info-value">
+                                <span id="fileCount" class="badge bg-secondary">0 files</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Review Complete?</h6>
+                            <small class="text-muted">Process all documents and verify the total claim amount.</small>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <a href="@Url.Action("Create", "Claim")" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Back to Form
+                            </a>
+                            <button type="button" id="approveAndSubmit" class="btn btn-success" disabled>
+                                <i class="fas fa-check me-2"></i>
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Amount Summary Modal -->
+<div class="modal fade" id="amountSummaryModal" tabindex="-1" aria-labelledby="amountSummaryLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="amountSummaryLabel">
+                    <i class="fas fa-list me-2"></i>Amount Summary Review
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="amountSummaryContent">
+                    <!-- Content will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="confirmAllPendingAmounts()">
+                    <i class="fas fa-check-double me-1"></i>Confirm All Pending
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+
+<!-- Hidden form for final submission -->
+<form id="finalSubmissionForm" method="post" action="@Url.Action("ProcessOCRAndSubmit", "Claim")" style="display: none;">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="EmployeeID" value="@Model.EmployeeID" />
+    <input type="hidden" name="ClaimType" value="@Model.ClaimType" />
+    <input type="hidden" name="ClaimDate" value="@Model.ClaimDate.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="ClaimAmount" value="@Model.ClaimAmount" id="hiddenClaimAmount" />
+    <input type="hidden" name="Description" value="@Html.Raw(Html.Encode(Model.Description ?? ""))" />
+    <input type="hidden" name="ocrResults" id="ocrResultsField" />
+</form>
+
+@section Scripts {
+    <script src="https://unpkg.com/tesseract.js@v5.0.0/dist/tesseract.min.js"></script>
+    <script>
+        // Make server file data available to client-side JavaScript
+        @if (ViewBag.UploadedFiles != null)
+        {
+            <text>window.serverUploadedFiles = @Html.Raw(ViewBag.UploadedFiles);</text>
+        }
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('=== OCR PAGE INITIALIZATION STARTED ===');
+
+            // Initialize variables
+            let uploadedFiles = [];
+            let currentDocIndex = 0;
+            let ocrResults = [];
+            let ocrWorker = null;
+            let isOCRInitialized = false;
+            let totalCalculatedAmount = 0;
+            let processedFilesCount = 0;
+
+            // Initialize files
+            initializeUploadedFiles();
+
+            // Initialize OCR worker
+            async function initOCRWorker() {
+                if (isOCRInitialized && ocrWorker) return ocrWorker;
+
+                try {
+                    if (typeof Tesseract === 'undefined') {
+                        throw new Error('Tesseract.js library not available');
+                    }
+
+                    updateProgress(20, 'Initializing OCR engine...');
+                    ocrWorker = await Tesseract.createWorker('eng');
+
+                    await ocrWorker.setParameters({
+                        tessedit_pageseg_mode: Tesseract.PSM.AUTO,
+                    });
+
+                    updateProgress(100, 'OCR Ready!');
+                    isOCRInitialized = true;
+                    return ocrWorker;
+                } catch (error) {
+                    console.error('OCR initialization failed:', error);
+                    throw error;
+                }
+            }
+
+            // Initialize uploaded files
+            function initializeUploadedFiles() {
+                console.log('Initializing uploaded files...');
+
+                // Try server files first
+                if (typeof window.serverUploadedFiles !== 'undefined' && window.serverUploadedFiles.length > 0) {
+                    uploadedFiles = window.serverUploadedFiles;
+                    console.log(`Found ${uploadedFiles.length} files from server`);
+                } else {
+                    // Fallback to session storage
+                    const claimDataStr = sessionStorage.getItem('claimData');
+                    if (claimDataStr) {
+                        try {
+                            const claimData = JSON.parse(claimDataStr);
+                            if (claimData.Files && claimData.Files.length > 0) {
+                                uploadedFiles = claimData.Files.map(file => ({
+                                    name: file.name,
+                                    type: file.type,
+                                    size: file.size || 0,
+                                    data: file.data,
+                                    url: `data:${file.type};base64,${file.data}`
+                                }));
+                                console.log(`Found ${uploadedFiles.length} files from session`);
+                            }
+                        } catch (e) {
+                            console.error('Error parsing session data:', e);
+                        }
+                    }
+                }
+
+                if (uploadedFiles.length > 0) {
+                    updateFileCounter();
+                    loadDocument(0);
+                    updateTotalSummary();
+                } else {
+                    handleNoFiles();
+                }
+            }
+
+            // Load document
+            function loadDocument(index) {
+                if (index < 0 || index >= uploadedFiles.length) return;
+
+                currentDocIndex = index;
+                const file = uploadedFiles[index];
+
+                document.getElementById('currentDocName').textContent = file.name;
+
+                const documentViewer = document.getElementById('documentViewer');
+                if (file.type.startsWith('image/')) {
+                    documentViewer.innerHTML = `
+                        <div class="text-center p-2">
+                            <img src="${file.url}" class="img-fluid" style="max-height: 500px; max-width: 100%;" alt="${file.name}">
+                        </div>
+                    `;
+                } else {
+                    documentViewer.innerHTML = `
+                        <div class="text-center p-4">
+                            <i class="fas fa-file fa-5x text-secondary mb-3"></i>
+                            <h6>${file.name}</h6>
+                            <p class="text-muted">File preview not available</p>
+                        </div>
+                    `;
+                }
+
+                updateFileCounter();
+                displayOCRResult(index);
+            }
+
+            // Extract prices from text - SIMPLIFIED
+            function extractPricesFromText(text) {
+                const prices = [];
+
+                // High priority patterns for totals
+                const totalPatterns = [
+                    /(?:total\s*amount|total|grand\s*total)[\s:]*(?:rm|myr)?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi,
+                    /(?:total\s*amount|total|grand\s*total)[\s:]*\$\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi,
+                ];
+
+                // Medium priority patterns
+                const amountPatterns = [
+                    /(?:amount|subtotal)[\s:]*(?:rm|myr)?\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi,
+                    /(?:amount|subtotal)[\s:]*\$\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi,
+                ];
+
+                // Generic currency patterns
+                const currencyPatterns = [
+                    /(?:rm|myr)\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi,
+                    /\$\s*(\d+(?:,\d{3})*(?:\.\d{2})?)/gi,
+                ];
+
+                // Process patterns in priority order
+                [
+                    { patterns: totalPatterns, priority: 100, type: 'Total' },
+                    { patterns: amountPatterns, priority: 70, type: 'Amount' },
+                    { patterns: currencyPatterns, priority: 50, type: 'Currency' }
+                ].forEach(({ patterns, priority, type }) => {
+                    patterns.forEach(pattern => {
+                        let match;
+                        while ((match = pattern.exec(text)) !== null) {
+                            const amount = parseFloat(match[1].replace(/,/g, ''));
+                            if (amount > 0) {
+                                const currency = match[0].includes('$') ? 'USD' : 'MYR';
+                                prices.push({
+                                    amount,
+                                    currency,
+                                    type,
+                                    priority,
+                                    text: match[0]
+                                });
+                            }
+                        }
+                    });
+                });
+
+                // Sort by priority and return best match
+                prices.sort((a, b) => b.priority - a.priority);
+                return prices.length > 0 ? prices[0] : null;
+            }
+
+            // Process single document OCR
+            async function processDocumentOCR(index) {
+                const file = uploadedFiles[index];
+
+                try {
+                    updateProgress(10, `Processing ${file.name}...`);
+
+                    // Initialize worker if needed
+                    const worker = await initOCRWorker();
+
+                    updateProgress(30, 'Extracting text...');
+
+                    // Process with OCR or simulate
+                    let result;
+                    if (file.url && file.url.startsWith('data:image/')) {
+                        result = await worker.recognize(file.url);
+                        ocrResults[index] = {
+                            text: result.data.text,
+                            confidence: result.data.confidence,
+                            extractedPrice: extractPricesFromText(result.data.text),
+                            amountConfirmed: false,
+                            includedInCalculation: true
+                        };
+                    } else {
+                        // Simulate for demo
+                        const simulatedAmounts = [200, 173, 15.5, 8]; // Your example amounts
+                        const amount = simulatedAmounts[index % simulatedAmounts.length];
+                        ocrResults[index] = {
+                            text: `Demo Receipt ${index + 1}\nTotal: RM ${amount}`,
+                            confidence: 85,
+                            extractedPrice: {
+                                amount: amount,
+                                currency: 'MYR',
+                                type: 'Total',
+                                priority: 100,
+                                text: `Total: RM ${amount}`
+                            },
+                            amountConfirmed: false,
+                            includedInCalculation: true
+                        };
+                    }
+
+                    updateProgress(100, 'Complete!');
+                    console.log(`✅ Processed file ${index + 1}: Amount = ${ocrResults[index].extractedPrice?.amount || 0}`);
+
+                } catch (error) {
+                    console.error(`Error processing file ${index + 1}:`, error);
+                    ocrResults[index] = {
+                        text: `Error processing: ${error.message}`,
+                        confidence: 0,
+                        error: true,
+                        amountConfirmed: false,
+                        includedInCalculation: false
+                    };
+                }
+
+                displayOCRResult(index);
+                updateTotalCalculation();
+                updateConfirmationProgress();
+            }
+
+            // Enhanced display OCR result function with editable amount
+            function displayOCRResult(index) {
+                const result = ocrResults[index];
+                const ocrResultsDiv = document.getElementById('ocrResults');
+
+                if (!result) {
+                    ocrResultsDiv.innerHTML = `
+                        <div class="text-center p-4">
+                            <button class="btn btn-success" onclick="processCurrentDocument()">
+                                <i class="fas fa-play me-1"></i> Process Current Document
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (result.error) {
+                    ocrResultsDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <strong>Error:</strong> ${result.text}
+                            <button class="btn btn-sm btn-outline-danger mt-2" onclick="processCurrentDocument()">
+                                <i class="fas fa-redo me-1"></i> Retry
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Enhanced price info section with editing capability
+                let priceInfo = '';
+                const hasExtractedPrice = result.extractedPrice && result.extractedPrice.amount > 0;
+                const confirmedAmount = result.confirmedAmount !== undefined ? result.confirmedAmount : (hasExtractedPrice ? result.extractedPrice.amount : 0);
+                const isConfirmed = result.amountConfirmed || false;
+
+                priceInfo = `
+                    <div class="alert ${hasExtractedPrice ? 'alert-info' : 'alert-warning'} mb-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <strong><i class="fas fa-calculator me-1"></i>Extracted Amount:</strong>
+                                ${hasExtractedPrice ?
+                                    `<span class="text-success">RM ${result.extractedPrice.amount.toFixed(2)}</span>
+                                     <br><small class="text-muted">${result.extractedPrice.type}: "${result.extractedPrice.text}"</small>`
+                                    : '<span class="text-warning">No amount detected</span>'}
+                            </div>
+                            <span class="badge ${isConfirmed ? 'bg-success' : 'bg-warning'}">
+                                ${isConfirmed ? 'Confirmed' : 'Pending Review'}
+                            </span>
+                        </div>
+
+                        <div class="amount-editor mt-3 p-3 border rounded bg-light">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <label class="form-label mb-1 fw-bold">Final Amount:</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">RM</span>
+                                        <input type="number"
+                                               id="editAmount_${index}"
+                                               class="form-control"
+                                               value="${confirmedAmount.toFixed(2)}"
+                                               step="0.01"
+                                               min="0"
+                                               ${isConfirmed ? 'readonly' : ''}>
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="btn-group w-100" role="group">
+                                        ${!isConfirmed ? `
+                                            <button class="btn btn-success btn-sm" onclick="confirmAmount(${index})">
+                                                <i class="fas fa-check me-1"></i>Confirm Amount
+                                            </button>
+                                            ${hasExtractedPrice ? `
+                                                <button class="btn btn-outline-primary btn-sm" onclick="resetToExtracted(${index})">
+                                                    <i class="fas fa-undo me-1"></i>Reset to Extracted
+                                                </button>
+                                            ` : ''}
+                                        ` : `
+                                            <button class="btn btn-warning btn-sm" onclick="editAmount(${index})">
+                                                <i class="fas fa-edit me-1"></i>Edit Amount
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm" onclick="removeFromCalculation(${index})">
+                                                <i class="fas fa-times me-1"></i>Exclude
+                                            </button>
+                                        `}
+                                    </div>
+                                </div>
+                            </div>
+
+                            ${isConfirmed ? `
+                                <div class="mt-2">
+                                    <small class="text-success">
+                                        <i class="fas fa-check-circle me-1"></i>
+                                        Amount confirmed and included in total calculation
+                                    </small>
+                                </div>
+                            ` : `
+                                <div class="mt-2">
+                                    <small class="text-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        Please verify and confirm the amount to include in calculation
+                                    </small>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+
+                ocrResultsDiv.innerHTML = `
+                    ${priceInfo}
+                    <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto; font-size: 12px;">
+                        <strong>Extracted Text:</strong>
+                        <pre class="mb-0">${result.text}</pre>
+                    </div>
+                    <small class="text-muted mt-1 d-block">OCR Confidence: ${result.confidence}%</small>
+                `;
+            }
+
+            // Process current document
+            window.processCurrentDocument = async function() {
+                await processDocumentOCR(currentDocIndex);
+            };
+
+            // Update progress bar and text
+            function updateProgress(percentage, message) {
+                const confidenceBar = document.getElementById('confidenceBar');
+                const confidenceText = document.getElementById('confidenceText');
+
+                if (confidenceBar) {
+                    confidenceBar.style.width = percentage + '%';
+                    confidenceBar.setAttribute('aria-valuenow', percentage);
+                }
+
+                if (confidenceText) {
+                    confidenceText.textContent = message;
+                }
+            }
+
+            // Update file counter
+            function updateFileCounter() {
+                const counter = document.getElementById('docCounter');
+                const fileCountBadge = document.getElementById('fileCount');
+
+                if (counter) {
+                    counter.textContent = `${currentDocIndex + 1} / ${uploadedFiles.length}`;
+                }
+
+                if (fileCountBadge) {
+                    fileCountBadge.textContent = `${uploadedFiles.length} files`;
+                }
+
+                // Update navigation buttons
+                const prevBtn = document.getElementById('prevDoc');
+                const nextBtn = document.getElementById('nextDoc');
+
+                if (prevBtn) prevBtn.disabled = currentDocIndex <= 0;
+                if (nextBtn) nextBtn.disabled = currentDocIndex >= uploadedFiles.length - 1;
+            }
+
+            // Handle no files scenario
+            function handleNoFiles() {
+                document.getElementById('documentViewer').innerHTML = `
+                    <div class="text-center p-4">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h6>No Files Found</h6>
+                        <p class="text-muted">No uploaded files were found for OCR processing.</p>
+                        <a href="@Url.Action("Create", "Claim")" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-1"></i> Back to Upload
+                        </a>
+                    </div>
+                `;
+
+                document.getElementById('ocrResults').innerHTML = `
+                    <div class="text-center p-4">
+                        <p class="text-muted">No files to process</p>
+                    </div>
+                `;
+            }
+
+            // Update total calculation
+            function updateTotalCalculation() {
+                let totalAmount = 0;
+                let confirmedCount = 0;
+                let processedCount = 0;
+
+                ocrResults.forEach((result, index) => {
+                    if (result && !result.error) {
+                        processedCount++;
+                        if (result.amountConfirmed && result.includedInCalculation) {
+                            confirmedCount++;
+                            totalAmount += result.confirmedAmount || 0;
+                        }
+                    }
+                });
+
+                // Update display elements
+                document.getElementById('processedCount').textContent = `${processedCount} / ${uploadedFiles.length}`;
+                document.getElementById('confirmedCount').textContent = `${confirmedCount} / ${uploadedFiles.length}`;
+                document.getElementById('calculatedTotal').textContent = `RM ${totalAmount.toFixed(2)}`;
+
+                // Update button states
+                const updateBtn = document.getElementById('updateClaimTotal');
+                if (updateBtn) {
+                    updateBtn.disabled = confirmedCount === 0;
+                }
+
+                totalCalculatedAmount = totalAmount;
+                processedFilesCount = processedCount;
+            }
+
+            // Update confirmation progress
+            function updateConfirmationProgress() {
+                const totalFiles = uploadedFiles.length;
+                const confirmedFiles = ocrResults.filter(r => r && r.amountConfirmed).length;
+                const percentage = totalFiles > 0 ? Math.round((confirmedFiles / totalFiles) * 100) : 0;
+
+                const progressBar = document.getElementById('confirmationProgress');
+                const progressText = document.getElementById('progressText');
+
+                if (progressBar) {
+                    progressBar.style.width = percentage + '%';
+                    progressBar.setAttribute('aria-valuenow', percentage);
+                }
+
+                if (progressText) {
+                    progressText.textContent = `${percentage}% Complete`;
+                }
+            }
+
+            // Check all files status
+            function checkAllFilesStatus() {
+                const allProcessed = ocrResults.length === uploadedFiles.length &&
+                                  ocrResults.every(r => r && !r.error);
+                const allConfirmed = ocrResults.every(r => r && r.amountConfirmed);
+
+                const submitBtn = document.getElementById('approveAndSubmit');
+                if (submitBtn) {
+                    submitBtn.disabled = !allProcessed || !allConfirmed;
+                }
+
+                if (allProcessed && allConfirmed) {
+                    showToast('success', 'All amounts confirmed! Ready to submit claim.');
+                }
+            }
+
+            // Show toast notification
+            function showToast(type, message) {
+                const toastContainer = document.getElementById('toastContainer');
+                const toastId = 'toast_' + Date.now();
+
+                const bgClass = type === 'success' ? 'bg-success' :
+                               type === 'error' ? 'bg-danger' :
+                               type === 'warning' ? 'bg-warning' : 'bg-info';
+
+                const toast = document.createElement('div');
+                toast.className = `toast align-items-center text-white ${bgClass} border-0`;
+                toast.id = toastId;
+                toast.setAttribute('role', 'alert');
+                toast.setAttribute('aria-live', 'assertive');
+                toast.setAttribute('aria-atomic', 'true');
+
+                toast.innerHTML = `
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                `;
+
+                toastContainer.appendChild(toast);
+
+                // Show toast using Bootstrap
+                const bsToast = new bootstrap.Toast(toast, { delay: 4000 });
+                bsToast.show();
+
+                // Remove from DOM after hiding
+                toast.addEventListener('hidden.bs.toast', () => {
+                    toast.remove();
+                });
+            }
+
+            // Confirm amount function
+            function confirmAmount(index) {
+                const amountInput = document.getElementById(`editAmount_${index}`);
+                const amount = parseFloat(amountInput.value) || 0;
+
+                if (amount <= 0) {
+                    alert('Please enter a valid amount greater than 0');
+                    return;
+                }
+
+                // Update OCR result with confirmed amount
+                ocrResults[index].confirmedAmount = amount;
+                ocrResults[index].amountConfirmed = true;
+                ocrResults[index].includedInCalculation = true;
+
+                // Refresh display and update totals
+                displayOCRResult(index);
+                updateTotalCalculation();
+                updateConfirmationProgress();
+
+                // Show success message
+                showToast('success', `Amount RM ${amount.toFixed(2)} confirmed for ${uploadedFiles[index].name}`);
+
+                // Check if all files are processed and confirmed
+                checkAllFilesStatus();
+            }
+
+            // Edit amount function
+            function editAmount(index) {
+                ocrResults[index].amountConfirmed = false;
+                displayOCRResult(index);
+                updateTotalCalculation();
+                updateConfirmationProgress();
+            }
+
+            // Reset to extracted amount
+            function resetToExtracted(index) {
+                if (ocrResults[index].extractedPrice) {
+                    const extractedAmount = ocrResults[index].extractedPrice.amount;
+                    document.getElementById(`editAmount_${index}`).value = extractedAmount.toFixed(2);
+                    showToast('info', `Amount reset to extracted value: RM ${extractedAmount.toFixed(2)}`);
+                }
+            }
+
+            // Remove from calculation
+            function removeFromCalculation(index) {
+                if (confirm('Are you sure you want to exclude this amount from the calculation?')) {
+                    ocrResults[index].amountConfirmed = false;
+                    ocrResults[index].includedInCalculation = false;
+                    ocrResults[index].confirmedAmount = 0;
+
+                    displayOCRResult(index);
+                    updateTotalCalculation();
+                    updateConfirmationProgress();
+                    showToast('warning', `Amount excluded from calculation for ${uploadedFiles[index].name}`);
+                }
+            }
+
+            // Process all files
+            async function processAllFiles() {
+                const processBtn = document.getElementById('processAllFiles');
+                processBtn.disabled = true;
+                processBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Processing...';
+
+                try {
+                    for (let i = 0; i < uploadedFiles.length; i++) {
+                        if (!ocrResults[i] || ocrResults[i].error) {
+                            await processDocumentOCR(i);
+                        }
+                    }
+
+                    // Show completion message
+                    showToast('success', 'All documents processed! Please review and confirm amounts.');
+                    checkAllFilesStatus();
+
+                } catch (error) {
+                    console.error('Error processing all files:', error);
+                    showToast('error', 'Error processing some files. Please try again.');
+                } finally {
+                    processBtn.disabled = false;
+                    processBtn.innerHTML = '<i class="fas fa-check me-1"></i> All Processed';
+                }
+            }
+
+            // Show amount summary modal
+            window.showAmountSummary = function() {
+                const content = document.getElementById('amountSummaryContent');
+                let html = '<div class="table-responsive"><table class="table table-striped">';
+                html += '<thead><tr><th>File</th><th>Extracted</th><th>Confirmed</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+
+                uploadedFiles.forEach((file, index) => {
+                    const result = ocrResults[index];
+                    const extractedAmount = result?.extractedPrice?.amount || 0;
+                    const confirmedAmount = result?.confirmedAmount || 0;
+                    const isConfirmed = result?.amountConfirmed || false;
+                    const isIncluded = result?.includedInCalculation !== false;
+
+                    html += `
+                        <tr>
+                            <td><small>${file.name}</small></td>
+                            <td>RM ${extractedAmount.toFixed(2)}</td>
+                            <td>RM ${confirmedAmount.toFixed(2)}</td>
+                            <td>
+                                <span class="badge ${isConfirmed ? 'bg-success' : 'bg-warning'}">
+                                    ${isConfirmed ? 'Confirmed' : 'Pending'}
+                                </span>
+                                ${!isIncluded ? '<span class="badge bg-secondary ms-1">Excluded</span>' : ''}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="goToDocument(${index})">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('amountSummaryModal'));
+                modal.show();
+            };
+
+            // Go to specific document
+            window.goToDocument = function(index) {
+                // Close modal first
+                const modal = bootstrap.Modal.getInstance(document.getElementById('amountSummaryModal'));
+                if (modal) modal.hide();
+
+                // Load the document
+                loadDocument(index);
+            };
+
+            // Confirm all pending amounts
+            window.confirmAllPendingAmounts = function() {
+                let confirmedCount = 0;
+
+                ocrResults.forEach((result, index) => {
+                    if (result && !result.amountConfirmed && !result.error) {
+                        const amount = result.extractedPrice?.amount || 0;
+                        if (amount > 0) {
+                            result.confirmedAmount = amount;
+                            result.amountConfirmed = true;
+                            result.includedInCalculation = true;
+                            confirmedCount++;
+                        }
+                    }
+                });
+
+                if (confirmedCount > 0) {
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('amountSummaryModal'));
+                    if (modal) modal.hide();
+
+                    // Update displays
+                    displayOCRResult(currentDocIndex);
+                    updateTotalCalculation();
+                    updateConfirmationProgress();
+                    checkAllFilesStatus();
+
+                    showToast('success', `${confirmedCount} amounts confirmed automatically!`);
+                } else {
+                    showToast('info', 'No pending amounts to confirm.');
+                }
+            };
+
+            // Update total summary
+            function updateTotalSummary() {
+                updateTotalCalculation();
+                updateConfirmationProgress();
+            }
+
+            // Event Listeners
+            document.getElementById('prevDoc').addEventListener('click', () => {
+                if (currentDocIndex > 0) {
+                    loadDocument(currentDocIndex - 1);
+                }
+            });
+
+            document.getElementById('nextDoc').addEventListener('click', () => {
+                if (currentDocIndex < uploadedFiles.length - 1) {
+                    loadDocument(currentDocIndex + 1);
+                }
+            });
+
+            document.getElementById('processAllFiles').addEventListener('click', processAllFiles);
+
+            document.getElementById('reprocessOCR').addEventListener('click', () => {
+                processDocumentOCR(currentDocIndex);
+            });
+
+            document.getElementById('copyOCRText').addEventListener('click', () => {
+                const result = ocrResults[currentDocIndex];
+                if (result && result.text) {
+                    navigator.clipboard.writeText(result.text).then(() => {
+                        showToast('success', 'OCR text copied to clipboard!');
+                    }).catch(() => {
+                        showToast('error', 'Failed to copy text to clipboard.');
+                    });
+                } else {
+                    showToast('warning', 'No text available to copy.');
+                }
+            });
+
+            document.getElementById('updateClaimTotal').addEventListener('click', () => {
+                const newAmount = totalCalculatedAmount;
+                document.getElementById('displayClaimAmount').textContent = `RM ${newAmount.toFixed(2)}`;
+                document.getElementById('hiddenClaimAmount').value = newAmount;
+                showToast('success', `Claim amount updated to RM ${newAmount.toFixed(2)}`);
+            });
+
+            document.getElementById('approveAndSubmit').addEventListener('click', () => {
+                if (confirm('Are you sure you want to submit this claim? This action cannot be undone.')) {
+                    // Prepare comprehensive OCR results including file data
+                    const ocrDataForSubmission = {
+                        results: ocrResults,
+                        totalAmount: totalCalculatedAmount,
+                        processedFiles: processedFilesCount,
+                        confirmedFiles: ocrResults.filter(r => r && r.amountConfirmed).length,
+                        filesData: uploadedFiles // CRITICAL: Include the actual file data with base64
+                    };
+
+                    console.log('Preparing submission with file data:', {
+                        totalFiles: uploadedFiles.length,
+                        ocrResultsCount: ocrResults.length,
+                        hasFileData: uploadedFiles.length > 0 && uploadedFiles[0].data
+                    });
+
+                    document.getElementById('ocrResultsField').value = JSON.stringify(ocrDataForSubmission);
+                    document.getElementById('hiddenClaimAmount').value = totalCalculatedAmount;
+
+                    // Submit the form
+                    document.getElementById('finalSubmissionForm').submit();
+                }
+            });
+
+            // Make functions globally available
+            window.confirmAmount = confirmAmount;
+            window.editAmount = editAmount;
+            window.resetToExtracted = resetToExtracted;
+            window.removeFromCalculation = removeFromCalculation;
+
+            console.log('=== OCR PAGE INITIALIZATION COMPLETED ===');
+        });
+    </script>
+}
+

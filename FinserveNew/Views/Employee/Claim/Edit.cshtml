@@ -2,66 +2,613 @@
 @{
     ViewData["Title"] = "Edit Claim";
 }
-<h2>Edit Claim</h2>
 
-<form asp-action="Edit" method="post" enctype="multipart/form-data">
-    @* Hidden ID field *@
-    <input type="hidden" asp-for="Id" />
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-edit"></i> Edit Claim</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Alert Messages -->
+                    <div id="alert-container">
+                        @if (TempData["Success"] != null)
+                        {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle"></i> @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        }
+                        @if (TempData["Error"] != null)
+                        {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        }
+                    </div>
 
-    @* Hidden EmployeeId field *@
-    <input type="hidden" asp-for="EmployeeID" />
+                    <form asp-action="Edit" method="post" enctype="multipart/form-data" id="editClaimForm">
+                        <!-- Hidden fields -->
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="EmployeeID" />
+                        <input type="hidden" asp-for="Status" />
+                        <input type="hidden" asp-for="CreatedDate" />
+                        <input type="hidden" asp-for="SubmissionDate" />
 
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-    <div class="mb-3">
-        <label asp-for="ClaimType" class="form-label"></label>
-        <select asp-for="ClaimType" class="form-select">
-            <option value="">Select claim type...</option>
-            <option value="Travel">Travel</option>
-            <option value="Medical">Medical</option>
-            <option value="Equipment">Equipment</option>
-            <option value="Training">Training</option>
-            <option value="Entertainment">Entertainment</option>
-            <option value="Other">Other</option>
-        </select>
-        <span asp-validation-for="ClaimType" class="text-danger"></span>
-    </div>
+                        <!-- Claim Type -->
+                        <div class="mb-3">
+                            <label asp-for="ClaimType" class="form-label">Claim Type *</label>
+                            <select asp-for="ClaimType" class="form-select" id="claimType" required>
+                                <option value="">Select claim type...</option>
+                                @if (ViewBag.ClaimTypes != null)
+                                {
+                                    foreach (var type in ViewBag.ClaimTypes)
+                                    {
+                                <option value="@type">@type</option>
+                                    }
+                                }
+                                else
+                                {
+                                <option value="Travel">Travel</option>
+                                <option value="Medical">Medical</option>
+                                <option value="Equipment">Equipment</option>
+                                <option value="Training">Training</option>
+                                <option value="Entertainment">Entertainment</option>
+                                <option value="Other">Other</option>
+                                }
+                            </select>
+                            <span asp-validation-for="ClaimType" class="text-danger"></span>
+                        </div>
 
-    <div class="mb-3">
-        <label asp-for="ClaimAmount" class="form-label"></label>
-        <div class="input-group">
-            <span class="input-group-text">RM</span>
-            <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" />
-        </div>
-        <span asp-validation-for="ClaimAmount" class="text-danger"></span>
-    </div>
+                        <!-- Claim Amount -->
+                        <div class="mb-3">
+                            <label asp-for="ClaimAmount" class="form-label">Claim Amount (RM) *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">RM</span>
+                                <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" id="claimAmount" required />
+                            </div>
+                            <span asp-validation-for="ClaimAmount" class="text-danger"></span>
+                        </div>
 
-    <div class="mb-3">
-        <label asp-for="Description" class="form-label"></label>
-        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
-        <span asp-validation-for="Description" class="text-danger"></span>
-    </div>
+                        <!-- Claim Date -->
+                        <div class="mb-3">
+                            <label asp-for="ClaimDate" class="form-label">Claim Date *</label>
+                            <input asp-for="ClaimDate" class="form-control" type="date" id="claimDate" required />
+                            <span asp-validation-for="ClaimDate" class="text-danger"></span>
+                        </div>
 
-    @* File upload (optional replace) *@
-    <div class="mb-3">
-        <label class="form-label">Replace Supporting Document (optional)</label>
-        <input type="file" name="supportingDocument" class="form-control" />
-        @if (!string.IsNullOrEmpty(Model.SupportingDocumentPath))
-        {
-            <div class="mt-2">
-                <a href="@Model.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
-                    View Current Document
-                </a>
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label asp-for="Description" class="form-label">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="3" id="description" placeholder="Enter claim description..."></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <!-- Current Documents -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-file-alt"></i> Current Documents</h5>
+                            <div id="currentDocuments">
+                                @if (ViewBag.Documents != null && ((List<FinserveNew.Models.ClaimDetails>)ViewBag.Documents).Count > 0)
+                                {
+                                foreach (var doc in (List<FinserveNew.Models.ClaimDetails>)ViewBag.Documents)
+                                    {
+                                <div class="document-item" data-doc-id="@doc.Id">
+                                    <div class="document-info">
+                                        <h6 class="mb-1">@doc.OriginalFileName</h6>
+                                        <small class="text-muted">
+                                            Uploaded: @doc.UploadDate.ToString("dd/MM/yyyy HH:mm") |
+                                            Size: @((doc.FileSize.HasValue) ? FormatFileSize(doc.FileSize.Value) : "Unknown")
+                                        </small>
+                                    </div>
+                                    <div class="document-actions">
+                                        <a href="@doc.DocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCurrentDocument(@doc.Id)">
+                                            <i class="fas fa-trash"></i> Remove
+                                        </button>
+                                    </div>
+                                </div>
+                                    }
+                                }
+                                else if (!string.IsNullOrEmpty(Model.SupportingDocumentPath))
+                                {
+                                <div class="document-item" data-legacy="true">
+                                    <div class="document-info">
+                                        <h6 class="mb-1">@(Model.SupportingDocumentName ?? "Legacy Document")</h6>
+                                        <small class="text-muted">Legacy document</small>
+                                    </div>
+                                    <div class="document-actions">
+                                        <a href="@Model.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                                }
+                                else
+                                {
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> No documents currently attached to this claim.
+                                </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- New Documents Upload -->
+                        <div class="mb-4">
+                            <h5><i class="fas fa-cloud-upload-alt"></i> Upload New Documents (Optional)</h5>
+                            <p class="text-muted small">Upload new documents if you want to replace or add to existing ones. OCR will process them to extract claim information.</p>
+
+                            <!-- File Input -->
+                            <div class="drag-drop-area" id="dragDropArea">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                                <p class="mb-2"><strong>Drag & drop files here</strong></p>
+                                <p class="text-muted">or click to browse (PDF, JPG, PNG - Max 5MB each)</p>
+                                <input type="file" name="UploadedFiles" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" class="form-control" style="display: none;" />
+                            </div>
+
+                            <!-- File Previews -->
+                            <div id="filePreviews"></div>
+                        </div>
+
+                        <!-- OCR Results -->
+                        <div id="ocrResults" class="ocr-results" style="display: none;">
+                            <h5><i class="fas fa-robot"></i> OCR Processing Results</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Detected Claim Type:</strong>
+                                    <p id="ocrClaimType" class="text-primary">-</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Detected Amount:</strong>
+                                    <p id="ocrAmount" class="text-success">-</p>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Extracted Text:</strong>
+                                <div id="ocrText" class="border p-2 bg-light" style="max-height: 150px; overflow-y: auto;">-</div>
+                            </div>
+                            <div class="text-center">
+                                <button type="button" class="btn btn-success" onclick="acceptOCRResults()">
+                                    <i class="fas fa-check"></i> Accept OCR Results
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="rejectOCRResults()">
+                                    <i class="fas fa-times"></i> Keep Current Values
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <div>
+                                <a asp-action="EditWithOCR" asp-route-id="@Model.Id" class="btn btn-ocr" id="editWithOCRBtn">
+                                    <i class="fas fa-robot"></i> Edit with OCR
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-primary" id="saveChangesBtn">
+                                    <i class="fas fa-save"></i> Save Changes
+                                </button>
+                                <a asp-action="Index" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
             </div>
-        }
+        </div>
     </div>
+</div>
 
-    <button type="submit" class="btn btn-primary">Save Changes</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-</form>
+@functions {
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes == 0) return "0 Bytes";
+        string[] sizes = { "Bytes", "KB", "MB", "GB" };
+        int order = 0;
+        double size = bytes;
+        while (size >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            size /= 1024;
+        }
+        return $"{size:0.##} {sizes[order]}";
+    }
+}
+
+@section Styles {
+    <style>
+        .drag-drop-area {
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+            .drag-drop-area.dragover {
+                border-color: #0056b3;
+                background: #e3f2fd;
+            }
+
+        .file-preview {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+        }
+
+        .ocr-results {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .loading-spinner {
+            display: none;
+        }
+
+        .document-item {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .document-info {
+            flex-grow: 1;
+        }
+
+        .document-actions {
+            flex-shrink: 0;
+        }
+
+        .btn-ocr {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border: none;
+            color: white;
+        }
+
+            .btn-ocr:hover {
+                background: linear-gradient(45deg, #0056b3, #004085);
+                color: white;
+            }
+
+        .file-preview-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            margin: 5px 0;
+            background: #f8f9fa;
+        }
+
+            .file-preview-item .file-info {
+                flex-grow: 1;
+                margin-left: 10px;
+            }
+
+            .file-preview-item .file-actions {
+                flex-shrink: 0;
+            }
+    </style>
+}
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+    <script>
+        let uploadedFiles = [];
+        let ocrProcessed = false;
+        let ocrData = {};
+
+        // Drag and drop functionality
+        const dragDropArea = document.getElementById('dragDropArea');
+        const fileInput = document.getElementById('fileInput');
+        const filePreviews = document.getElementById('filePreviews');
+        const processOCRBtn = document.getElementById('processOCRBtn');
+
+        // Drag and drop events
+        dragDropArea.addEventListener('click', () => fileInput.click());
+        dragDropArea.addEventListener('dragover', handleDragOver);
+        dragDropArea.addEventListener('dragleave', handleDragLeave);
+        dragDropArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            dragDropArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            dragDropArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dragDropArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            uploadedFiles = [];
+            Array.from(files).forEach(file => {
+                if (validateFile(file)) {
+                    uploadedFiles.push(file);
+                }
+            });
+
+            displayFilePreviews();
+
+            if (uploadedFiles.length > 0) {
+                processOCRBtn.style.display = 'inline-block';
+            }
+        }
+
+        function validateFile(file) {
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+
+            if (file.size > maxSize) {
+                showAlert('error', `File ${file.name} exceeds 5MB limit`);
+                return false;
+            }
+
+            if (!allowedTypes.includes(file.type)) {
+                showAlert('error', `File ${file.name} has unsupported format`);
+                return false;
+            }
+
+            return true;
+        }
+
+        function displayFilePreviews() {
+            filePreviews.innerHTML = '';
+
+            uploadedFiles.forEach((file, index) => {
+                const preview = document.createElement('div');
+                preview.className = 'file-preview-item';
+                preview.innerHTML = `
+                    <i class="fas fa-file-alt fa-2x text-primary"></i>
+                    <div class="file-info">
+                        <h6 class="mb-1">${file.name}</h6>
+                        <small class="text-muted">Size: ${formatFileSize(file.size)} | Type: ${file.type}</small>
+                    </div>
+                    <div class="file-actions">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                filePreviews.appendChild(preview);
+            });
+        }
+
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            displayFilePreviews();
+
+            if (uploadedFiles.length === 0) {
+                processOCRBtn.style.display = 'none';
+                document.getElementById('ocrResults').style.display = 'none';
+                ocrProcessed = false;
+            }
+        }
+
+        function removeCurrentDocument(docId) {
+            if (confirm('Are you sure you want to remove this document?')) {
+                const docItem = document.querySelector(`[data-doc-id="${docId}"]`);
+                if (docItem) {
+                    docItem.style.display = 'none';
+                    // Add hidden input to track removed documents
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'RemovedDocumentIds';
+                    hiddenInput.value = docId;
+                    document.getElementById('editClaimForm').appendChild(hiddenInput);
+                }
+            }
+        }
+
+        async function processOCR() {
+            if (uploadedFiles.length === 0) {
+                showAlert('warning', 'Please select files first');
+                return;
+            }
+
+            showLoading(true);
+            processOCRBtn.disabled = true;
+
+            try {
+                let allText = '';
+                let totalAmount = 0;
+                let detectedType = '';
+
+                for (const file of uploadedFiles) {
+                    if (file.type.startsWith('image/')) {
+                        const text = await processImageWithOCR(file);
+                        allText += text + '\n\n';
+
+                        // Extract amount and type from text
+                        const extractedData = extractClaimData(text);
+                        if (extractedData.amount > totalAmount) {
+                            totalAmount = extractedData.amount;
+                        }
+                        if (extractedData.type && !detectedType) {
+                            detectedType = extractedData.type;
+                        }
+                    }
+                }
+
+                // Store OCR results
+                ocrData = {
+                    text: allText.trim(),
+                    amount: totalAmount,
+                    type: detectedType || 'Not specified'
+                };
+
+                // Display results
+                displayOCRResults(ocrData);
+                ocrProcessed = true;
+
+            } catch (error) {
+                console.error('OCR processing failed:', error);
+                showAlert('error', 'OCR processing failed. Please try again.');
+            } finally {
+                showLoading(false);
+                processOCRBtn.disabled = false;
+            }
+        }
+
+        async function processImageWithOCR(file) {
+            try {
+                const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+                    logger: m => console.log(m)
+                });
+                return text;
+            } catch (error) {
+                console.error('Tesseract OCR failed:', error);
+                throw error;
+            }
+        }
+
+        function extractClaimData(text) {
+            const result = { amount: 0, type: '' };
+
+            // Extract amount (look for currency patterns)
+            const amountRegex = /(?:RM|MYR|\$)\s*(\d+(?:\.\d{2})?)|(\d+\.\d{2})/gi;
+            const amountMatches = text.match(amountRegex);
+            if (amountMatches) {
+                const amounts = amountMatches.map(match => {
+                    const num = match.replace(/[^\d.]/g, '');
+                    return parseFloat(num);
+                }).filter(num => !isNaN(num));
+
+                if (amounts.length > 0) {
+                    result.amount = Math.max(...amounts);
+                }
+            }
+
+            // Extract claim type based on keywords
+            const typeKeywords = {
+                'Travel': ['taxi', 'grab', 'flight', 'hotel', 'petrol', 'fuel', 'parking', 'toll'],
+                'Medical': ['clinic', 'hospital', 'pharmacy', 'doctor', 'medical', 'medicine'],
+                'Equipment': ['laptop', 'computer', 'equipment', 'hardware', 'software'],
+                'Training': ['course', 'training', 'seminar', 'workshop', 'certification'],
+                'Entertainment': ['restaurant', 'meal', 'lunch', 'dinner', 'entertainment']
+            };
+
+            const lowerText = text.toLowerCase();
+            for (const [type, keywords] of Object.entries(typeKeywords)) {
+                if (keywords.some(keyword => lowerText.includes(keyword))) {
+                    result.type = type;
+                    break;
+                }
+            }
+
+            return result;
+        }
+
+        function displayOCRResults(data) {
+            document.getElementById('ocrClaimType').textContent = data.type;
+            document.getElementById('ocrAmount').textContent = data.amount > 0 ? `RM ${data.amount.toFixed(2)}` : 'Not detected';
+            document.getElementById('ocrText').textContent = data.text;
+            document.getElementById('ocrResults').style.display = 'block';
+        }
+
+        function acceptOCRResults() {
+            if (ocrData.type && ocrData.type !== 'Not specified') {
+                document.getElementById('claimType').value = ocrData.type;
+            }
+            if (ocrData.amount > 0) {
+                document.getElementById('claimAmount').value = ocrData.amount.toFixed(2);
+            }
+
+            showAlert('success', 'OCR results applied to form');
+            document.getElementById('ocrResults').style.display = 'none';
+        }
+
+        function rejectOCRResults() {
+            document.getElementById('ocrResults').style.display = 'none';
+            showAlert('info', 'OCR results discarded. Current values preserved.');
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        }
+
+        function showAlert(type, message) {
+            const alertContainer = document.getElementById('alert-container');
+            const alertClass = type === 'error' ? 'danger' : type;
+            const iconClass = {
+                'success': 'check-circle',
+                'error': 'exclamation-circle',
+                'danger': 'exclamation-circle',
+                'warning': 'exclamation-triangle',
+                'info': 'info-circle'
+            }[type] || 'info-circle';
+
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${alertClass} alert-dismissible fade show`;
+            alert.innerHTML = `
+                <i class="fas fa-${iconClass}"></i> ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+
+            alertContainer.appendChild(alert);
+
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Form submission handling
+        document.getElementById('editClaimForm').addEventListener('submit', function(e) {
+            if (uploadedFiles.length > 0 && !ocrProcessed) {
+                e.preventDefault();
+                if (confirm('You have uploaded new documents but haven\'t processed them with OCR. Do you want to continue without OCR processing?')) {
+                    // Continue with submission
+                    this.submit();
+                } else {
+                    showAlert('info', 'Please process the uploaded documents with OCR first, or remove them to continue.');
+                }
+                return false;
+            }
+        });
+    </script>
 }

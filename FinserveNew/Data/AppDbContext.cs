@@ -32,9 +32,13 @@ namespace FinserveNew.Data
 
         public DbSet<LeaveDetailsModel> LeaveDetails { get; set; }
 
+        public DbSet<UnpaidLeaveRequestModel> UnpaidLeaveRequests { get; set; }
+
         // Add the missing Invoice DbSet
         public DbSet<Invoice> Invoices { get; set; }
-
+        public DbSet<InvoiceItem> InvoiceItems { get; set; }
+        
+        public DbSet<ProcessOCRSubmissionModel> ProcessOCRSubmissions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -99,10 +103,16 @@ namespace FinserveNew.Data
                 entity.Property(c => c.SupportingDocumentName).HasMaxLength(255);
                 entity.Property(c => c.EmployeeID).IsRequired().HasMaxLength(255);
                 entity.Property(c => c.TotalAmount).HasPrecision(18, 2);
-
-                // Add configuration for new approval fields
                 entity.Property(c => c.ApprovedBy).HasMaxLength(255);
                 entity.Property(c => c.ApprovalRemarks).HasMaxLength(1000);
+
+                // NEW: Configure currency-related fields
+                entity.Property(c => c.Currency).HasMaxLength(3).HasDefaultValue("MYR");
+                entity.Property(c => c.OriginalAmount).HasPrecision(18, 2);
+                entity.Property(c => c.OriginalCurrency).HasMaxLength(3);
+                entity.Property(c => c.ExchangeRate).HasPrecision(10, 6);
+                entity.Property(c => c.ClaimDate).IsRequired();
+                entity.Property(c => c.Description).HasMaxLength(1000);
             });
 
             // Configure the Invoice table
@@ -117,16 +127,39 @@ namespace FinserveNew.Data
                 entity.Property(i => i.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
                 entity.Property(i => i.Remark).HasMaxLength(500);
                 entity.Property(i => i.FilePath).HasMaxLength(255);
-                entity.Property(i => i.EmployeeID).IsRequired();
-
-                entity.HasOne(i => i.Employee)
-                    .WithMany()
-                    .HasForeignKey(i => i.EmployeeID)
-                    .OnDelete(DeleteBehavior.Restrict);
             });
 
-            modelBuilder.Entity<ClaimDetails>()
-                .HasKey(cd => new { cd.ClaimID, cd.ClaimTypeID });
+            modelBuilder.Entity<ClaimDetails>(entity =>
+            {
+                entity.HasKey(cd => cd.Id); // Use single primary key instead of composite
+
+                entity.Property(cd => cd.Comment).IsRequired().HasMaxLength(500);
+                entity.Property(cd => cd.DocumentPath).IsRequired().HasMaxLength(500);
+                entity.Property(cd => cd.OriginalFileName).HasMaxLength(255);
+                entity.Property(cd => cd.UploadDate).IsRequired();
+
+                // Configure relationships
+                entity.HasOne(cd => cd.Claim)
+                      .WithMany(c => c.ClaimDetails)
+                      .HasForeignKey(cd => cd.ClaimID)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(cd => cd.ClaimType)
+                      .WithMany(ct => ct.ClaimDetails)
+                      .HasForeignKey(cd => cd.ClaimTypeID)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ClaimType>(entity =>
+            {
+                entity.HasKey(ct => ct.Id);
+                entity.Property(ct => ct.Name).IsRequired().HasMaxLength(50);
+                entity.Property(ct => ct.Description).HasMaxLength(500);
+                entity.Property(ct => ct.MaxAmount).HasPrecision(18, 2);
+                entity.Property(ct => ct.RequiresApproval).HasDefaultValue(true);
+                entity.Property(ct => ct.IsActive).HasDefaultValue(true);
+                entity.Property(ct => ct.CreatedDate).IsRequired();
+            });
 
             // Configure remaining tables
             modelBuilder.Entity<BankInformation>(entity =>
@@ -190,6 +223,38 @@ namespace FinserveNew.Data
                     .WithMany(lt => lt.Leaves)
                     .HasForeignKey(l => l.LeaveTypeID)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<UnpaidLeaveRequestModel>(entity =>
+            {
+                entity.HasKey(u => u.UnpaidLeaveRequestID);
+
+                // Configure properties
+                entity.Property(u => u.EmployeeID).IsRequired().HasMaxLength(255);
+                entity.Property(u => u.StartDate).IsRequired();
+                entity.Property(u => u.EndDate).IsRequired();
+                entity.Property(u => u.RequestedDays).IsRequired().HasPrecision(4, 1); // Support decimal values
+                entity.Property(u => u.ExcessDays).IsRequired().HasPrecision(4, 1); // Support decimal values
+                entity.Property(u => u.Reason).IsRequired().HasMaxLength(500);
+                entity.Property(u => u.JustificationReason).IsRequired().HasMaxLength(1000);
+                entity.Property(u => u.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
+                entity.Property(u => u.SubmissionDate).IsRequired();
+                entity.Property(u => u.ApprovedBy).HasMaxLength(450); // Standard length for Identity UserId
+                entity.Property(u => u.ApprovalRemarks).HasMaxLength(1000);
+                entity.Property(u => u.CreatedDate).IsRequired();
+
+                // Configure relationships
+                entity.HasOne(u => u.Employee)
+                    .WithMany()
+                    .HasForeignKey(u => u.EmployeeID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(u => u.LeaveType)
+                    .WithMany()
+                    .HasForeignKey(u => u.LeaveTypeID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+               
             });
         }
     }

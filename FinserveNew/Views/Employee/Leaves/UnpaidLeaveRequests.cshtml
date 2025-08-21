@@ -1,0 +1,411 @@
+﻿@model List<FinserveNew.Models.UnpaidLeaveRequestModel>
+
+@{
+    ViewData["Title"] = "My Unpaid Leave Requests";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Page Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-clock text-warning me-2"></i>
+                        My Unpaid Leave Requests
+                    </h2>
+                    <p class="text-muted mb-0">Track your unpaid leave requests that exceed your available balance</p>
+                </div>
+                <div>
+                    <a asp-action="LeaveRecords" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to Leave Records
+                    </a>
+                </div>
+            </div>
+
+            <!-- Alert Messages -->
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    @TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <!-- Info Card -->
+            <div class="card border-info mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-1 text-center">
+                            <i class="fas fa-info-circle text-info fa-2x"></i>
+                        </div>
+                        <div class="col-md-11">
+                            <h6 class="card-title text-info mb-2">About Unpaid Leave Requests</h6>
+                            <p class="card-text small mb-0">
+                                When your leave request exceeds your available balance, it will be submitted as an unpaid leave request requiring HR approval. 
+                                <strong>Excess days beyond your balance will be unpaid.</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unpaid Leave Requests Table -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-list me-2"></i>
+                                Unpaid Leave Requests
+                            </h5>
+                        </div>
+                        <div class="col-auto">
+                            <span class="badge bg-secondary">@Model.Count Request(s)</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Count == 0)
+                    {
+                        <!-- Empty State -->
+                        <div class="text-center py-5">
+                            <i class="fas fa-clipboard-list text-muted" style="font-size: 4rem;"></i>
+                            <h4 class="text-muted mt-3">No Unpaid Leave Requests</h4>
+                            <p class="text-muted">You haven't submitted any unpaid leave requests yet.</p>
+                            <a asp-action="Create" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i>
+                                Apply for Leave
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Responsive Table -->
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">
+                                            <i class="fas fa-hashtag me-1"></i>
+                                            Request ID
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-tag me-1"></i>
+                                            Leave Type
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-calendar-alt me-1"></i>
+                                            Leave Period
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-clock me-1"></i>
+                                            Days
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            Excess Days
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-flag me-1"></i>
+                                            Status
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-calendar-plus me-1"></i>
+                                            Submitted
+                                        </th>
+                                        <th scope="col">
+                                            <i class="fas fa-comment me-1"></i>
+                                            Reason
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var request in Model)
+                                    {
+                                        <tr>
+                                            <!-- Request ID -->
+                                            <td>
+                                                <span class="badge bg-secondary">#@request.UnpaidLeaveRequestID</span>
+                                            </td>
+
+                                            <!-- Leave Type -->
+                                            <td>
+                                                <span class="fw-medium">@request.LeaveType?.TypeName</span>
+                                            </td>
+
+                                            <!-- Leave Period -->
+                                            <td>
+                                                <div>
+                                                    <small class="text-muted d-block">From:</small>
+                                                    <span class="fw-medium">@request.StartDate.ToString("dd MMM yyyy")</span>
+                                                </div>
+                                                <div>
+                                                    <small class="text-muted d-block">To:</small>
+                                                    <span class="fw-medium">@request.EndDate.ToString("dd MMM yyyy")</span>
+                                                </div>
+                                            </td>
+
+                                            <!-- Total Days -->
+                                            <td>
+                                                <span class="badge bg-info">@request.RequestedDays.ToString("0.#") days</span>
+                                            </td>
+
+                                            <!-- Excess Days -->
+                                            <td>
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                                    @request.ExcessDays.ToString("0.#") unpaid
+                                                </span>
+                                            </td>
+
+                                            <!-- Status -->
+                                            <td>
+                                                @switch (request.Status.ToLower())
+                                                {
+                                                    case "pending":
+                                                        <span class="badge bg-warning">
+                                                            <i class="fas fa-clock me-1"></i>
+                                                            Pending HR Review
+                                                        </span>
+                                                        break;
+                                                    case "approved":
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-check me-1"></i>
+                                                            Approved
+                                                        </span>
+                                                        break;
+                                                    case "rejected":
+                                                        <span class="badge bg-danger">
+                                                            <i class="fas fa-times me-1"></i>
+                                                            Rejected
+                                                        </span>
+                                                        break;
+                                                    default:
+                                                        <span class="badge bg-secondary">@request.Status</span>
+                                                        break;
+                                                }
+                                            </td>
+
+                                            <!-- Submission Date -->
+                                            <td>
+                                                <div>
+                                                    <span class="fw-medium">@request.SubmissionDate.ToString("dd MMM yyyy")</span>
+                                                    <small class="text-muted d-block">@request.SubmissionDate.ToString("HH:mm")</small>
+                                                </div>
+                                            </td>
+
+                                            <!-- Reason (Truncated) -->
+                                            <td style="max-width: 200px;">
+                                                @if (!string.IsNullOrEmpty(request.Reason))
+                                                {
+                                                    <span class="text-truncate d-block" title="@request.Reason">
+                                                        @(request.Reason.Length > 50 ? request.Reason.Substring(0, 50) + "..." : request.Reason)
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">No reason provided</small>
+                                                }
+                                            </td>
+                                        </tr>
+
+                                        <!-- Expandable Row for Full Details -->
+                                        <tr class="collapse" id="details-@request.UnpaidLeaveRequestID">
+                                            <td colspan="8" class="bg-light">
+                                                <div class="p-3">
+                                                    <div class="row">
+                                                        <!-- Full Reason -->
+                                                        <div class="col-md-6">
+                                                            <h6 class="text-primary">
+                                                                <i class="fas fa-comment-alt me-1"></i>
+                                                                Leave Reason
+                                                            </h6>
+                                                            <p class="mb-3">@(string.IsNullOrEmpty(request.Reason) ? "No reason provided" : request.Reason)</p>
+
+                                                            @if (!string.IsNullOrEmpty(request.JustificationReason))
+                                                            {
+                                                                <h6 class="text-warning">
+                                                                    <i class="fas fa-exclamation-circle me-1"></i>
+                                                                    Justification for Excess Days
+                                                                </h6>
+                                                                <p class="mb-3">@request.JustificationReason</p>
+                                                            }
+                                                        </div>
+
+                                                        <!-- Status Details -->
+                                                        <div class="col-md-6">
+                                                            <h6 class="text-primary">
+                                                                <i class="fas fa-info-circle me-1"></i>
+                                                                Request Details
+                                                            </h6>
+                                                            <ul class="list-unstyled">
+                                                                <li><strong>Total Days Requested:</strong> @request.RequestedDays.ToString("0.#")</li>
+                                                                <li><strong>Excess (Unpaid) Days:</strong> <span class="text-warning">@request.ExcessDays.ToString("0.#")</span></li>
+                                                                <li><strong>Status:</strong> @request.Status</li>
+                                                                @if (request.ApprovalDate.HasValue)
+                                                                {
+                                                                    <li><strong>Processed Date:</strong> @request.ApprovalDate.Value.ToString("dd MMM yyyy HH:mm")</li>
+                                                                }
+                                                                @if (!string.IsNullOrEmpty(request.ApprovalRemarks))
+                                                                {
+                                                                    <li><strong>HR Remarks:</strong> @request.ApprovalRemarks</li>
+                                                                }
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                @if (Model.Count > 0)
+                {
+                    <!-- Table Footer with Toggle All Details -->
+                    <div class="card-footer bg-light text-center">
+                        <button class="btn btn-outline-primary btn-sm" type="button" onclick="toggleAllDetails()">
+                            <i class="fas fa-eye me-1"></i>
+                            <span id="toggleText">Show All Details</span>
+                        </button>
+                    </div>
+                }
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@* <!-- Custom Styles -->
+<style>
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        font-size: 0.875rem;
+        background-color: #f8f9fa;
+    }
+    
+    .table td {
+        vertical-align: middle;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .text-truncate {
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .card {
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,.1);
+    }
+    
+    .badge {
+        font-size: 0.775rem;
+    }
+    
+    .alert {
+        border-radius: 8px;
+    }
+    
+    .btn {
+        border-radius: 6px;
+    }
+</style> *@
+
+<!-- Custom JavaScript -->
+<script>
+    let detailsVisible = false;
+
+    function toggleAllDetails() {
+        const toggleText = document.getElementById('toggleText');
+        const collapseElements = document.querySelectorAll('[id^="details-"]');
+        
+        collapseElements.forEach(function(element) {
+            const collapse = new bootstrap.Collapse(element, {
+                toggle: false
+            });
+            
+            if (detailsVisible) {
+                collapse.hide();
+            } else {
+                collapse.show();
+            }
+        });
+        
+        detailsVisible = !detailsVisible;
+        toggleText.textContent = detailsVisible ? 'Hide All Details' : 'Show All Details';
+        
+        const icon = toggleText.previousElementSibling;
+        icon.className = detailsVisible ? 'fas fa-eye-slash me-1' : 'fas fa-eye me-1';
+    }
+
+    // Individual row click to toggle details
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableRows = document.querySelectorAll('tbody tr:not(.collapse)');
+        
+        tableRows.forEach(function(row, index) {
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', function(e) {
+                // Don't toggle if clicking on a button or link
+                if (e.target.tagName.toLowerCase() !== 'button' && 
+                    e.target.tagName.toLowerCase() !== 'a' &&
+                    !e.target.closest('button') && 
+                    !e.target.closest('a')) {
+                    
+                    const nextRow = this.nextElementSibling;
+                    if (nextRow && nextRow.classList.contains('collapse')) {
+                        const collapse = new bootstrap.Collapse(nextRow, {
+                            toggle: true
+                        });
+                    }
+                }
+            });
+            
+            // Add hover effect
+            row.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+            
+            row.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = '';
+            });
+        });
+    });
+
+    // Auto-hide alerts after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            setTimeout(function() {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+    });
+</script>

@@ -6,20 +6,59 @@ namespace FinserveNew.Models
     public class ClaimType
     {
         [Key]
-        public int ClaimTypeID { get; set; }
+        public int Id { get; set; }
 
-        [Required(ErrorMessage = "Type name is required")]
-        [Display(Name = "Type Name")]
-        [MaxLength(100)]
-        public string TypeName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Claim type name is required")]
+        [Display(Name = "Claim Type")]
+        [MaxLength(50)]
+        public string Name { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Max amount is required")]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Max amount must be greater than 0")]
-        [Display(Name = "Max Amount")]
+        [Display(Name = "Description")]
+        [MaxLength(500)]
+        public string? Description { get; set; }
+
+        // NEW: Optional maximum amount limit
+        [Display(Name = "Maximum Amount")]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal MaxAmount { get; set; }
+        public decimal? MaxAmount { get; set; }
 
-        // Navigation Property
-        public virtual ICollection<ClaimDetails> ClaimDetails { get; set; } = new List<ClaimDetails>();
+        // NEW: Whether this type requires approval
+        [Display(Name = "Requires Approval")]
+        public bool RequiresApproval { get; set; } = true;
+
+        [Display(Name = "Is Active")]
+        public bool IsActive { get; set; } = true;
+
+        [Display(Name = "Created Date")]
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
+
+        // Navigation property (if you use ClaimDetails)
+        public virtual ICollection<ClaimDetails>? ClaimDetails { get; set; }
+
+        // ===== NotMapped HELPER PROPERTIES =====
+
+        [NotMapped]
+        public string FormattedMaxAmount
+        {
+            get
+            {
+                return MaxAmount.HasValue ? $"RM {MaxAmount:N2}" : "No limit";
+            }
+        }
+
+        [NotMapped]
+        public string StatusText
+        {
+            get
+            {
+                return IsActive ? "Active" : "Inactive";
+            }
+        }
+
+        // Helper method to check if amount exceeds limit
+        public bool ExceedsMaxAmount(decimal amount)
+        {
+            return MaxAmount.HasValue && amount > MaxAmount.Value;
+        }
     }
 }
