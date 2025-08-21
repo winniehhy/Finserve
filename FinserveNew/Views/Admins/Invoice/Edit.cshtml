@@ -9,7 +9,7 @@
         <a asp-action="Details" asp-route-id="@Model.InvoiceID" class="btn btn-outline-info me-2">
             <i class="fas fa-eye me-2"></i>View Details
         </a>
-        <a asp-action="Index" class="btn btn-outline-secondary">
+        <a asp-action="InvoiceRecord" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-2"></i>Back to List
         </a>
     </div>
@@ -23,189 +23,301 @@
     </div>
 }
 
-<div class="card">
-    <div class="card-header bg-light">
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="card-title mb-1">
-                    <i class="fas fa-edit me-2"></i>Invoice Information
-                </h6>
-                <small class="text-muted">Invoice Number: @Model.InvoiceNumber</small>
-            </div>
-            <div class="col-md-6 text-end">
-                <span class="badge @Model.StatusBadgeClass fs-6">@Model.Status</span>
-                <br />
-                <small class="text-muted">Created: @Model.IssueDate.ToString("dd MMM yyyy")</small>
+<div class="form-container">
+    <div class="card">
+        <div class="card-header bg-light">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="card-title mb-1">
+                        <i class="fas fa-edit me-2"></i>Invoice Information
+                    </h6>
+                    <small class="text-muted">Invoice Number: @Model.InvoiceNumber</small>
+                </div>
+                <div class="col-md-6 text-end">
+                    <span class="badge @Model.StatusBadgeClass fs-6">@Model.Status</span>
+                    <br />
+                    <small class="text-muted">Created: @Model.IssueDate.ToString("dd MMM yyyy")</small>
+                </div>
             </div>
         </div>
-    </div>
-    <div class="card-body">
-        <form asp-action="Edit" method="post" enctype="multipart/form-data">
-            <input asp-for="InvoiceID" type="hidden" />
-            <input asp-for="InvoiceNumber" type="hidden" />
-            <input asp-for="Status" type="hidden" />
-            <input asp-for="EmployeeID" type="hidden" />
-            <input asp-for="IssueDate" type="hidden" />
+        <div class="card-body">
+            <form asp-action="Edit" method="post" enctype="multipart/form-data" id="invoiceForm">
+                <input asp-for="InvoiceID" type="hidden" />
+                <input asp-for="InvoiceNumber" type="hidden" />
+                <input asp-for="Status" type="hidden" />
+                <input asp-for="CreatedDate" type="hidden" />
+                <input asp-for="CreatedBy" type="hidden" />
 
-            <div class="row">
-                <!-- Left Column -->
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">
-                            <i class="fas fa-calendar me-2"></i>Issue Date
-                        </label>
-                        <input value="@Model.IssueDate.ToString("yyyy-MM-dd")" class="form-control" type="date" readonly />
-                        <div class="form-text">Issue date cannot be changed after creation.</div>
-                    </div>
+                <div class="row">
+                    <!-- Client Information -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-user me-2"></i>
+                            Client Information
+                        </h5>
 
-                    <div class="mb-3">
-                        <label asp-for="DueDate" class="form-label">
-                            <i class="fas fa-calendar-check me-2"></i>Due Date
-                        </label>
-                        <input asp-for="DueDate" class="form-control" type="date" />
-                        <span asp-validation-for="DueDate" class="text-danger"></span>
-                        @if (Model.DueDate < DateTime.Now && Model.Status == "Pending")
-                        {
-                            <div class="form-text text-danger">
-                                <i class="fas fa-exclamation-triangle me-1"></i>This invoice is overdue!
-                            </div>
-                        }
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label asp-for="TotalAmount" class="form-label">
-                                    <i class="fas fa-dollar-sign me-2"></i>Total Amount
-                                </label>
-                                <input asp-for="TotalAmount" class="form-control" type="number" step="0.01" min="0" />
-                                <span asp-validation-for="TotalAmount" class="text-danger"></span>
-                            </div>
+                        <div class="mb-3">
+                            <label asp-for="ClientName" class="form-label">Client Name</label>
+                            <input asp-for="ClientName" class="form-control" placeholder="Enter client name" />
+                            <span asp-validation-for="ClientName" class="text-danger"></span>
                         </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label asp-for="Currency" class="form-label">Currency</label>
-                                <select asp-for="Currency" class="form-select">
-                                    <option value="MYR">MYR</option>
-                                    <option value="USD">USD</option>
-                                    <option value="SGD">SGD</option>
-                                    <option value="EUR">EUR</option>
-                                </select>
-                                <span asp-validation-for="Currency" class="text-danger"></span>
-                            </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ClientCompany" class="form-label">Company Name (Optional)</label>
+                            <input asp-for="ClientCompany" class="form-control" placeholder="Enter company name" />
+                            <span asp-validation-for="ClientCompany" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ClientEmail" class="form-label">Client Email</label>
+                            <input asp-for="ClientEmail" type="email" class="form-control" placeholder="Enter client email" />
+                            <span asp-validation-for="ClientEmail" class="text-danger"></span>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Year" class="form-label">
-                            <i class="fas fa-calendar-alt me-2"></i>Year
-                        </label>
-                        <input asp-for="Year" class="form-control" type="number" readonly />
-                        <div class="form-text">Year is automatically set based on issue date.</div>
+                    <!-- Invoice Details -->
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-file-invoice me-2"></i>
+                            Invoice Details
+                        </h5>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="IssueDate" class="form-label">Issue Date</label>
+                                    <input asp-for="IssueDate" type="date" class="form-control" />
+                                    <span asp-validation-for="IssueDate" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="DueDate" class="form-label">Due Date</label>
+                                    <input asp-for="DueDate" type="date" class="form-control" />
+                                    <span asp-validation-for="DueDate" class="text-danger"></span>
+                                    @if (Model.DueDate < DateTime.Now && Model.Status == "Pending")
+                                    {
+                                        <div class="form-text text-danger">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>This invoice is overdue!
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label asp-for="TotalAmount" class="form-label">Total Amount</label>
+                                    <div class="input-group">
+                                        <input asp-for="TotalAmount" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" readonly />
+                                        <span class="input-group-text">@Model.Currency</span>
+                                    </div>
+                                    <span asp-validation-for="TotalAmount" class="text-danger"></span>
+                                    <small class="text-muted">Total is calculated automatically from items below</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label asp-for="Currency" class="form-label">Currency</label>
+                                    <select asp-for="Currency" class="form-select">
+                                        <option value="MYR">MYR (RM)</option>
+                                        <option value="USD">USD ($)</option>
+                                    </select>
+                                    <span asp-validation-for="Currency" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Year" class="form-label">Year</label>
+                            <input asp-for="Year" class="form-control" type="number" readonly />
+                            <div class="form-text">Year is automatically set based on issue date.</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Right Column -->
-                <div class="col-md-6">
-                    <!-- Current File Display -->
-                    @if (!string.IsNullOrEmpty(Model.FilePath))
-                    {
-                        <div class="mb-3">
-                            <label class="form-label">
-                                <i class="fas fa-file me-2"></i>Current File
-                            </label>
-                            <div class="card bg-light">
-                                <div class="card-body py-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <i class="fas fa-file-pdf text-danger me-2"></i>
-                                            <span>Invoice File</span>
+                <!-- Invoice Items Section -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-list me-2"></i>
+                            Invoice Items
+                        </h5>
+
+                        <div id="invoiceItems">
+                            @if (Model.InvoiceItems != null && Model.InvoiceItems.Any())
+                            {
+                                @for (int i = 0; i < Model.InvoiceItems.Count; i++)
+                                {
+                                    <div class="row invoice-item mb-2" data-index="@i">
+                                        <div class="col-md-4">
+                                            <input asp-for="InvoiceItems[@i].Description" class="form-control item-description" placeholder="Item Description" />
+                                            <span asp-validation-for="InvoiceItems[@i].Description" class="text-danger"></span>
                                         </div>
-                                        <a href="@Model.FilePath" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-external-link-alt"></i> View
-                                        </a>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" />
+                                            <span asp-validation-for="InvoiceItems[@i].Quantity" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                                            <span asp-validation-for="InvoiceItems[@i].UnitPrice" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <input asp-for="InvoiceItems[@i].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            @if (i > 0)
+                                            {
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="row invoice-item mb-2" data-index="0">
+                                    <div class="col-md-4">
+                                        <input name="InvoiceItems[0].Description" type="text" class="form-control item-description" placeholder="Item Description" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input name="InvoiceItems[0].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <!-- First item cannot be removed -->
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addInvoiceItem()">
+                            <i class="fas fa-plus me-2"></i>Add Item
+                        </button>
+                    </div>
+                </div>
+
+                <!-- File Upload and Remarks -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-paperclip me-2"></i>
+                            Attachment
+                        </h5>
+
+                        <!-- Current File Display -->
+                        @if (!string.IsNullOrEmpty(Model.FilePath))
+                        {
+                            <div class="mb-3">
+                                <label class="form-label">Current File</label>
+                                <div class="card bg-light">
+                                    <div class="card-body py-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <i class="fas fa-file-pdf text-danger me-2"></i>
+                                                <span>Invoice File</span>
+                                            </div>
+                                            <a href="@Model.FilePath" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-external-link-alt"></i> View
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label for="invoiceFile" class="form-label">
+                                @(string.IsNullOrEmpty(Model.FilePath) ? "Upload Invoice File (Optional)" : "Replace Invoice File (Optional)")
+                            </label>
+                            <input type="file" name="invoiceFile" id="invoiceFile" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+                            <small class="text-muted">
+                                @if (!string.IsNullOrEmpty(Model.FilePath))
+                                {
+                                    <text>Leave empty to keep current file. </text>
+                                }
+                                Accepted formats: PDF, DOC, DOCX, JPG, JPEG, PNG (Max 5MB)
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5 class="mb-3 text-primary">
+                            <i class="fas fa-comment me-2"></i>
+                            Additional Notes
+                        </h5>
+
+                        <div class="mb-3">
+                            <label asp-for="Remark" class="form-label">Remarks (Optional)</label>
+                            <textarea asp-for="Remark" class="form-control" rows="4" placeholder="Enter any additional notes or remarks..."></textarea>
+                            <span asp-validation-for="Remark" class="text-danger"></span>
+                        </div>
+
+                        <!-- Summary Section -->
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-info-circle me-2"></i>Invoice Summary</h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted">Status:</small>
+                                        <p class="mb-1"><span class="badge @Model.StatusBadgeClass">@Model.Status</span></p>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Current Total:</small>
+                                        <p class="mb-1 fw-bold">@Model.FormattedAmount</p>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted">Days Until Due:</small>
+                                        <p class="mb-1 @(Model.DueDate < DateTime.Now ? "text-danger" : "")">
+                                            @((Model.DueDate - DateTime.Now).Days) days
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    }
-
-                    <div class="mb-3">
-                        <label for="invoiceFile" class="form-label">
-                            <i class="fas fa-file-upload me-2"></i>
-                            @(string.IsNullOrEmpty(Model.FilePath) ? "Upload Invoice File" : "Replace Invoice File")
-                        </label>
-                        <input type="file" class="form-control" id="invoiceFile" name="invoiceFile" accept=".pdf,.jpg,.jpeg,.png" />
-                        <div class="form-text">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Leave empty to keep current file. Supported formats: PDF, JPG, PNG (Max 5MB)
-                        </div>
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Remark" class="form-label">
-                            <i class="fas fa-sticky-note me-2"></i>Remarks
-                        </label>
-                        <textarea asp-for="Remark" class="form-control" rows="4" placeholder="Enter any additional remarks or notes..."></textarea>
-                        <span asp-validation-for="Remark" class="text-danger"></span>
+                @if (Model.Status != "Pending")
+                {
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> This invoice is in <strong>@Model.Status</strong> status. Some changes may not be allowed after approval.
                     </div>
+                }
 
-                    <!-- Summary Section -->
-                    <div class="card bg-light">
-                        <div class="card-body">
-                            <h6 class="card-title"><i class="fas fa-info-circle me-2"></i>Invoice Summary</h6>
-                            <div class="row">
-                                <div class="col-6">
-                                    <small class="text-muted">Employee:</small>
-                                    <p class="mb-1">@Model.EmployeeID</p>
-                                </div>
-                                <div class="col-6">
-                                    <small class="text-muted">Status:</small>
-                                    <p class="mb-1"><span class="badge @Model.StatusBadgeClass">@Model.Status</span></p>
-                                </div>
-                                <div class="col-6">
-                                    <small class="text-muted">Current Total:</small>
-                                    <p class="mb-1 fw-bold">@Model.FormattedAmount</p>
-                                </div>
-                                <div class="col-6">
-                                    <small class="text-muted">Days Until Due:</small>
-                                    <p class="mb-1 @(Model.DueDate < DateTime.Now ? "text-danger" : "")">
-                                        @((Model.DueDate - DateTime.Now).Days) days
-                                    </p>
-                                </div>
+                <!-- Action Buttons -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <hr />
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a asp-action="InvoiceRecord" class="btn btn-outline-secondary me-2">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                                @if (Model.CanDelete)
+                                {
+                                    <a asp-action="Delete" asp-route-id="@Model.InvoiceID" class="btn btn-outline-danger">
+                                        <i class="fas fa-trash me-2"></i>Delete
+                                    </a>
+                                }
                             </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save me-2"></i>Update Invoice
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            @if (Model.Status != "Pending")
-            {
-                <div class="alert alert-warning mt-3">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Note:</strong> This invoice is in <strong>@Model.Status</strong> status. Some changes may not be allowed after approval.
-                </div>
-            }
-
-            <hr class="my-4" />
-
-            <div class="d-flex justify-content-between">
-                <div>
-                    <a asp-action="Index" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-times me-2"></i>Cancel
-                    </a>
-                    @if (Model.CanDelete)
-                    {
-                        <a asp-action="Delete" asp-route-id="@Model.InvoiceID" class="btn btn-outline-danger">
-                            <i class="fas fa-trash me-2"></i>Delete
-                        </a>
-                    }
-                </div>
-                <button type="submit" class="btn btn-success">
-                    <i class="fas fa-save me-2"></i>Update Invoice
-                </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -215,41 +327,153 @@
     }
 
     <script>
-        $(document).ready(function() {
-            // File upload validation
-            $('#invoiceFile').on('change', function() {
-                var file = this.files[0];
-                if (file) {
-                    if (file.size > 5 * 1024 * 1024) { // 5MB
-                        alert('File size must be less than 5MB');
-                        $(this).val('');
-                        return;
+        let itemIndex = @(Model.InvoiceItems?.Count ?? 1);
+
+        // Auto-update year when issue date changes
+        document.getElementById('IssueDate').addEventListener('change', function() {
+            var issueDate = new Date(this.value);
+            if (issueDate) {
+                document.getElementById('Year').value = issueDate.getFullYear();
+            }
+        });
+
+        // Update currency symbol when currency changes
+        document.querySelector('select[name="Currency"]').addEventListener('change', function() {
+            var symbol = this.value === 'MYR' ? 'RM' :
+                        this.value === 'USD' ? '$' : this.value;
+            document.querySelector('.input-group-text').textContent = symbol;
+        });
+
+        // File size validation
+        document.getElementById('invoiceFile').addEventListener('change', function() {
+            var file = this.files[0];
+            if (file && file.size > 5 * 1024 * 1024) {
+                alert('File size must be less than 5MB');
+                this.value = '';
+            }
+        });
+
+        // Add new invoice item
+        function addInvoiceItem() {
+            const itemsContainer = document.getElementById('invoiceItems');
+            const newItem = document.createElement('div');
+            newItem.className = 'row invoice-item mb-2';
+            newItem.setAttribute('data-index', itemIndex);
+            newItem.innerHTML = `
+                <div class="col-md-4">
+                    <input name="InvoiceItems[${itemIndex}].Description" type="text" class="form-control item-description" placeholder="Item Description" />
+                </div>
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].Quantity" type="number" class="form-control item-quantity" placeholder="Qty" min="1" value="1" />
+                </div>
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].UnitPrice" type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" />
+                </div>
+                <div class="col-md-2">
+                    <input name="InvoiceItems[${itemIndex}].LineTotal" type="number" class="form-control item-amount" placeholder="Amount" readonly step="0.01" />
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            itemsContainer.appendChild(newItem);
+
+            // Add event listeners for calculation
+            const quantityInput = newItem.querySelector('.item-quantity');
+            const priceInput = newItem.querySelector('.item-price');
+
+            quantityInput.addEventListener('input', calculateItemAmount);
+            priceInput.addEventListener('input', calculateItemAmount);
+
+            itemIndex++;
+        }
+
+        // Remove invoice item
+        function removeItem(button) {
+            const item = button.closest('.invoice-item');
+            item.remove();
+            updateTotalAmount();
+            reindexItems();
+        }
+
+        // Reindex items after removal
+        function reindexItems() {
+            const items = document.querySelectorAll('.invoice-item');
+            items.forEach((item, index) => {
+                item.setAttribute('data-index', index);
+                const inputs = item.querySelectorAll('input[name*="InvoiceItems"]');
+                inputs.forEach(input => {
+                    const nameAttr = input.getAttribute('name');
+                    if (nameAttr) {
+                        if (nameAttr.includes('.Description')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].Description`);
+                        } else if (nameAttr.includes('.Quantity')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].Quantity`);
+                        } else if (nameAttr.includes('.UnitPrice')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].UnitPrice`);
+                        } else if (nameAttr.includes('.LineTotal')) {
+                            input.setAttribute('name', `InvoiceItems[${index}].LineTotal`);
+                        }
                     }
+                });
+            });
+            itemIndex = items.length;
+        }
 
-                    var validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-                    if (!validTypes.includes(file.type)) {
-                        alert('Please select a valid file type (PDF, JPG, PNG)');
-                        $(this).val('');
-                        return;
-                    }
-                }
+        // Calculate item amount
+        function calculateItemAmount(event) {
+            const row = event.target.closest('.invoice-item');
+            const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const amount = quantity * price;
+
+            row.querySelector('.item-amount').value = amount.toFixed(2);
+            updateTotalAmount();
+        }
+
+        // Update total amount
+        function updateTotalAmount() {
+            const amounts = document.querySelectorAll('.item-amount');
+            let total = 0;
+            amounts.forEach(amount => {
+                total += parseFloat(amount.value) || 0;
+            });
+            document.querySelector('input[name="TotalAmount"]').value = total.toFixed(2);
+        }
+
+        // Warn user about unsaved changes
+        var formChanged = false;
+        $('form input, form textarea, form select').on('change', function() {
+            formChanged = true;
+        });
+
+        $(window).on('beforeunload', function() {
+            if (formChanged) {
+                return 'You have unsaved changes. Are you sure you want to leave?';
+            }
+        });
+
+        $('form').on('submit', function() {
+            formChanged = false;
+        });
+
+        // Add event listeners to existing items and calculate initial totals
+        document.addEventListener('DOMContentLoaded', function() {
+            const quantityInputs = document.querySelectorAll('.item-quantity');
+            const priceInputs = document.querySelectorAll('.item-price');
+
+            quantityInputs.forEach(input => {
+                input.addEventListener('input', calculateItemAmount);
             });
 
-            // Warn user about unsaved changes
-            var formChanged = false;
-            $('form input, form textarea, form select').on('change', function() {
-                formChanged = true;
+            priceInputs.forEach(input => {
+                input.addEventListener('input', calculateItemAmount);
             });
 
-            $(window).on('beforeunload', function() {
-                if (formChanged) {
-                    return 'You have unsaved changes. Are you sure you want to leave?';
-                }
-            });
-
-            $('form').on('submit', function() {
-                formChanged = false;
-            });
+            // Calculate initial totals if items exist
+            updateTotalAmount();
         });
     </script>
 }

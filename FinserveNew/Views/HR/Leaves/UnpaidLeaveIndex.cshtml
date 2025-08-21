@@ -1,0 +1,333 @@
+@model IEnumerable<FinserveNew.Models.UnpaidLeaveRequestModel>
+
+@{
+    ViewData["Title"] = "Unpaid Leave Requests";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="page-title mb-0">Unpaid Leave Requests</h2>
+    <div class="btn-group" role="group">
+        <a asp-action="LeaveIndex" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to All Leaves
+        </a>
+        <a asp-action="PendingLeaves" class="btn btn-custom-pending">
+            <i class="fas fa-clock me-2"></i>Pending Leaves
+        </a>
+        <a asp-action="EmployeeLeaveBalance" class="btn btn-custom-info">
+            <i class="fas fa-balance-scale me-2"></i>Employee Balance
+        </a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @Html.Raw(TempData["Success"].ToString().Replace("\n", "<br/>"))
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @Html.Raw(TempData["Error"].ToString().Replace("\n", "<br/>"))
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Status Overview Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                <h4 class="text-warning">@Model.Count(u => u.Status == "Pending")</h4>
+                <p class="text-muted mb-0">Pending Requests</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h4 class="text-success">@Model.Count(u => u.Status == "Approved")</h4>
+                <p class="text-muted mb-0">Approved Requests</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                <h4 class="text-danger">@Model.Count(u => u.Status == "Rejected")</h4>
+                <p class="text-muted mb-0">Rejected Requests</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <i class="fas fa-money-bill-alt fa-2x text-info mb-2"></i>
+                <h4 class="text-info">@Model.Sum(u => u.Status == "Approved" ? u.ExcessDays : 0)</h4>
+                <p class="text-muted mb-0">Total Unpaid Days</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Buttons -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="btn-toolbar justify-content-center" role="toolbar">
+            <div class="btn-group me-2" role="group">
+                <button type="button" class="btn btn-outline-secondary active" data-filter="all">
+                    <i class="fas fa-list me-2"></i>All (@Model.Count())
+                </button>
+                <button type="button" class="btn btn-outline-warning" data-filter="pending">
+                    <i class="fas fa-clock me-2"></i>Pending (@Model.Count(u => u.Status == "Pending"))
+                </button>
+                <button type="button" class="btn btn-outline-success" data-filter="approved">
+                    <i class="fas fa-check me-2"></i>Approved (@Model.Count(u => u.Status == "Approved"))
+                </button>
+                <button type="button" class="btn btn-outline-danger" data-filter="rejected">
+                    <i class="fas fa-times me-2"></i>Rejected (@Model.Count(u => u.Status == "Rejected"))
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="form-container">
+    @if (Model != null && Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover" id="unpaidLeaveTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Request ID</th>
+                        <th>Employee ID</th>
+                        <th>Leave Type</th>
+                        <th>Period</th>
+                        <th>Requested Days</th>
+                        <th>Unpaid Days</th>
+                        <th>Status</th>
+                        <th>Submission Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var request in Model.OrderByDescending(u => u.SubmissionDate))
+                    {
+                        <tr class="leave-row" data-status="@request.Status.ToLower()">
+                            <td>
+                                <strong>#ULR-@request.UnpaidLeaveRequestID</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">@request.EmployeeID</span>
+                                <br/>
+                                <small class="text-muted">@request.Employee.Username</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">@request.LeaveType.TypeName</span>
+                            </td>
+                            <td>
+                                <strong>@request.StartDate.ToString("dd MMM")</strong> - 
+                                <strong>@request.EndDate.ToString("dd MMM yyyy")</strong>
+                                <br/>
+                                <small class="text-muted">
+                                    @{
+                                        var totalDays = (request.EndDate.DayNumber - request.StartDate.DayNumber) + 1;
+                                    }
+                                    (@totalDays day@(totalDays != 1 ? "s" : "") total)
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">@request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning text-dark">@request.ExcessDays day@(request.ExcessDays != 1 ? "s" : "")</span>
+                            </td>
+                            <td>
+                                @if (request.Status == "Pending")
+                                {
+                                    <span class="badge badge-pending">
+                                        <i class="fas fa-clock me-1"></i>@request.Status
+                                    </span>
+                                }
+                                else if (request.Status == "Approved")
+                                {
+                                    <span class="badge badge-approved">
+                                        <i class="fas fa-check me-1"></i>@request.Status
+                                    </span>
+                                    @if (request.ApprovalDate.HasValue)
+                                    {
+                                        <br/>
+                                        <small class="text-muted">@request.ApprovalDate.Value.ToString("dd MMM yyyy")</small>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="badge badge-rejected">
+                                        <i class="fas fa-times me-1"></i>@request.Status
+                                    </span>
+                                    @if (request.ApprovalDate.HasValue)
+                                    {
+                                        <br/>
+                                        <small class="text-muted">@request.ApprovalDate.Value.ToString("dd MMM yyyy")</small>
+                                    }
+                                }
+                            </td>
+                            <td>
+                                @request.SubmissionDate.ToString("dd MMM yyyy")
+                                <br/>
+                                <small class="text-muted">@request.SubmissionDate.ToString("HH:mm")</small>
+                            </td>
+                            <td>
+                                <div class="btn-group-vertical btn-group-sm" role="group">
+                                    @if (request.Status == "Pending")
+                                    {
+                                        <a asp-action="ProcessUnpaidLeave" asp-route-id="@request.UnpaidLeaveRequestID" 
+                                           class="btn btn-outline-primary btn-sm" title="Process Request">
+                                            <i class="fas fa-clipboard-check me-1"></i>Process
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-outline-info btn-sm" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#detailsModal" 
+                                                data-request-id="@request.UnpaidLeaveRequestID"
+                                                data-employee="@request.Employee.Username"
+                                                data-leave-type="@request.LeaveType.TypeName"
+                                                data-start="@request.StartDate.ToString("dd MMM yyyy")"
+                                                data-end="@request.EndDate.ToString("dd MMM yyyy")"
+                                                data-requested="@request.RequestedDays"
+                                                data-unpaid="@request.ExcessDays"
+                                                data-reason="@request.Reason"
+                                                data-justification="@request.JustificationReason"
+                                                data-status="@request.Status"
+                                                data-approval-date="@(request.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")"
+                                                data-approval-remarks="@(request.ApprovalRemarks ?? "No remarks")"
+                                                title="View Details">
+                                            <i class="fas fa-eye me-1"></i>Details
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-money-bill-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No unpaid leave requests found</h5>
+            <p class="text-muted">No employee unpaid leave requests have been submitted yet.</p>
+            <a asp-action="LeaveIndex" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Leave Management
+            </a>
+        </div>
+    }
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">
+                    <i class="fas fa-money-bill-alt me-2"></i>Unpaid Leave Request Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Request Information</h6>
+                        <p><strong>Request ID:</strong> <span id="modal-request-id"></span></p>
+                        <p><strong>Employee:</strong> <span id="modal-employee"></span></p>
+                        <p><strong>Leave Type:</strong> <span id="modal-leave-type"></span></p>
+                        <p><strong>Period:</strong> <span id="modal-period"></span></p>
+                        <p><strong>Requested Days:</strong> <span id="modal-requested"></span></p>
+                        <p><strong>Unpaid Days:</strong> <span id="modal-unpaid"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Status Information</h6>
+                        <p><strong>Status:</strong> <span id="modal-status"></span></p>
+                        <p><strong>Processed Date:</strong> <span id="modal-approval-date"></span></p>
+                        <p><strong>HR Remarks:</strong></p>
+                        <div class="bg-light p-2 rounded">
+                            <span id="modal-approval-remarks"></span>
+                        </div>
+                    </div>
+                </div>
+                <hr/>
+                <div class="row">
+                    <div class="col-12">
+                        <h6 class="text-primary">Employee Reason</h6>
+                        <div class="bg-light p-2 rounded mb-3">
+                            <span id="modal-reason"></span>
+                        </div>
+                        <h6 class="text-primary">Justification for Unpaid Leave</h6>
+                        <div class="bg-warning bg-opacity-10 p-2 rounded border border-warning">
+                            <span id="modal-justification"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Filter functionality
+            $('[data-filter]').on('click', function() {
+                const filterValue = $(this).data('filter');
+                
+                // Update active button
+                $('[data-filter]').removeClass('active');
+                $(this).addClass('active');
+                
+                // Show/hide rows
+                $('.leave-row').each(function() {
+                    const status = $(this).data('status');
+                    
+                    if (filterValue === 'all' || status === filterValue) {
+                        $(this).removeClass('d-none');
+                    } else {
+                        $(this).addClass('d-none');
+                    }
+                });
+            });
+            
+            // Details modal
+            $('#detailsModal').on('show.bs.modal', function(event) {
+                const button = $(event.relatedTarget);
+                
+                $('#modal-request-id').text('#ULR-' + button.data('request-id'));
+                $('#modal-employee').text(button.data('employee'));
+                $('#modal-leave-type').text(button.data('leave-type'));
+                $('#modal-period').text(button.data('start') + ' - ' + button.data('end'));
+                $('#modal-requested').text(button.data('requested') + ' days');
+                $('#modal-unpaid').text(button.data('unpaid') + ' days');
+                $('#modal-reason').text(button.data('reason') || 'No reason provided');
+                $('#modal-justification').text(button.data('justification') || 'No justification provided');
+                $('#modal-status').html('<span class="badge badge-' + 
+                    (button.data('status') === 'Approved' ? 'approved' : 'rejected') + '">' + 
+                    button.data('status') + '</span>');
+                $('#modal-approval-date').text(button.data('approval-date'));
+                $('#modal-approval-remarks').text(button.data('approval-remarks'));
+            });
+        });
+    </script>
+}

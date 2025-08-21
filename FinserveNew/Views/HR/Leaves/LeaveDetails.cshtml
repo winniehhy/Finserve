@@ -22,8 +22,18 @@
             <div class="card-body">
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <strong>Employee:</strong><br>
-                        <span class="text-muted">@Model.Employee.Username</span>
+                        <strong>Employee Name:</strong><br>
+                        <span class="text-muted">
+                            @if (!string.IsNullOrEmpty(Model.Employee.FirstName) || !string.IsNullOrEmpty(Model.Employee.LastName))
+                            {
+                                @($"{Model.Employee.FirstName} {Model.Employee.LastName}".Trim())
+                            }
+                            
+                            else
+                            {
+                                @Model.Employee.Username
+                            }
+                        </span>
                     </div>
                     <div class="col-md-6">
                         <strong>Employee ID:</strong><br>
@@ -176,6 +186,23 @@
                 <div class="mb-3">
                     <strong>Employee ID:</strong><br>
                     <span class="text-muted">@Model.Employee.EmployeeID</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Employee Name:</strong><br>
+                    <span class="text-muted">
+                        @if (!string.IsNullOrEmpty(Model.Employee.FirstName) || !string.IsNullOrEmpty(Model.Employee.LastName))
+                        {
+                            @($"{Model.Employee.FirstName} {Model.Employee.LastName}".Trim())
+                        }
+                        else if (!string.IsNullOrEmpty(Model.Employee.FirstName))
+                        {
+                            @Model.Employee.FirstName
+                        }
+                        else
+                        {
+                            @Model.Employee.Username
+                        }
+                    </span>
                 </div>
                 <div class="mb-3">
                     <strong>Username:</strong><br>

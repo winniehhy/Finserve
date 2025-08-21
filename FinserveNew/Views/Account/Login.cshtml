@@ -20,6 +20,7 @@
             align-items: center;
             justify-content: center;
         }
+
         .login-container {
             background: white;
             border-radius: 15px;
@@ -28,28 +29,34 @@
             width: 100%;
             max-width: 400px;
         }
+
         .login-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 30px;
             text-align: center;
         }
-        .login-header h3 {
-            margin: 0;
-            font-weight: 600;
-        }
+
+            .login-header h3 {
+                margin: 0;
+                font-weight: 600;
+            }
+
         .login-body {
             padding: 30px;
         }
+
         .form-control {
             border-radius: 10px;
             padding: 12px 15px;
             border: 1px solid #e1e5e9;
         }
-        .form-control:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-        }
+
+            .form-control:focus {
+                border-color: #667eea;
+                box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            }
+
         .btn-login {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
@@ -59,14 +66,17 @@
             width: 100%;
             transition: transform 0.2s;
         }
-        .btn-login:hover {
-            transform: translateY(-2px);
-        }
+
+            .btn-login:hover {
+                transform: translateY(-2px);
+            }
+
         .logo {
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 10px;
         }
+
         .test-accounts {
             background: #f8f9fa;
             border-radius: 10px;
@@ -74,13 +84,46 @@
             margin-top: 20px;
             font-size: 12px;
         }
-        .test-accounts h6 {
-            margin-bottom: 10px;
-            color: #495057;
-        }
+
+            .test-accounts h6 {
+                margin-bottom: 10px;
+                color: #495057;
+            }
+
         .test-account {
             margin-bottom: 5px;
             font-family: monospace;
+        }
+
+        /* Password toggle styles */
+        .password-container {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            z-index: 10;
+            transition: color 0.2s;
+        }
+
+            .password-toggle:hover {
+                color: #495057;
+            }
+
+            .password-toggle:focus {
+                outline: none;
+            }
+
+        .form-control.password-input {
+            padding-right: 45px;
         }
     </style>
 </head>
@@ -110,7 +153,12 @@
                     <label asp-for="Password" class="form-label">
                         <i class="fas fa-lock me-2"></i>Password
                     </label>
-                    <input asp-for="Password" class="form-control" placeholder="Enter your password" />
+                    <div class="password-container">
+                        <input asp-for="Password" class="form-control password-input" placeholder="Enter your password" id="passwordField" />
+                        <button type="button" class="password-toggle" id="passwordToggle" title="Show/Hide Password">
+                            <i class="fas fa-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
                     <span asp-validation-for="Password" class="text-danger"></span>
                     <div class="mt-1 text-end">
                         <a asp-action="ForgotPassword" class="text-decoration-none small">Forgot Password?</a>
@@ -140,8 +188,41 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    @* <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script> *@
-    @* <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script> *@
-    @* <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script> *@
+
+    <!-- Password toggle functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const passwordField = document.getElementById('passwordField');
+            const passwordToggle = document.getElementById('passwordToggle');
+            const toggleIcon = document.getElementById('toggleIcon');
+
+            passwordToggle.addEventListener('click', function () {
+                // Toggle password visibility
+                if (passwordField.type === 'password') {
+                    passwordField.type = 'text';
+                    toggleIcon.classList.remove('fa-eye');
+                    toggleIcon.classList.add('fa-eye-slash');
+                    passwordToggle.title = 'Hide Password';
+                } else {
+                    passwordField.type = 'password';
+                    toggleIcon.classList.remove('fa-eye-slash');
+                    toggleIcon.classList.add('fa-eye');
+                    passwordToggle.title = 'Show Password';
+                }
+            });
+
+            // Optional: Hide password when clicking outside
+            document.addEventListener('click', function (event) {
+                if (!passwordField.contains(event.target) && !passwordToggle.contains(event.target)) {
+                    if (passwordField.type === 'text') {
+                        passwordField.type = 'password';
+                        toggleIcon.classList.remove('fa-eye-slash');
+                        toggleIcon.classList.add('fa-eye');
+                        passwordToggle.title = 'Show Password';
+                    }
+                }
+            });
+        });
+    </script>
 </body>
 </html>

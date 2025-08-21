@@ -24,6 +24,7 @@
 @if (TempData["Success"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>
         @TempData["Success"]
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
@@ -32,6 +33,7 @@
 @if (TempData["Error"] != null)
 {
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
         @TempData["Error"]
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
@@ -45,9 +47,7 @@
                 <label class="form-label">Status</label>
                 <select class="form-select" id="statusFilter">
                     <option value="">All Status</option>
-                    <option value="Draft">Draft</option>
                     <option value="Pending">Pending</option>
-                    <option value="Approved">Approved</option>
                     <option value="Sent">Sent</option>
                     <option value="Paid">Paid</option>
                     <option value="Overdue">Overdue</option>
@@ -153,56 +153,43 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     
-                                    @if (invoice.CanEdit)
-                                    {
+                                      @if (invoice.Status == "Pending")
+                                {
+                                    <div class="btn-group" role="group">
+                         
                                         <a asp-action="Edit" asp-route-id="@invoice.InvoiceID" class="btn btn-sm btn-outline-success" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                    }
-                                    
-                                    @if (invoice.CanDelete)
-                                    {
-                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteInvoice(@invoice.InvoiceID)" title="Delete">
-                                            <i class="fas fa-trash"></i>
+                                        
+                                       
+                                        <button class="btn btn-sm btn-outline-danger" onclick="removeInvoice(@invoice.InvoiceID)" title="Delete">
+                                        <i class="fas fa-times text-danger"></i>
                                         </button>
-                                    }
-                                </div>
-                                
-                                @if (invoice.Status == "Draft")
-                                {
-                                    <div class="btn-group mt-1" role="group">
-                                        <button class="btn btn-sm btn-warning" onclick="updateStatus(@invoice.InvoiceID, 'Pending')" title="Submit for Approval">
+
+                                        
+                                        <button class="btn btn-sm btn-primary" onclick="sendToClient(@invoice.InvoiceID)" title="Send to Client">
                                             <i class="fas fa-paper-plane"></i>
                                         </button>
-                                    </div>
-                                }
-                                else if (invoice.Status == "Pending")
-                                {
-                                    <div class="btn-group mt-1" role="group">
-                                        <button class="btn btn-sm btn-success" onclick="updateStatus(@invoice.InvoiceID, 'Approved')" title="Approve">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-danger" onclick="updateStatus(@invoice.InvoiceID, 'Cancelled')" title="Cancel">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                }
-                                else if (invoice.Status == "Approved")
-                                {
-                                    <div class="btn-group mt-1" role="group">
-                                        <button class="btn btn-sm btn-primary" onclick="updateStatus(@invoice.InvoiceID, 'Sent')" title="Send Invoice">
-                                            <i class="fas fa-share"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-info" onclick="updateStatus(@invoice.InvoiceID, 'Paid')" title="Mark as Paid">
+                                        
+                                       
+                                        <button class="btn btn-sm btn-success" onclick="markAsPaid(@invoice.InvoiceID)" title="Mark as Paid">
                                             <i class="fas fa-dollar-sign"></i>
                                         </button>
                                     </div>
                                 }
                                 else if (invoice.Status == "Sent")
                                 {
+                                    <div class="btn-group" role="group">
+                            
+                                        <button class="btn btn-sm btn-outline-danger" onclick="removeInvoice(@invoice.InvoiceID)" title="Delete">
+                                        <i class="fas fa-times text-danger"></i>
+                                        </button>
+                                    </div>
+                                 
                                     <div class="mt-1">
-                                        <button class="btn btn-sm btn-info" onclick="updateStatus(@invoice.InvoiceID, 'Paid')" title="Mark as Paid">
+                                        <button class="btn btn-sm btn-success" onclick="markAsPaid(@invoice.InvoiceID)" title="Mark as Paid">
                                             <i class="fas fa-dollar-sign"></i>
+                                            Mark as Paid
                                         </button>
                                     </div>
                                 }
@@ -213,41 +200,6 @@
             </table>
         </div>
         
-        <!-- Summary Cards -->
-        <div class="row mt-4">
-            <div class="col-md-3">
-                <div class="card bg-secondary text-white">
-                    <div class="card-body">
-                        <h5 class="card-title">Draft</h5>
-                        <h3>@Model.Count(i => i.Status == "Draft")</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-warning text-white">
-                    <div class="card-body">
-                        <h5 class="card-title">Pending</h5>
-                        <h3>@Model.Count(i => i.Status == "Pending")</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body">
-                        <h5 class="card-title">Paid</h5>
-                        <h3>@Model.Count(i => i.Status == "Paid")</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Amount</h5>
-                        <h3>RM @Model.Sum(i => i.TotalAmount).ToString("F2")</h3>
-                    </div>
-                </div>
-            </div>
-        </div>
     }
     else
     {
@@ -290,17 +242,139 @@
             }
         }
 
-        function deleteInvoice(invoiceId) {
-            if (confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+        function removeInvoice(invoiceId) {
+            if (confirm('Are you sure you want to remove this invoice from the list? The invoice data will be preserved in the system but hidden from the main view.')) {
                 window.location.href = '@Url.Action("Delete", "Invoice")/' + invoiceId;
             }
         }
 
-        function exportToExcel() {
-            var table = document.getElementById('invoiceTable');
-            var wb = XLSX.utils.table_to_book(table, { sheet: "Invoices" });
-            XLSX.writeFile(wb, 'invoices_' + new Date().toISOString().split('T')[0] + '.xlsx');
+        function sendToClient(invoiceId) {
+            if (confirm('Are you sure you want to send this invoice to the client?')) {
+                $.ajax({
+                    url: '@Url.Action("SendToClient", "Invoice")',
+                    type: 'POST',
+                    data: {
+                        id: invoiceId,
+                        __RequestVerificationToken: $('#statusForm input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        alert('Error sending invoice: ' + error);
+                    }
+                });
+            }
         }
+
+        function markAsPaid(invoiceId) {
+            if (confirm('Are you sure you want to mark this invoice as paid?')) {
+                $.ajax({
+                    url: '@Url.Action("MarkAsPaid", "Invoice")',
+                    type: 'POST',
+                    data: {
+                        id: invoiceId,
+                        __RequestVerificationToken: $('#statusForm input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function (response) {
+                        location.reload();
+                    },
+                    error: function (xhr, status, error) {
+                        alert('Error marking invoice as paid: ' + error);
+                    }
+                });
+            }
+        }
+        function sendToClient(invoiceId) {
+                if (confirm('Are you sure you want to send this invoice to the client? The status will be changed to "Sent".')) {
+                    $.ajax({
+                        url: '@Url.Action("SendToClient", "Invoice")',
+                        type: 'POST',
+                        data: {
+                            id: invoiceId,
+                            __RequestVerificationToken: $('#statusForm input[name="__RequestVerificationToken"]').val()
+                        },
+                        success: function (response) {
+                            location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Error sending invoice: ' + error);
+                        }
+                    });
+                }
+            }
+
+            function markAsPaid(invoiceId) {
+                if (confirm('Are you sure you want to mark this invoice as paid?')) {
+                    $.ajax({
+                        url: '@Url.Action("MarkAsPaid", "Invoice")',
+                        type: 'POST',
+                        data: {
+                            id: invoiceId,
+                            __RequestVerificationToken: $('#statusForm input[name="__RequestVerificationToken"]').val()
+                        },
+                        success: function (response) {
+                            location.reload();
+                        },
+                        error: function (xhr, status, error) {
+                            alert('Error marking invoice as paid: ' + error);
+                        }
+                    });
+                }
+            }
+
+            function removeInvoice(invoiceId) {
+                if (confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+                    window.location.href = '@Url.Action("Delete", "Invoice")/' + invoiceId;
+                }
+            }
+        function exportToExcel() {
+    // Clone the table to avoid modifying the original
+    var originalTable = document.getElementById('invoiceTable');
+    var table = originalTable.cloneNode(true);
+    
+    // Format date cells to shorter format
+    var rows = table.getElementsByTagName('tr');
+    for (var i = 1; i < rows.length; i++) { // Skip header row
+        var cells = rows[i].getElementsByTagName('td');
+        if (cells.length >= 4) {
+            // Format Issue Date (column 2) and Due Date (column 3)
+            var issueDate = cells[2].textContent.trim();
+            var dueDate = cells[3].textContent.trim();
+            
+            // Convert to shorter format if needed
+            cells[2].textContent = formatDateForExcel(issueDate);
+            cells[3].textContent = formatDateForExcel(dueDate);
+        }
+    }
+    
+    var wb = XLSX.utils.table_to_book(table, { sheet: "Invoices" });
+    
+    // Auto-fit columns
+    var ws = wb.Sheets["Invoices"];
+    ws['!cols'] = [
+        {wch: 12}, // Invoice #
+        {wch: 20}, // Client
+        {wch: 12}, // Issue Date
+        {wch: 12}, // Due Date
+        {wch: 12}, // Amount
+        {wch: 10}, // Status
+        {wch: 8},  // Year
+        {wch: 15}  // Actions
+    ];
+    
+    XLSX.writeFile(wb, 'invoices_' + new Date().toISOString().split('T')[0] + '.xlsx');
+}
+
+function formatDateForExcel(dateStr) {
+    // Convert "13 Sep 2025" to "13/09/2025" or similar shorter format
+    try {
+        var date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+    } catch (e) {
+        return dateStr; // Return original if parsing fails
+    }
+}
 
         function clearFilters() {
             document.getElementById('statusFilter').value = '';

@@ -67,6 +67,8 @@ builder.Services.AddAuthorization(options =>
 // ✅ Register the email sender service
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
+// Add this line after your existing service registrations
+builder.Services.AddScoped<IOcrService, TesseractOcrService>();
 var app = builder.Build();
 
 // ✅ Seed users and roles
@@ -95,15 +97,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
-// ✅ IMPORTANT: Authentication must come before Authorization
 app.UseAuthentication();
 app.UseAuthorization();
-
-// ✅ Register Rotativa for PDF generation
 app.UseRotativa();
-
-// ✅ Set default route to redirect to login if not authenticated
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");

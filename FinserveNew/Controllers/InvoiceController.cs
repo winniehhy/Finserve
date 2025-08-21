@@ -24,13 +24,28 @@ namespace FinserveNew.Controllers
             _logger = logger;
         }
 
-        // GET: Invoice/InvoiceRecord (Admin view - all invoices)
+        // GET: Invoice/InvoiceRecord (Admin view - all non-deleted invoices)
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> InvoiceRecord()
         {
+            // Include InvoiceItems when loading invoices
             var invoices = await _context.Invoices
+                .Include(i => i.InvoiceItems)
+                .Where(i => !i.IsDeleted)
                 .OrderByDescending(i => i.CreatedDate)
                 .ToListAsync();
+
+            // Update overdue status for invoices that are sent and past due date
+            foreach (var invoice in invoices.Where(i => i.Status == "Sent" && i.DueDate < DateTime.Now))
+            {
+                invoice.Status = "Overdue";
+            }
+
+            // Save any status updates
+            if (invoices.Any(i => i.Status == "Overdue"))
+            {
+                await _context.SaveChangesAsync();
+            }
 
             return View("~/Views/Admins/Invoice/InvoiceRecord.cshtml", invoices);
         }
@@ -38,11 +53,7 @@ namespace FinserveNew.Controllers
         // Keep existing Index method for backward compatibility
         public async Task<IActionResult> Index()
         {
-            var invoices = await _context.Invoices
-                .OrderByDescending(i => i.CreatedDate)
-                .ToListAsync();
-
-            return View("~/Views/Admins/Invoice/InvoiceRecord.cshtml", invoices);
+            return await InvoiceRecord();
         }
 
         // GET: Invoice/Details/5
@@ -54,7 +65,9 @@ namespace FinserveNew.Controllers
             }
 
             var invoice = await _context.Invoices
-                .FirstOrDefaultAsync(m => m.InvoiceID == id);
+                .Include(i => i.InvoiceItems) // Include invoice items for details view
+                .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                .FirstOrDefaultAsync();
 
             if (invoice == null)
             {
@@ -73,8 +86,11 @@ namespace FinserveNew.Controllers
                 DueDate = DateTime.Now.AddDays(30),
                 Year = DateTime.Now.Year,
                 Currency = "MYR",
-                Status = "Draft"
+                Status = "Pending" // Start with Pending status
             };
+
+            // Add one empty invoice item for the form
+            invoice.InvoiceItems.Add(new InvoiceItem());
 
             return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
         }
@@ -86,7 +102,15 @@ namespace FinserveNew.Controllers
         {
             try
             {
-                // Auto-generate InvoiceNumber
+                // Get current user
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null)
+                {
+                    ModelState.AddModelError("", "Unable to identify current user.");
+                    return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
+                }
+
+                // Auto-generate InvoiceNumber based on all invoices (including soft-deleted ones)
                 var lastInvoice = await _context.Invoices
                     .OrderByDescending(i => i.InvoiceID)
                     .FirstOrDefaultAsync();
@@ -103,10 +127,51 @@ namespace FinserveNew.Controllers
                 invoice.CreatedDate = DateTime.Now;
                 invoice.CreatedBy = User.Identity.Name;
                 invoice.Year = invoice.IssueDate.Year;
+                invoice.Status = "Pending"; // Always start with Pending
+                invoice.IsDeleted = false;
 
-                // Remove these fields from model validation
+                // Process invoice items - remove empty items
+                if (invoice.InvoiceItems != null)
+                {
+                    invoice.InvoiceItems = invoice.InvoiceItems
+                        .Where(item => !string.IsNullOrWhiteSpace(item.Description) &&
+                                     item.Quantity > 0 && item.UnitPrice > 0)
+                        .ToList();
+
+                    // Calculate line totals and set invoice ID
+                    foreach (var item in invoice.InvoiceItems)
+                    {
+                        item.CalculateLineTotal();
+                        item.CreatedDate = DateTime.Now;
+                        item.InvoiceID = 0; // Will be set by EF Core
+                    }
+
+                    // Calculate total amount from items
+                    invoice.CalculateTotalFromItems();
+                }
+
+                // Remove these fields from model validation - they are auto-generated
                 ModelState.Remove("InvoiceNumber");
                 ModelState.Remove("CreatedBy");
+                ModelState.Remove("FilePath");
+                ModelState.Remove("invoiceFile");
+
+                // Additional validation fixes
+                if (invoice.IssueDate == default(DateTime))
+                {
+                    invoice.IssueDate = DateTime.Now;
+                }
+
+                if (invoice.DueDate == default(DateTime))
+                {
+                    invoice.DueDate = DateTime.Now.AddDays(30);
+                }
+
+                // Validate that we have at least one invoice item
+                if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                {
+                    ModelState.AddModelError("InvoiceItems", "At least one invoice item is required.");
+                }
 
                 if (!ModelState.IsValid)
                 {
@@ -118,10 +183,17 @@ namespace FinserveNew.Controllers
                             _logger.LogWarning($"Validation error for {error.Key}: {modelError.ErrorMessage}");
                         }
                     }
+
+                    // Add empty item if no items exist for form re-display
+                    if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                    {
+                        invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+                    }
+
                     return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
                 }
 
-                // Handle file upload
+                // Handle file upload - this is optional
                 if (invoiceFile != null && invoiceFile.Length > 0)
                 {
                     var filePath = await SaveFile(invoiceFile, "invoices");
@@ -131,19 +203,33 @@ namespace FinserveNew.Controllers
                 _context.Invoices.Add(invoice);
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"Invoice {invoice.InvoiceNumber} created successfully!";
+                TempData["Success"] = $"Invoice {invoice.InvoiceNumber} created successfully with Pending status!";
                 return RedirectToAction(nameof(InvoiceRecord));
             }
             catch (DbUpdateException ex)
             {
                 _logger.LogError(ex, "Database error while saving invoice");
                 ModelState.AddModelError("", "An error occurred while saving the invoice. Please try again.");
+
+                // Ensure we have items for form re-display
+                if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                {
+                    invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+                }
+
                 return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while creating invoice");
                 ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+
+                // Ensure we have items for form re-display
+                if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+                {
+                    invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+                }
+
                 return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
             }
         }
@@ -156,7 +242,12 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            var invoice = await _context.Invoices.FindAsync(id);
+            // IMPORTANT: Include InvoiceItems when retrieving the invoice
+            var invoice = await _context.Invoices
+                .Include(i => i.InvoiceItems)
+                .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                .FirstOrDefaultAsync();
+
             if (invoice == null)
             {
                 return NotFound();
@@ -164,8 +255,14 @@ namespace FinserveNew.Controllers
 
             if (!invoice.CanEdit)
             {
-                TempData["Error"] = "This invoice cannot be edited as it's no longer in draft status.";
+                TempData["Error"] = "This invoice cannot be edited. Only pending invoices can be modified.";
                 return RedirectToAction(nameof(InvoiceRecord));
+            }
+
+            // Add an empty item if no items exist (for adding new items in edit mode)
+            if (!invoice.InvoiceItems.Any())
+            {
+                invoice.InvoiceItems.Add(new InvoiceItem());
             }
 
             return View("~/Views/Admins/Invoice/Edit.cshtml", invoice);
@@ -184,27 +281,69 @@ namespace FinserveNew.Controllers
             // Remove fields that shouldn't be validated during edit
             ModelState.Remove("InvoiceNumber");
             ModelState.Remove("CreatedBy");
+            ModelState.Remove("FilePath");
+            ModelState.Remove("InvoiceFile");
+
+            // Validate that we have at least one invoice item
+            if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any(i => !string.IsNullOrWhiteSpace(i.Description)))
+            {
+                ModelState.AddModelError("InvoiceItems", "At least one invoice item is required.");
+            }
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    var existingInvoice = await _context.Invoices.FindAsync(id);
+                    // Get existing invoice with items from database
+                    var existingInvoice = await _context.Invoices
+                        .Include(i => i.InvoiceItems)
+                        .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                        .FirstOrDefaultAsync();
+
                     if (existingInvoice == null)
                     {
                         return NotFound();
                     }
 
-                    // Update properties (don't change InvoiceNumber, CreatedBy, or CreatedDate)
+                    if (!existingInvoice.CanEdit)
+                    {
+                        TempData["Error"] = "This invoice cannot be edited. Only pending invoices can be modified.";
+                        return RedirectToAction(nameof(InvoiceRecord));
+                    }
+
+                    // Update invoice properties (don't change InvoiceNumber, CreatedBy, or CreatedDate)
                     existingInvoice.ClientName = invoice.ClientName;
                     existingInvoice.ClientCompany = invoice.ClientCompany;
                     existingInvoice.ClientEmail = invoice.ClientEmail;
                     existingInvoice.IssueDate = invoice.IssueDate;
                     existingInvoice.DueDate = invoice.DueDate;
-                    existingInvoice.TotalAmount = invoice.TotalAmount;
                     existingInvoice.Currency = invoice.Currency;
                     existingInvoice.Remark = invoice.Remark;
-                    existingInvoice.Year = invoice.Year;
+                    existingInvoice.Year = invoice.IssueDate.Year;
+
+                    // Remove existing invoice items
+                    _context.InvoiceItems.RemoveRange(existingInvoice.InvoiceItems);
+
+                    // Add updated invoice items
+                    if (invoice.InvoiceItems != null)
+                    {
+                        var validItems = invoice.InvoiceItems
+                            .Where(item => !string.IsNullOrWhiteSpace(item.Description) &&
+                                         item.Quantity > 0 && item.UnitPrice > 0)
+                            .ToList();
+
+                        foreach (var item in validItems)
+                        {
+                            item.InvoiceID = existingInvoice.InvoiceID;
+                            item.CalculateLineTotal();
+                            item.CreatedDate = DateTime.Now;
+                            item.InvoiceItemID = 0; // Reset ID for new items
+                            existingInvoice.InvoiceItems.Add(item);
+                        }
+
+                        // Calculate total from items
+                        existingInvoice.CalculateTotalFromItems();
+                    }
 
                     // Handle file upload
                     if (invoiceFile != null && invoiceFile.Length > 0)
@@ -223,7 +362,6 @@ namespace FinserveNew.Controllers
                         existingInvoice.FilePath = filePath;
                     }
 
-                    _context.Update(existingInvoice);
                     await _context.SaveChangesAsync();
 
                     TempData["Success"] = "Invoice updated successfully!";
@@ -252,6 +390,12 @@ namespace FinserveNew.Controllers
                 }
             }
 
+            // If we reach here, there was an error - ensure we have items for form re-display
+            if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
+            {
+                invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
+            }
+
             return View("~/Views/Admins/Invoice/Edit.cshtml", invoice);
         }
 
@@ -264,7 +408,9 @@ namespace FinserveNew.Controllers
             }
 
             var invoice = await _context.Invoices
-                .FirstOrDefaultAsync(m => m.InvoiceID == id);
+                .Include(i => i.InvoiceItems) // Include items for delete confirmation view
+                .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                .FirstOrDefaultAsync();
 
             if (invoice == null)
             {
@@ -273,54 +419,47 @@ namespace FinserveNew.Controllers
 
             if (!invoice.CanDelete)
             {
-                TempData["Error"] = "This invoice cannot be deleted as it's no longer in draft status.";
+                TempData["Error"] = "This invoice cannot be deleted. Only pending invoices can be removed.";
                 return RedirectToAction(nameof(InvoiceRecord));
             }
 
             return View("~/Views/Admins/Invoice/Delete.cshtml", invoice);
         }
 
-        // POST: Invoice/Delete/5
+        // POST: Invoice/Delete/5 - Soft Delete Implementation
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             try
             {
-                var invoice = await _context.Invoices.FindAsync(id);
+                var invoice = await _context.Invoices
+                    .Include(i => i.InvoiceItems) // Include items for deletion
+                    .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                    .FirstOrDefaultAsync();
+
                 if (invoice != null)
                 {
                     // Check if invoice can be deleted
                     if (!invoice.CanDelete)
                     {
-                        TempData["Error"] = "This invoice cannot be deleted as it's no longer in draft status.";
+                        TempData["Error"] = "This invoice cannot be deleted. Only pending invoices can be removed.";
                         return RedirectToAction(nameof(InvoiceRecord));
                     }
 
-                    // Delete associated file if exists
-                    if (!string.IsNullOrEmpty(invoice.FilePath))
-                    {
-                        var filePath = Path.Combine(_webHostEnvironment.WebRootPath, invoice.FilePath.TrimStart('/'));
-                        if (System.IO.File.Exists(filePath))
-                        {
-                            try
-                            {
-                                System.IO.File.Delete(filePath);
-                                _logger.LogInformation($"Deleted file: {filePath}");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, $"Could not delete file: {filePath}");
-                                // Continue with invoice deletion even if file deletion fails
-                            }
-                        }
-                    }
+                    // Soft delete - mark as deleted but don't remove from database
+                    invoice.IsDeleted = true;
+                    invoice.DeletedDate = DateTime.Now;
+                    invoice.DeletedBy = User.Identity.Name;
 
-                    _context.Invoices.Remove(invoice);
+                    // Note: Invoice items will remain in database with the invoice
+                    // They're linked by InvoiceID foreign key
+
+                    _context.Update(invoice);
                     await _context.SaveChangesAsync();
 
-                    TempData["Success"] = $"Invoice {invoice.InvoiceNumber} deleted successfully!";
-                    _logger.LogInformation($"Invoice {invoice.InvoiceNumber} deleted by {User.Identity.Name}");
+                    TempData["Success"] = $"Invoice {invoice.InvoiceNumber} has been removed from the list!";
+                    _logger.LogInformation($"Invoice {invoice.InvoiceNumber} soft deleted by {User.Identity.Name}");
                 }
                 else
                 {
@@ -329,29 +468,123 @@ namespace FinserveNew.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error deleting invoice with ID: {id}");
-                TempData["Error"] = "An error occurred while deleting the invoice. Please try again.";
+                _logger.LogError(ex, $"Error soft deleting invoice with ID: {id}");
+                TempData["Error"] = "An error occurred while removing the invoice. Please try again.";
             }
 
             return RedirectToAction(nameof(InvoiceRecord));
         }
 
-        // POST: Invoice/UpdateStatus/5
+        // POST: Invoice/SendToClient/5 - Change status from Pending to Sent
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SendToClient(int id)
+        {
+            try
+            {
+                var invoice = await _context.Invoices
+                    .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (invoice == null)
+                {
+                    return NotFound();
+                }
+
+                if (!invoice.CanSend)
+                {
+                    TempData["Error"] = "This invoice cannot be sent. Only pending invoices can be sent to clients.";
+                    return RedirectToAction(nameof(InvoiceRecord));
+                }
+
+                invoice.Status = "Sent";
+                _context.Update(invoice);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = $"Invoice {invoice.InvoiceNumber} has been sent to client!";
+                _logger.LogInformation($"Invoice {invoice.InvoiceNumber} sent to client by {User.Identity.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending invoice to client");
+                TempData["Error"] = "An error occurred while sending the invoice to client.";
+            }
+
+            return RedirectToAction(nameof(InvoiceRecord));
+        }
+
+        // POST: Invoice/MarkAsPaid/5 - Change status to Paid
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> MarkAsPaid(int id)
+        {
+            try
+            {
+                var invoice = await _context.Invoices
+                    .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (invoice == null)
+                {
+                    return NotFound();
+                }
+
+                if (!invoice.CanMarkPaid)
+                {
+                    TempData["Error"] = "This invoice cannot be marked as paid. Only sent or overdue invoices can be marked as paid.";
+                    return RedirectToAction(nameof(InvoiceRecord));
+                }
+
+                invoice.Status = "Paid";
+                _context.Update(invoice);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = $"Invoice {invoice.InvoiceNumber} has been marked as paid!";
+                _logger.LogInformation($"Invoice {invoice.InvoiceNumber} marked as paid by {User.Identity.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error marking invoice as paid");
+                TempData["Error"] = "An error occurred while marking the invoice as paid.";
+            }
+
+            return RedirectToAction(nameof(InvoiceRecord));
+        }
+
+        // POST: Invoice/UpdateStatus/5 - Generic status update (kept for compatibility)
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStatus(int id, string status)
         {
             try
             {
-                var invoice = await _context.Invoices.FindAsync(id);
+                var invoice = await _context.Invoices
+                    .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                    .FirstOrDefaultAsync();
+
                 if (invoice == null)
                 {
                     return NotFound();
                 }
 
+                // Validate status transitions
+                bool canUpdate = status switch
+                {
+                    "Sent" => invoice.Status == "Pending",
+                    "Paid" => invoice.Status == "Sent" || invoice.Status == "Overdue",
+                    "Cancelled" => invoice.Status == "Pending" || invoice.Status == "Sent",
+                    _ => false
+                };
+
+                if (!canUpdate)
+                {
+                    TempData["Error"] = $"Cannot change status from {invoice.Status} to {status}.";
+                    return RedirectToAction(nameof(InvoiceRecord));
+                }
+
                 invoice.Status = status;
 
-                // Update overdue status automatically
+                // Auto-update overdue status if needed
                 if (status == "Sent" && invoice.DueDate < DateTime.Now)
                 {
                     invoice.Status = "Overdue";
@@ -371,45 +604,312 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(InvoiceRecord));
         }
 
+
+
         // GET: Invoice/GenerateReport
-        public async Task<IActionResult> GenerateReport(int? year, string? status)
+        // GET: Invoice/GenerateReport
+        public async Task<IActionResult> GenerateReport(string period = "yearly", int? year = null,
+            int? month = null, string? status = null, string chartType = "pie")
         {
-            var query = _context.Invoices.AsQueryable();
-
-            if (year.HasValue)
+            try
             {
-                query = query.Where(i => i.Year == year.Value);
+                // Set default year if not provided
+                if (!year.HasValue)
+                {
+                    year = DateTime.Now.Year;
+                }
+
+                var query = _context.Invoices
+                    .Include(i => i.InvoiceItems)
+                    .Where(i => !i.IsDeleted);
+
+                // Apply filters based on period
+                switch (period.ToLower())
+                {
+                    case "monthly":
+                        if (month.HasValue)
+                        {
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == month.Value);
+                        }
+                        else
+                        {
+                            // Default to current month if month not specified
+                            var currentMonth = DateTime.Now.Month;
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == currentMonth);
+                            month = currentMonth;
+                        }
+                        break;
+                    case "yearly":
+                        query = query.Where(i => i.IssueDate.Year == year.Value);
+                        break;
+                }
+
+                // Apply status filter if specified
+                if (!string.IsNullOrEmpty(status) && status != "all")
+                {
+                    query = query.Where(i => i.Status.ToLower() == status.ToLower());
+                }
+
+                var invoices = await query
+                    .OrderByDescending(i => i.CreatedDate)
+                    .ToListAsync();
+
+                // Get available years for filter dropdown - MOVED HERE BEFORE USAGE
+                var availableYears = await _context.Invoices
+                    .Where(i => !i.IsDeleted)
+                    .Select(i => i.IssueDate.Year)
+                    .Distinct()
+                    .OrderByDescending(y => y)
+                    .ToListAsync();
+
+                // Calculate status distribution for pie chart
+                var statusDistribution = new Dictionary<string, object>
+                {
+                    ["Pending"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Pending"),
+                        amount = invoices.Where(i => i.Status == "Pending").Sum(i => i.TotalAmount)
+                    },
+                    ["Sent"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Sent"),
+                        amount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount)
+                    },
+                    ["Paid"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Paid"),
+                        amount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount)
+                    },
+                    ["Overdue"] = new
+                    {
+                        count = invoices.Count(i => i.Status == "Overdue"),
+                        amount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount)
+                    }
+                };
+
+                // Generate time series data for line chart
+                List<object> timeSeriesData = new List<object>();
+
+                if (period == "yearly")
+                {
+                    // Monthly data for the selected year
+                    for (int m = 1; m <= 12; m++)
+                    {
+                        var monthlyInvoices = invoices.Where(i => i.IssueDate.Month == m).ToList();
+                        timeSeriesData.Add(new
+                        {
+                            period = new DateTime(year.Value, m, 1).ToString("MMM yyyy"),
+                            month = m,
+                            pending = monthlyInvoices.Count(i => i.Status == "Pending"),
+                            sent = monthlyInvoices.Count(i => i.Status == "Sent"),
+                            paid = monthlyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = monthlyInvoices.Count(i => i.Status == "Overdue"),
+                            totalAmount = monthlyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+                else if (period == "monthly")
+                {
+                    // Daily data for the selected month
+                    var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
+                    for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var dailyInvoices = invoices.Where(i => i.IssueDate.Day == d).ToList();
+                        timeSeriesData.Add(new
+                        {
+                            period = $"{d:D2}",
+                            day = d,
+                            pending = dailyInvoices.Count(i => i.Status == "Pending"),
+                            sent = dailyInvoices.Count(i => i.Status == "Sent"),
+                            paid = dailyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = dailyInvoices.Count(i => i.Status == "Overdue"),
+                            totalAmount = dailyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+
+                // Create status counts for pie chart
+                var statusCounts = new[]
+                {
+    new { status = "Pending", count = invoices.Count(i => i.Status == "Pending") },
+    new { status = "Sent", count = invoices.Count(i => i.Status == "Sent") },
+    new { status = "Paid", count = invoices.Count(i => i.Status == "Paid") },
+    new { status = "Overdue", count = invoices.Count(i => i.Status == "Overdue") }
+}.Where(x => x.count > 0).ToArray();
+
+                // Create trend data for line chart
+                List<object> trendData = new List<object>();
+
+                if (period == "yearly")
+                {
+                    // Monthly data for the selected year
+                    for (int m = 1; m <= 12; m++)
+                    {
+                        var monthlyInvoices = invoices.Where(i => i.IssueDate.Month == m).ToList();
+                        trendData.Add(new
+                        {
+                            periodName = new DateTime(year.Value, m, 1).ToString("MMM yyyy"),
+                            month = m,
+                            count = monthlyInvoices.Count,
+                            amount = monthlyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+                else if (period == "monthly")
+                {
+                    // Daily data for the selected month
+                    var daysInMonth = DateTime.DaysInMonth(year.Value, month ?? DateTime.Now.Month);
+                    var selectedMonth = month ?? DateTime.Now.Month;
+                    for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var dailyInvoices = invoices.Where(i => i.IssueDate.Day == d).ToList();
+                        trendData.Add(new
+                        {
+                            periodName = $"Day {d}",
+                            day = d,
+                            count = dailyInvoices.Count,
+                            amount = dailyInvoices.Sum(i => i.TotalAmount)
+                        });
+                    }
+                }
+
+                var reportData = new
+                {
+                    Period = period,
+                    Year = year.Value,
+                    Month = month,
+                    Status = status,
+                    ChartType = chartType,
+                    TotalInvoices = invoices.Count,
+                    TotalAmount = invoices.Sum(i => i.TotalAmount),
+                    PaidAmount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount),
+                    PendingAmount = invoices.Where(i => i.Status == "Pending").Sum(i => i.TotalAmount),
+                    SentAmount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount),
+                    OverdueAmount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount),
+                    StatusDistribution = statusDistribution,
+                    TimeSeriesData = timeSeriesData,
+                    StatusCounts = statusCounts,
+                    TrendData = trendData,
+                    AvailableYears = availableYears,
+                    Invoices = invoices
+                };
+
+                ViewBag.ReportData = reportData;
+                ViewBag.SelectedPeriod = period;
+                ViewBag.SelectedYear = year;
+                ViewBag.SelectedMonth = month;
+                ViewBag.SelectedStatus = status;
+                ViewBag.SelectedChartType = chartType;
+
+                // REMOVED DUPLICATE availableYears QUERY - Now using the one defined above
+                ViewBag.AvailableYears = availableYears;
+
+                return View("~/Views/Admins/Invoice/Report.cshtml", invoices);
             }
-
-            if (!string.IsNullOrEmpty(status))
+            catch (Exception ex)
             {
-                query = query.Where(i => i.Status == status);
+                _logger.LogError(ex, "Error generating invoice report");
+                TempData["Error"] = "An error occurred while generating the report.";
+                return RedirectToAction(nameof(InvoiceRecord));
             }
-
-            var invoices = await query
-                .OrderByDescending(i => i.CreatedDate)
-                .ToListAsync();
-
-            var reportData = new
-            {
-                TotalInvoices = invoices.Count,
-                TotalAmount = invoices.Sum(i => i.TotalAmount),
-                PaidAmount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount),
-                PendingAmount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount),
-                OverdueAmount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount),
-                Invoices = invoices
-            };
-
-            ViewBag.ReportData = reportData;
-            ViewBag.SelectedYear = year;
-            ViewBag.SelectedStatus = status;
-
-            return View("~/Views/Admins/Invoice/Report.cshtml", invoices);
         }
 
+        // API endpoint to get chart data for AJAX requests
+        [HttpGet]
+        public async Task<IActionResult> GetChartData(string period = "yearly", int? year = null,
+            int? month = null, string? status = null)
+        {
+            try
+            {
+                if (!year.HasValue) year = DateTime.Now.Year;
+
+                var query = _context.Invoices
+                    .Include(i => i.InvoiceItems)
+                    .Where(i => !i.IsDeleted);
+
+                // Apply period filter
+                switch (period.ToLower())
+                {
+                    case "monthly":
+                        if (month.HasValue)
+                        {
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == month.Value);
+                        }
+                        else
+                        {
+                            var currentMonth = DateTime.Now.Month;
+                            query = query.Where(i => i.IssueDate.Year == year.Value && i.IssueDate.Month == currentMonth);
+                            month = currentMonth;
+                        }
+                        break;
+                    case "yearly":
+                        query = query.Where(i => i.IssueDate.Year == year.Value);
+                        break;
+                }
+
+                // Apply status filter
+                if (!string.IsNullOrEmpty(status) && status != "all")
+                {
+                    query = query.Where(i => i.Status.ToLower() == status.ToLower());
+                }
+
+                var invoices = await query.ToListAsync();
+
+                // Pie chart data
+                var pieData = new[]
+                {
+            new { label = "Pending", value = invoices.Count(i => i.Status == "Pending"), color = "#fbbf24" },
+            new { label = "Sent", value = invoices.Count(i => i.Status == "Sent"), color = "#60a5fa" },
+            new { label = "Paid", value = invoices.Count(i => i.Status == "Paid"), color = "#34d399" },
+            new { label = "Overdue", value = invoices.Count(i => i.Status == "Overdue"), color = "#f87171" }
+        }.Where(x => x.value > 0).ToArray();
+
+                // Line chart data
+                List<object> lineData = new List<object>();
+
+                if (period == "yearly")
+                {
+                    for (int m = 1; m <= 12; m++)
+                    {
+                        var monthlyInvoices = invoices.Where(i => i.IssueDate.Month == m).ToList();
+                        lineData.Add(new
+                        {
+                            period = new DateTime(year.Value, m, 1).ToString("MMM"),
+                            pending = monthlyInvoices.Count(i => i.Status == "Pending"),
+                            sent = monthlyInvoices.Count(i => i.Status == "Sent"),
+                            paid = monthlyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = monthlyInvoices.Count(i => i.Status == "Overdue")
+                        });
+                    }
+                }
+                else
+                {
+                    var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
+                    for (int d = 1; d <= daysInMonth; d++)
+                    {
+                        var dailyInvoices = invoices.Where(i => i.IssueDate.Day == d).ToList();
+                        lineData.Add(new
+                        {
+                            period = d.ToString(),
+                            pending = dailyInvoices.Count(i => i.Status == "Pending"),
+                            sent = dailyInvoices.Count(i => i.Status == "Sent"),
+                            paid = dailyInvoices.Count(i => i.Status == "Paid"),
+                            overdue = dailyInvoices.Count(i => i.Status == "Overdue")
+                        });
+                    }
+                }
+
+                return Json(new { pieData, lineData });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting chart data");
+                return Json(new { error = "Failed to load chart data" });
+            }
+        }
         private bool InvoiceExists(int id)
         {
-            return _context.Invoices.Any(e => e.InvoiceID == id);
+            return _context.Invoices.Any(e => e.InvoiceID == id && !e.IsDeleted);
         }
 
         private async Task<string> SaveFile(IFormFile file, string folderName)
