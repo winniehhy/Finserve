@@ -25,11 +25,19 @@
                 </div>
                 <div class="card-body">
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <p class="mb-1 text-muted">Employee ID</p>
                             <p class="fw-bold">@Model.EmployeeID</p>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <p class="mb-1 text-muted">Income Tax No.</p>
+                            <p class="fw-bold">@Model.Employee.IncomeTaxNumber</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-1 text-muted">EPF No.</p>
+                            <p class="fw-bold">@Model.Employee.EPFNumber</p>
+                        </div>
+                        <div class="col-md-3">
                             <p class="mb-1 text-muted">Status</p>
                             <p><span class="badge bg-warning">@Model.PaymentStatus</span></p>
                         </div>
@@ -167,6 +175,14 @@
                             <td>Position:</td>
                             <td>@Model.Employee.Position</td>
                         </tr>
+                        <tr>
+                            <td>Income Tax No.:</td>
+                            <td>@Model.Employee.IncomeTaxNumber</td>
+                        </tr>
+                        <tr>
+                            <td>EPF No.:</td>
+                            <td>@Model.Employee.EPFNumber</td>
+                        </tr>
                     </table>
                 </div>
             </div>
@@ -184,7 +200,7 @@
                                     <tr>
                                         <th>Date</th>
                                         <th>By</th>
-                                        <th>Status</th>
+                                        @* <th>Status</th> *@
                                         <th>Remarks</th>
                                     </tr>
                                 </thead>
@@ -194,7 +210,7 @@
                                         <tr>
                                             <td>@approval.ApprovalDate.ToString("dd MMM yyyy HH:mm")</td>
                                             <td>@approval.ActionBy</td>
-                                            <td><span class="badge bg-secondary">@approval.Status</span></td>
+                                            @* <td><span class="badge bg-secondary">@approval.Status</span></td> *@
                                             <td>@approval.Remarks</td>
                                         </tr>
                                     }

@@ -64,7 +64,7 @@
                             <tr>
                                 <th>Employee ID</th>
                                 <th>Employee Name</th>
-                                <th>Project</th>
+                                @* <th>Project</th> *@
                                 <th>Basic Salary</th>
                                 <th>Total Wages</th>
                                 <th>Total Cost</th>
@@ -78,7 +78,7 @@
                                 <tr>
                                     <td>@entry.EmployeeID</td>
                                     <td>@entry.Employee.FirstName @entry.Employee.LastName</td>
-                                    <td>@entry.ProjectName</td>
+                                    @* <td>@entry.ProjectName</td> *@
                                     <td>RM @entry.BasicSalary.ToString("N2")</td>
                                     <td>RM @entry.TotalWages.ToString("N2")</td>
                                     <td>RM @entry.TotalEmployerCost.ToString("N2")</td>
@@ -141,7 +141,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="table-light fw-bold">
-                                <td colspan="4">Totals</td>
+                                <td colspan="3">Totals</td>
                                 <td>RM @totalNetWages.ToString("N2")</td>
                                 <td>RM @totalEmployerCost.ToString("N2")</td>
                                 <td></td>

@@ -1,15 +1,16 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using FinserveNew.Models;
 
 namespace FinserveNew.Models
 {
     public class Payroll
     {
         [Key]
-        public string PayrollID { get; set; }
+        public string PayrollID { get; set; } = string.Empty;
 
         [Required]
-        public string EmployeeID { get; set; }
+        public string EmployeeID { get; set; } = string.Empty;
 
         [Required]
         public int Month { get; set; }
@@ -70,7 +71,7 @@ namespace FinserveNew.Models
 
         // Navigation property
         [ForeignKey("EmployeeID")]
-        public virtual Employee Employee { get; set; }
+        public virtual Employee Employee { get; set; } = null!;
 
         // Navigations to approvals history
         public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();

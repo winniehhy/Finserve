@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using FinserveNew.Data;
 using FinserveNew.Models;
 using FinserveNew.Models.ViewModels;
+using FinserveNew.Services;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,15 +20,18 @@ namespace FinserveNew.Controllers
         private readonly AppDbContext _context;
         private readonly IEmailSender _emailSender;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IIdGenerationService _idGenerationService;
 
         public PayrollController(
             AppDbContext context,
             IEmailSender emailSender,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IIdGenerationService idGenerationService)
         {
             _context = context;
             _emailSender = emailSender;
             _userManager = userManager;
+            _idGenerationService = idGenerationService;
         }
 
         // ========================== HR Actions ========================== //
@@ -157,9 +161,13 @@ namespace FinserveNew.Controllers
             }
             else
             {
+                // Generate new PayrollID
+                var payrollId = await _idGenerationService.GeneratePayrollIdAsync();
+
                 // Create new entry
                 var salary = new Payroll
                 {
+                    PayrollID = payrollId,
                     EmployeeID = model.EmployeeID,
                     Month = model.Month,
                     Year = model.Year,
@@ -266,6 +274,9 @@ namespace FinserveNew.Controllers
             // Update status to pending approval
             payroll.PaymentStatus = "Pending Approval";
 
+            // Generate new ApprovalID
+            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
+
             // Record approval audit entry
             var requestedBy = await _userManager.GetUserAsync(User);
             var requestedByName = requestedBy != null
@@ -275,6 +286,7 @@ namespace FinserveNew.Controllers
 
             _context.Approvals.Add(new Approval
             {
+                ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Send for Approval",
                 ActionBy = requestedByName ?? string.Empty,
@@ -335,6 +347,9 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
             }
 
+            // Generate new ApprovalID
+            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
+
             // Update status to completed and record approval trail
             payroll.PaymentStatus = "Completed";
 
@@ -346,6 +361,7 @@ namespace FinserveNew.Controllers
 
             _context.Approvals.Add(new Approval
             {
+                ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Mark as Paid",
                 ActionBy = paidByName ?? string.Empty,
@@ -444,11 +460,15 @@ namespace FinserveNew.Controllers
             string approverName = currentUser != null
                 ? $"{currentUser.FirstName} {currentUser.LastName}" : User.Identity.Name;
 
+            // Generate new ApprovalID
+            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
+
             // Update status to approved and record approval entry
             payroll.PaymentStatus = "Approved";
             var monthName = GetMonthName(payroll.Month);
             _context.Approvals.Add(new Approval
             {
+                ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Approve payroll",
                 ActionBy = approverName ?? string.Empty,
@@ -502,6 +522,9 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            // Generate new ApprovalID
+            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
+
             // Update status to rejected and record approval entry
             payroll.PaymentStatus = "Rejected";
             var currentUser = await _userManager.GetUserAsync(User);
@@ -512,6 +535,7 @@ namespace FinserveNew.Controllers
 
             _context.Approvals.Add(new Approval
             {
+                ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Reject payroll",
                 ActionBy = rejectedByName ?? string.Empty,
