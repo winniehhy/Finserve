@@ -115,7 +115,6 @@
                         <small><span asp-validation-for="RoleID" class="text-danger"></span></small>
                     </div>
                 </div>
-
             </div>
         </div>
 
@@ -217,10 +216,9 @@
                     <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
                     <div>Drag & drop files here or <span class="text-primary" style="text-decoration:underline;cursor:pointer;" id="browseFiles">browse</span></div>
                     <small class="text-muted">Supported: PDF, JPG, PNG, DOC, DOCX. Max 5MB each.</small>
-                    <input type="file" id="fileInput" name="NewDocuments" multiple style="display:none;" />
+                    <input type="file" id="fileInput" multiple style="display:none;" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
                 </div>
                 <div id="fileList" class="mt-3"></div>
-                <div id="documentTypeList"></div>
             </div>
         </div>
 
@@ -321,84 +319,204 @@
             }
         });
 
-        // Drag & drop logic
+        // Document upload functionality - COMPLETELY FIXED VERSION
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const browseFiles = document.getElementById('browseFiles');
         const fileList = document.getElementById('fileList');
-        const documentTypeList = document.getElementById('documentTypeList');
-        let files = [];
+
+        // Store files and their document types with persistent state
+        let documentsData = [];
+        let fileCounter = 0;
 
         dropZone.addEventListener('click', () => fileInput.click());
-        browseFiles.addEventListener('click', () => fileInput.click());
+        browseFiles.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            fileInput.click();
+        });
 
         dropZone.addEventListener('dragover', e => {
             e.preventDefault();
             dropZone.classList.add('bg-info', 'text-white');
         });
+
         dropZone.addEventListener('dragleave', e => {
             e.preventDefault();
             dropZone.classList.remove('bg-info', 'text-white');
         });
+
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
             dropZone.classList.remove('bg-info', 'text-white');
             handleFiles(e.dataTransfer.files);
         });
-        fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+        fileInput.addEventListener('change', e => {
+            handleFiles(e.target.files);
+            e.target.value = ''; // Clear input for reuse
+        });
 
         function handleFiles(selectedFiles) {
-            for (let file of selectedFiles) {
+            Array.from(selectedFiles).forEach(file => {
                 if (validateFile(file)) {
-                    files.push(file);
+                    const fileId = ++fileCounter;
+                    documentsData.push({
+                        id: fileId,
+                        file: file,
+                        documentType: '' // Will be set by user selection
+                    });
                 }
-            }
+            });
             renderFileList();
         }
 
         function validateFile(file) {
             const allowed = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
             const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-            if (!allowed.includes(ext)) return false;
-            if (file.size > 5 * 1024 * 1024) return false;
+            if (!allowed.includes(ext)) {
+                alert(`File type ${ext} is not supported. Allowed types: ${allowed.join(', ')}`);
+                return false;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                alert(`File ${file.name} exceeds 5MB limit.`);
+                return false;
+            }
             return true;
         }
 
         function renderFileList() {
             fileList.innerHTML = '';
-            documentTypeList.innerHTML = '';
-            files.forEach((file, idx) => {
+            
+            documentsData.forEach((docData) => {
                 const row = document.createElement('div');
-                row.className = 'row mb-2';
+                row.className = 'row mb-2 align-items-center';
+                row.setAttribute('data-file-id', docData.id);
                 row.innerHTML = `
-                    <div class="col-md-6"><i class="fas fa-file-alt text-primary"></i> ${file.name}</div>
-                    <div class="col-md-5">
-                        <select name="NewDocumentTypes" class="form-select form-select-sm" required>
-                            <option value="">Select type</option>
-                            <option value="IC Photo">IC Photo</option>
-                            <option value="Resume">Resume</option>
-                            <option value="Offer Letter">Offer Letter</option>
-                            <option value="Certificate">Certificate</option>
-                            <option value="Other">Other</option>
+                    <div class="col-md-1">
+                        <i class="fas fa-file-alt text-primary fa-lg"></i>
+                    </div>
+                    <div class="col-md-4">
+                        <span class="fw-medium">${docData.file.name}</span><br>
+                        <small class="text-muted">${formatFileSize(docData.file.size)}</small>
+                    </div>
+                    <div class="col-md-6">
+                        <select class="form-select form-select-sm" id="docType_${docData.id}" onchange="updateDocumentType(${docData.id}, this.value)" required>
+                            <option value="">Select document type</option>
+                            <option value="IC Photo" ${docData.documentType === 'IC Photo' ? 'selected' : ''}>IC Photo</option>
+                            <option value="Resume" ${docData.documentType === 'Resume' ? 'selected' : ''}>Resume</option>
+                            <option value="Offer Letter" ${docData.documentType === 'Offer Letter' ? 'selected' : ''}>Offer Letter</option>
+                            <option value="Certificate" ${docData.documentType === 'Certificate' ? 'selected' : ''}>Certificate</option>
+                            <option value="Contract" ${docData.documentType === 'Contract' ? 'selected' : ''}>Contract</option>
+                            <option value="Other" ${docData.documentType === 'Other' ? 'selected' : ''}>Other</option>
                         </select>
                     </div>
-                    <div class="ms-auto col-md-1">
-                        <button type="button" class="btn btn-sm btn-danger" onclick="removeFile(${idx})"><i class="fas fa-times"></i></button>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeFile(${docData.id})">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 `;
                 fileList.appendChild(row);
             });
 
-            // Rebuild hidden file input for form submission
-            const dt = new DataTransfer();
-            files.forEach(f => dt.items.add(f));
-            fileInput.files = dt.files;
+            // Update form inputs for submission without clearing existing data
+            updateFormInputsPreservingState();
         }
 
-        window.removeFile = function(idx) {
-            files.splice(idx, 1);
+        function updateDocumentType(fileId, documentType) {
+            const docData = documentsData.find(d => d.id === fileId);
+            if (docData) {
+                docData.documentType = documentType;
+                console.log(`Updated document type for file ${fileId}: ${documentType}`);
+                
+                // Update form inputs while preserving all existing selections
+                updateFormInputsPreservingState();
+            }
+        }
+
+        function removeFile(fileId) {
+            documentsData = documentsData.filter(d => d.id !== fileId);
             renderFileList();
         }
+
+        // FIXED: New function that preserves existing form state
+        function updateFormInputsPreservingState() {
+            // Remove only our generated form inputs, not all inputs
+            const existingDocInputs = document.querySelectorAll('input[name="NewDocuments"][data-generated="true"]');
+            const existingTypeInputs = document.querySelectorAll('input[name="NewDocumentTypes"][data-generated="true"]');
+            
+            existingDocInputs.forEach(input => input.remove());
+            existingTypeInputs.forEach(input => input.remove());
+
+            // Create new DataTransfer for files
+            const dt = new DataTransfer();
+            
+            // Add files and document types to form
+            documentsData.forEach(docData => {
+                // Add file to DataTransfer
+                dt.items.add(docData.file);
+                
+                // Create hidden input for document type with proper marking
+                const typeInput = document.createElement('input');
+                typeInput.type = 'hidden';
+                typeInput.name = 'NewDocumentTypes';
+                typeInput.value = docData.documentType;
+                typeInput.setAttribute('data-generated', 'true'); // Mark as our generated input
+                typeInput.setAttribute('data-file-id', docData.id); // Track which file this belongs to
+                document.querySelector('form').appendChild(typeInput);
+            });
+
+            // Create or update file input for form submission
+            let submissionFileInput = document.querySelector('input[name="NewDocuments"][data-generated="true"]');
+            if (!submissionFileInput) {
+                submissionFileInput = document.createElement('input');
+                submissionFileInput.type = 'file';
+                submissionFileInput.name = 'NewDocuments';
+                submissionFileInput.multiple = true;
+                submissionFileInput.style.display = 'none';
+                submissionFileInput.setAttribute('data-generated', 'true');
+                document.querySelector('form').appendChild(submissionFileInput);
+            }
+            
+            // Assign files to the submission input
+            submissionFileInput.files = dt.files;
+            
+            console.log('Form inputs updated:', {
+                filesCount: dt.files.length,
+                typesCount: documentsData.length,
+                documentsWithTypes: documentsData.filter(d => d.documentType).length
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Form submission validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // Check if all selected files have document types
+            const missingTypes = documentsData.filter(d => !d.documentType || d.documentType === '');
+            if (missingTypes.length > 0) {
+                e.preventDefault();
+                alert(`Please select document types for all uploaded files. ${missingTypes.length} files are missing document types.`);
+                
+                // Highlight the first missing file
+                const firstMissingId = missingTypes[0].id;
+                const selectElement = document.getElementById(`docType_${firstMissingId}`);
+                if (selectElement) {
+                    selectElement.focus();
+                    selectElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+            
+            console.log('Form submission approved with', documentsData.length, 'files');
+        });
     </script>
 
     <style>
@@ -418,11 +536,22 @@
             padding: 0.375rem 0.75rem;
         }
 
-            .select2-container--default .select2-search--dropdown .select2-search__field:focus {
-                border-color: #86b7fe;
-                outline: 0;
-                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-            }
+        .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        #dropZone:hover {
+            border-color: #0056b3;
+            background-color: #f8f9fa;
+        }
+
+        .file-list-item {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+        }
     </style>
 }
 

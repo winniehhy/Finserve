@@ -1,19 +1,38 @@
 @model FinserveNew.Models.ViewModels.PayrollProcessViewModel
 @{
     ViewData["Title"] = "Payroll Processing";
+    var currentStatus = ViewBag.CurrentPayrollStatus as string;
+    var payrollId = ViewBag.PayrollID as string;
+    var employeeStatuses = ViewBag.EmployeePayrollStatuses as Dictionary<string, string> ?? new Dictionary<string, string>();
 }
 
 @section Styles {
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <style>
-        /* Ensure Select2 matches the Bootstrap styles */
         .select2-container--bootstrap-5 .select2-selection {
             height: calc(1.5em + 0.75rem + 2px);
             padding: 0.375rem 0.75rem;
             font-size: 1rem;
             border: 1px solid #ced4da;
         }
+
+        .employee-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .employee-info {
+            flex-grow: 1;
+        }
+
+        .employee-status {
+            margin-left: 10px;
+        }
+
+
     </style>
 }
 
@@ -32,9 +51,47 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrEmpty(currentStatus))
+    {
+        <div class="alert alert-info mt-2">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Current Status:</strong>
+            @switch (currentStatus)
+            {
+                case "Pending":
+                    <span class="badge bg-secondary">@currentStatus</span>
+                    <span class="ms-2">This payroll can be edited and sent for approval.</span>
+                    break;
+                case "Rejected":
+                    <span class="badge bg-danger">@currentStatus</span>
+                    <span class="ms-2">This payroll was rejected and can be modified. After modification, it will be reset to Pending status.</span>
+                    break;
+                default:
+                    <span class="badge bg-secondary">@currentStatus</span>
+                    break;
+            }
+        </div>
+    }
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <div class="card">
         <div class="card-header bg-light">
-            <h4 class="card-title mb-0">Enter Salary Details</h4>
+            <h4 class="card-title mb-0">Salary Details</h4>
         </div>
         <div class="card-body">
             <form method="post" asp-action="Process" id="payrollForm">
@@ -69,10 +126,21 @@
                         <option value="">-- Select Employee --</option>
                         @foreach (var emp in Model.Employees)
                         {
-                            <option value="@emp.EmployeeID">@emp.EmployeeID - @emp.FirstName @emp.LastName</option>
+                            var hasPayroll = employeeStatuses.ContainsKey(emp.EmployeeID);
+                            var status = hasPayroll ? employeeStatuses[emp.EmployeeID] : null;
+                            
+                            <option value="@emp.EmployeeID" 
+                                    data-has-payroll="@hasPayroll.ToString().ToLower()" 
+                                    data-status="@status">
+                                @emp.EmployeeID - @emp.FirstName @emp.LastName
+                            </option>
                         }
                     </select>
                     <span asp-validation-for="EmployeeID" class="text-danger"></span>
+                    <div class="form-text">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Employees with existing payroll records will show their status.
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -219,24 +287,96 @@
 
     <script>
         $(function () {
-            // Initialize Select2 for employee select
+            // Initialize Select2 for employee select with custom formatting
             $('#employeeSelect').select2({
                 theme: 'bootstrap-5',
                 width: '100%',
                 placeholder: '-- Select Employee --',
-                allowClear: true
+                allowClear: true,
+                templateResult: formatEmployeeOption,
+                escapeMarkup: function(markup) { return markup; } // Allow HTML
             });
 
-            // Handle select2 change event - we need this because select2 changes how the element works
+            // Custom formatting for dropdown options
+            function formatEmployeeOption(option) {
+                if (!option.id) {
+                    return option.text;
+                }
+
+                var $option = $(option.element);
+                var hasPayroll = $option.data('has-payroll') === true || $option.data('has-payroll') === 'true';
+                var status = $option.data('status');
+
+                if (hasPayroll && status) {
+                    var statusClass = getStatusClass(status);
+                    return $('<div class="employee-option">' +
+                        '<span class="employee-info">' + option.text + '</span>' +
+                        '<span class="employee-status">' +
+                            '<span class="badge ' + statusClass + '">' + status + '</span>' +
+                        '</span>' +
+                    '</div>');
+                } else {
+                    return $('<div>' + option.text + '</div>');
+                }
+            }
+
+            // Handle month/year change to refresh employee statuses
+            $('#Month, #Year').on('change', function() {
+                updateEmployeeStatuses();
+            });
+
+            function updateEmployeeStatuses() {
+                let month = $('#Month').val();
+                let year = $('#Year').val();
+
+                $.ajax({
+                    url: '@Url.Action("GetEmployeePayrollStatus")',
+                    type: 'GET',
+                    data: { month: month, year: year },
+                    success: function(statuses) {
+                        // Update the options with new status data
+                        $('#employeeSelect option').each(function() {
+                            var employeeId = $(this).val();
+                            if (employeeId) {
+                                var hasPayroll = statuses.hasOwnProperty(employeeId);
+                                var status = hasPayroll ? statuses[employeeId] : null;
+
+                                $(this).attr('data-has-payroll', hasPayroll);
+                                $(this).attr('data-status', status || '');
+                            }
+                        });
+
+                        // Refresh Select2 to show updated options
+                        $('#employeeSelect').select2('destroy').select2({
+                            theme: 'bootstrap-5',
+                            width: '100%',
+                            placeholder: '-- Select Employee --',
+                            allowClear: true,
+                            templateResult: formatEmployeeOption,
+                            escapeMarkup: function(markup) { return markup; }
+                        });
+                    }
+                });
+            }
+
+            function getStatusClass(status) {
+                switch(status) {
+                    case 'Pending': return 'bg-secondary';
+                    case 'Pending Approval': return 'bg-warning text-dark';
+                    case 'Approved': return 'bg-info';
+                    case 'Rejected': return 'bg-danger';
+                    case 'Completed': return 'bg-success';
+                    default: return 'bg-secondary';
+                }
+            }
+
+            // Handle employee selection change
             $('#employeeSelect').on('select2:select', function(e) {
                 let employeeId = $(this).val();
                 if (employeeId) {
                     let month = $('#Month').val();
                     let year = $('#Year').val();
                     window.location.href = '@Url.Action("Process")' + '?month=' + month + '&year=' + year + '&employeeId=' + employeeId;
-                }
-                else {
-                    window.location.href = '@Url.Action("Process")';
                 }
             });
 

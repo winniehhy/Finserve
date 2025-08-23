@@ -7,6 +7,7 @@ namespace FinserveNew.Services
     {
         Task<string> GeneratePayrollIdAsync();
         Task<string> GenerateApprovalIdAsync();
+        Task<List<string>> GenerateBatchApprovalIdsAsync(int count); // New method for batch
     }
 
     public class IdGenerationService : IIdGenerationService
@@ -56,6 +57,33 @@ namespace FinserveNew.Services
             }
 
             return $"APV{nextNumber:D3}";
+        }
+
+        // Generate multiple unique approval IDs for batch operations
+        public async Task<List<string>> GenerateBatchApprovalIdsAsync(int count)
+        {
+            var lastApproval = await _context.Approvals
+                .Where(a => a.ApprovalID.StartsWith("APV"))
+                .OrderByDescending(a => a.ApprovalID)
+                .FirstOrDefaultAsync();
+
+            int nextNumber = 1;
+            if (lastApproval != null && lastApproval.ApprovalID.Length >= 6)
+            {
+                var numberPart = lastApproval.ApprovalID.Substring(3);
+                if (int.TryParse(numberPart, out int lastNumber))
+                {
+                    nextNumber = lastNumber + 1;
+                }
+            }
+
+            var approvalIds = new List<string>();
+            for (int i = 0; i < count; i++)
+            {
+                approvalIds.Add($"APV{(nextNumber + i):D3}");
+            }
+
+            return approvalIds;
         }
     }
 }

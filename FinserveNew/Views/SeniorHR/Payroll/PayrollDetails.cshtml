@@ -200,7 +200,7 @@
                                     <tr>
                                         <th>Date</th>
                                         <th>By</th>
-                                        @* <th>Status</th> *@
+                                        <th>Action</th>
                                         <th>Remarks</th>
                                     </tr>
                                 </thead>
@@ -209,8 +209,8 @@
                                     {
                                         <tr>
                                             <td>@approval.ApprovalDate.ToString("dd MMM yyyy HH:mm")</td>
-                                            <td>@approval.ActionBy</td>
-                                            @* <td><span class="badge bg-secondary">@approval.Status</span></td> *@
+                                            <td>@approval.ActionByName</td> <!-- Display name instead of ID -->
+                                            <td>@approval.Action</td>
                                             <td>@approval.Remarks</td>
                                         </tr>
                                     }

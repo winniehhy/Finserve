@@ -10,8 +10,8 @@
             <p class="text-muted">View and export past payroll records</p>
         </div>
         <div class="col-md-4 text-end">
-            <a asp-action="Process" class="btn btn-primary">
-                <i class="fas fa-chevron-left me-2"></i>Back to Payroll Processing
+            <a asp-action="Process" class="btn btn-primary me-2">
+                <i class="fas fa-plus me-2"></i>Process Payroll
             </a>
             <a asp-action="Summary" class="btn btn-outline-secondary">
                 <i class="fas fa-table me-2"></i>Summary
@@ -61,19 +61,19 @@
                                 <th rowspan="2" class="text-center align-middle">No</th>
                                 <th colspan="3" class="text-center">Employee Details</th>
                                 <th colspan="4" class="text-center">Employer Contribution</th>
-                                <th colspan="4" class="text-center">Employee Contribution</th>
+                                <th colspan="4" class="text-center">Employee Deduction</th>
                                 <th rowspan="2" class="text-center align-middle">Net Salary</th>
                             </tr>
                             <tr>
-                                <th>Emp Code</th>
+                                <th>Emp ID</th>
                                 <th>Emp Name</th>
                                 <th>Gross Salary</th>
                                 <th>EPF (13%)</th>
-                                <th>Socso</th>
+                                <th>SOCSO</th>
                                 <th>EIS</th>
                                 <th>PCB</th>
                                 <th>EPF (11%)</th>
-                                <th>Socso</th>
+                                <th>SOCSO</th>
                                 <th>EIS</th>
                                 <th>PCB</th>
                             </tr>
@@ -103,9 +103,8 @@
                             }
                         </tbody>
                         <tfoot>
-                            <tr class="fw-bold">
-                                <td colspan="2"></td>
-                                <td>Total</td>
+                            <tr class="fw-bold bg-light">
+                                <td colspan="3" class="text-end">TOTALS (RM)</td>
                                 <td class="text-end">@Model.Payrolls.Sum(e => e.BasicSalary).ToString("N2")</td>
                                 <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerEpf).ToString("N2")</td>
                                 <td class="text-end">@Model.Payrolls.Sum(e => e.EmployerSocso).ToString("N2")</td>
@@ -115,7 +114,7 @@
                                 <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeSocso).ToString("N2")</td>
                                 <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeEis).ToString("N2")</td>
                                 <td class="text-end">@Model.Payrolls.Sum(e => e.EmployeeTax).ToString("N2")</td>
-                                <td class="text-end">@Model.Payrolls.Sum(e => e.TotalWages).ToString("N2")</td>
+                                <td class="text-end fw-bold">@Model.Payrolls.Sum(e => e.TotalWages).ToString("N2")</td>
                             </tr>
                         </tfoot>
                     </table>

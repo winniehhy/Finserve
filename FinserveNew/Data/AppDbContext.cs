@@ -191,22 +191,26 @@ namespace FinserveNew.Data
             // Configure Approval table with string primary key and relationships
             modelBuilder.Entity<Approval>(entity =>
             {
-                entity.HasKey(a => a.ApprovalID);
-                entity.Property(a => a.ApprovalID).IsRequired().HasMaxLength(10);
-                entity.Property(a => a.Action).IsRequired().HasMaxLength(500);
-                entity.Property(a => a.ActionBy).IsRequired().HasMaxLength(100);
-                entity.Property(a => a.Status).HasMaxLength(30);
-                entity.Property(a => a.Remarks).HasMaxLength(1000);
+                entity.HasKey(e => e.ApprovalID);
+                entity.Property(e => e.ApprovalID).HasMaxLength(50);
+                
+                // Configure relationship with Employee (for EmployeeID)
+                entity.HasOne(e => e.Employee)
+                      .WithMany()
+                      .HasForeignKey(e => e.EmployeeID)
+                      .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(a => a.Employee)
-                    .WithMany()
-                    .HasForeignKey(a => a.EmployeeID)
-                    .OnDelete(DeleteBehavior.Restrict);
+                // Configure relationship with ActionBy Employee
+                entity.HasOne(e => e.ActionByEmployee)
+                      .WithMany()
+                      .HasForeignKey(e => e.ActionBy)
+                      .OnDelete(DeleteBehavior.SetNull);
 
-                entity.HasOne(a => a.Payroll)
-                    .WithMany(p => p.Approvals)
-                    .HasForeignKey(a => a.PayrollID)
-                    .OnDelete(DeleteBehavior.Cascade);
+                // Configure relationship with Payroll
+                entity.HasOne(e => e.Payroll)
+                      .WithMany(p => p.Approvals)
+                      .HasForeignKey(e => e.PayrollID)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
 
             //modelBuilder.Entity<PayrollBatch>(entity =>

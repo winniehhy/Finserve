@@ -129,14 +129,10 @@ namespace FinserveNew.Controllers
                 return NotFound();
 
             // Get the user's system role
-            //var user = await _userManager.FindByIdAsync(employee.ApplicationUserId);
-
             var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeID == id);
-            //string systemRole = "Employee"; // Default
             if (user != null)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                //systemRole = roles.FirstOrDefault() ?? "Employee";
             }
 
             // Get bank names from JSON
@@ -198,6 +194,10 @@ namespace FinserveNew.Controllers
                 Nationalities = countries,
                 BankNames = bankNames,
                 BankTypes = new[] { "Savings", "Current" },
+                
+                // Set default values
+                Nationality = "Malaysia", // Default nationality to Malaysia
+                JoinDate = DateOnly.FromDateTime(DateTime.Today), // Default join date to today
 
                 AvailableRoles = roles.Select(r => new SelectListItem
                 {
@@ -253,6 +253,13 @@ namespace FinserveNew.Controllers
                 vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
                 vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
                 vm.BankTypes = new[] { "Savings", "Current" };
+                
+                // Preserve default values if not set
+                if (string.IsNullOrEmpty(vm.Nationality))
+                    vm.Nationality = "Malaysia";
+                if (vm.JoinDate == DateOnly.MinValue)
+                    vm.JoinDate = DateOnly.FromDateTime(DateTime.Today);
+                
                 return View("~/Views/HR/Accounts/Add.cshtml",vm);
             }
 
@@ -334,36 +341,6 @@ namespace FinserveNew.Controllers
                 string basePasswordPart = vm.FirstName.Replace(" ", "").ToLower();
                 string rawPassword = $"{basePasswordPart}#1234";
                 rawPassword = char.ToUpper(rawPassword[0]) + rawPassword.Substring(1);
-
-                //string rawPassword = $"{vm.FirstName.Trim().ToLower()}#1234";
-
-                //// Generate BankID
-                //var lastBank = await _context.BankInformations
-                //    .OrderByDescending(b => b.BankID)
-                //    .FirstOrDefaultAsync();
-
-                //string newBankID = "B001";
-                //if (lastBank != null)
-                //{
-                //    //var lastNumber = int.Parse(lastBank.BankID.Substring(1));
-                //    //newBankID = $"B{(lastNumber + 1):D3}";
-                //    var lastNumber = lastBank.BankID; // currently the id is put as 1, havnt give proper format
-                //    newBankID = $"B{(lastNumber + 1):D3}";
-                //}
-
-                //// Generate EmergencyID
-                //var lastContact = await _context.EmergencyContacts
-                //    .OrderByDescending(ec => ec.EmergencyID)
-                //    .FirstOrDefaultAsync();
-
-                //string newEmergencyID = "EC001";
-                //if (lastContact != null)
-                //{
-                //    //var lastNumber = int.Parse(lastBank.BankID.Substring(1));
-                //    //newBankID = $"B{(lastNumber + 1):D3}";
-                //    var lastNumber = lastContact.EmergencyID;
-                //    newEmergencyID = $"EC{(lastNumber + 1):D3}";
-                //}
 
                 // Create Bank Information
                 var bankInfo = new BankInformation
@@ -462,8 +439,6 @@ namespace FinserveNew.Controllers
                     // Add user to the appropriate system role
                     await _userManager.AddToRoleAsync(user, systemRole);
 
-                    // Update Employee record with ApplicationUserId
-                    //employee.ApplicationUserId = user.Id;
                     await _context.SaveChangesAsync();
 
                     await transaction.CommitAsync();
@@ -501,9 +476,6 @@ namespace FinserveNew.Controllers
                 vm.BankTypes = new[] { "Savings", "Current" };
                 return View("~/Views/HR/Accounts/Add.cshtml", vm);
             }
-
-            //TempData["Success"] = $"Employee {vm.FirstName} {vm.LastName} added successfully!";
-            //return RedirectToAction(nameof(AllAccounts));
         }
 
         // POST: Accounts/UpdateEmployee
@@ -542,6 +514,9 @@ namespace FinserveNew.Controllers
 
             if (employee == null)
                 return NotFound();
+
+            // Store original email to check if it changed
+            string originalEmail = employee.Email;
 
             // Update employee details
             employee.FirstName = vm.FirstName;
@@ -606,8 +581,46 @@ namespace FinserveNew.Controllers
 
             try
             {
+                // Save employee changes first
                 await _context.SaveChangesAsync();
-                TempData["Success"] = "Employee updated successfully!";
+
+                // Update ASP.NET Identity user email if it changed
+                if (originalEmail != vm.Email)
+                {
+                    var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeID == vm.EmployeeID);
+                    if (user != null)
+                    {
+                        user.Email = vm.Email;
+                        user.UserName = vm.Email; // Often email is used as username
+                        user.NormalizedEmail = vm.Email.ToUpper();
+                        user.NormalizedUserName = vm.Email.ToUpper();
+
+                        var updateResult = await _userManager.UpdateAsync(user);
+                        if (!updateResult.Succeeded)
+                        {
+                            _logger.LogError("Failed to update user email: {Errors}", 
+                                string.Join(", ", updateResult.Errors.Select(e => e.Description)));
+                            
+                            TempData["Warning"] = "Employee updated successfully, but there was an issue updating the login email. Please contact IT support.";
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Successfully updated email for user {EmployeeID} from {OldEmail} to {NewEmail}", 
+                                vm.EmployeeID, originalEmail, vm.Email);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not find ASP.NET Identity user for employee {EmployeeID}", vm.EmployeeID);
+                        TempData["Warning"] = "Employee updated successfully, but could not find associated user account. Please contact IT support.";
+                    }
+                }
+
+                if (TempData["Warning"] == null)
+                {
+                    TempData["Success"] = "Employee updated successfully!";
+                }
+
                 return RedirectToAction(nameof(ViewDetails), new { id = vm.EmployeeID });
             }
             catch (DbUpdateConcurrencyException)

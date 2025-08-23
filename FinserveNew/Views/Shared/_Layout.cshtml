@@ -98,7 +98,7 @@
                             Invoice Management
                         </a>
                     </li>
-                    <li class="menu-item">
+                    @* <li class="menu-item">
                         <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
                             <i class="fas fa-check-circle menu-icon"></i>
                             <span>Approve Payrolls</span>
@@ -110,7 +110,7 @@
                                 }
                             }
                         </a>
-                    </li>
+                    </li> *@
                 }
 
                 <!-- Senior HR Only Sections -->
@@ -123,13 +123,7 @@
                         <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
                             <i class="fas fa-check-circle menu-icon"></i>
                             <span>Approve Payrolls</span>
-                            @{
-                                var pendingCount = await Component.InvokeAsync("PendingPayrollCount");
-                                if (pendingCount != null && int.TryParse(pendingCount.ToString(), out int count) && count > 0)
-                                {
-                                    <span class="badge bg-danger ms-2">@count</span>
-                                }
-                            }
+                            <span class="badge bg-danger ms-4" id="pending-payroll-badge" style="display: none;">0</span>
                         </a>
                     </li>
                     <li class="menu-item">
@@ -257,6 +251,39 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
     <script src="~/js/layout.js"></script>
+
+    <!-- Pending Payroll Count Script -->
+    @if (User.IsInRole("Senior HR"))
+    {
+        <script>
+            $(document).ready(function() {
+                loadPendingPayrollCount();
+                
+                // Refresh count every 30 seconds
+                setInterval(loadPendingPayrollCount, 30000);
+            });
+
+            function loadPendingPayrollCount() {
+                $.ajax({
+                    url: '@Url.Action("GetPendingPayrollCount", "Payroll")',
+                    type: 'GET',
+                    success: function(data) {
+                        if (data.count && data.count > 0) {
+                            $('#pending-payroll-badge').text(data.count).show();
+                            console.log('Pending payroll count loaded: ' + data.count);
+                        } else {
+                            $('#pending-payroll-badge').hide();
+                            console.log('No pending payrolls');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.log('Failed to load pending payroll count: ' + error);
+                        $('#pending-payroll-badge').hide();
+                    }
+                });
+            }
+        </script>
+    }
 
     @RenderSection("Scripts", required: false)
 </body>

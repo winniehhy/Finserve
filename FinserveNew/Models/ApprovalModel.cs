@@ -33,7 +33,7 @@ namespace FinserveNew.Models
         // Optional link to a specific Payroll record
         public string? PayrollID { get; set; }
 
-        // Foreign Key - Based on  ERD, Approval links to Employee
+        // Foreign Key - Based on ERD, Approval links to Employee
         [Required(ErrorMessage = "Employee is required")]
         [Display(Name = "Employee")]
         public string? EmployeeID { get; set; }
@@ -45,7 +45,14 @@ namespace FinserveNew.Models
         [ForeignKey("PayrollID")]
         public virtual Payroll? Payroll { get; set; }
 
-    
-        // public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
+        // Navigation property for ActionBy Employee
+        [ForeignKey("ActionBy")]
+        public virtual Employee? ActionByEmployee { get; set; }
+
+        // Helper property to get action by employee name for display
+        [NotMapped]
+        public string ActionByName => ActionByEmployee != null 
+            ? $"{ActionByEmployee.FirstName} {ActionByEmployee.LastName}" 
+            : ActionBy; // Fallback to stored value if employee not found
     }
 }

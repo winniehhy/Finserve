@@ -1,4 +1,4 @@
-﻿@model IEnumerable<FinserveNew.Models.Payroll>
+﻿@model FinserveNew.Models.ViewModels.PayrollApprovalViewModel
 @{
     ViewData["Title"] = "Payroll Approvals";
 }
@@ -27,22 +27,107 @@
         </div>
     }
 
+    <!-- Quick Search Bar -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" asp-action="ApprovePayrolls" id="searchForm">
+                <div class="row">
+                    <div class="col-auto input-group flex-grow-1" style="width: auto">
+                        <input type="text" name="searchTerm" class="form-control" placeholder="Search by employee name, ID, or payroll ID..." value="@Model.SearchTerm" />
+                        <button type="submit" class="btn btn-outline-secondary"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div class="col-auto text-end">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                            <i class="fas fa-filter me-2"></i>Filters
+                            @if (HasActiveFilters())
+                            {
+                                <span class="badge bg-primary ms-1">@GetActiveFilterCount()</span>
+                            }
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hidden inputs to preserve filters and active tab (status filter removed) -->
+                <input type="hidden" name="filterEmployee" value="@Model.FilterEmployee" id="hiddenFilterEmployee">
+                <input type="hidden" name="filterMonth" value="@Model.FilterMonth" id="hiddenFilterMonth">
+                <input type="hidden" name="filterYear" value="@Model.FilterYear" id="hiddenFilterYear">
+                <input type="hidden" name="minAmount" value="@Model.MinAmount" id="hiddenMinAmount">
+                <input type="hidden" name="maxAmount" value="@Model.MaxAmount" id="hiddenMaxAmount">
+                <input type="hidden" name="dateFrom" value="@Model.DateFrom?.ToString("yyyy-MM-dd")" id="hiddenDateFrom">
+                <input type="hidden" name="dateTo" value="@Model.DateTo?.ToString("yyyy-MM-dd")" id="hiddenDateTo">
+                <input type="hidden" name="activeTab" value="@ViewBag.ActiveTab" id="hiddenActiveTab">
+            </form>
+
+            <!-- Active Filters Display -->
+            @if (HasActiveFilters())
+            {
+                <div class="mt-3">
+                    <small class="text-muted">Active filters:</small>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                        @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                        {
+                            <span class="badge bg-primary">Search: @Model.SearchTerm 
+                                <a href="@GetFilterRemoveUrl("searchTerm")" class="text-white ms-1"><i class="fas fa-times"></i></a>
+                            </span>
+                        }
+                        @if (Model.FilterMonth.HasValue)
+                        {
+                            <span class="badge bg-info">Month: @System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(Model.FilterMonth.Value)
+                                <a href="@GetFilterRemoveUrl("filterMonth")" class="text-white ms-1"><i class="fas fa-times"></i></a>
+                            </span>
+                        }
+                        @if (Model.FilterYear.HasValue)
+                        {
+                            <span class="badge bg-info">Year: @Model.FilterYear
+                                <a href="@GetFilterRemoveUrl("filterYear")" class="text-white ms-1"><i class="fas fa-times"></i></a>
+                            </span>
+                        }
+                        @if (Model.MinAmount.HasValue || Model.MaxAmount.HasValue)
+                        {
+                            <span class="badge bg-success">
+                                Amount: @(Model.MinAmount?.ToString("N0") ?? "0") - @(Model.MaxAmount?.ToString("N0") ?? "∞")
+                                <a href="@GetFilterRemoveUrl("amount")" class="text-white ms-1"><i class="fas fa-times"></i></a>
+                            </span>
+                        }
+                        @if (Model.DateFrom.HasValue || Model.DateTo.HasValue)
+                        {
+                            <span class="badge bg-dark">
+                                Date: @(Model.DateFrom?.ToString("dd/MM/yy") ?? "Start") - @(Model.DateTo?.ToString("dd/MM/yy") ?? "End")
+                                <a href="@GetFilterRemoveUrl("date")" class="text-white ms-1"><i class="fas fa-times"></i></a>
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Tabs content remains the same -->
     <div class="card">
         <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist" id="payrollTabs">
                 <li class="nav-item">
-                    <a class="nav-link active" data-bs-toggle="tab" href="#pending" role="tab">
-                        Pending <span class="badge bg-danger">@Model.Count(p => p.PaymentStatus == "Pending Approval")</span>
+                    <a class="nav-link @(ViewBag.ActiveTab != "approved" && ViewBag.ActiveTab != "rejected" && ViewBag.ActiveTab != "history" ? "active" : "")" 
+                       data-bs-toggle="tab" href="#pending" role="tab" data-tab="pending">
+                        Pending <span class="badge bg-danger">@Model.PendingPayrolls.Count</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#approved" role="tab">
-                        Approved <span class="badge bg-success">@Model.Count(p => p.PaymentStatus == "Approved")</span>
+                    <a class="nav-link @(ViewBag.ActiveTab == "approved" ? "active" : "")" 
+                       data-bs-toggle="tab" href="#approved" role="tab" data-tab="approved">
+                        Approved <span class="badge bg-success">@Model.ApprovedPayrolls.Count</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#rejected" role="tab">
-                        Rejected <span class="badge bg-secondary">@Model.Count(p => p.PaymentStatus == "Rejected")</span>
+                    <a class="nav-link @(ViewBag.ActiveTab == "rejected" ? "active" : "")" 
+                       data-bs-toggle="tab" href="#rejected" role="tab" data-tab="rejected">
+                        Rejected <span class="badge bg-secondary">@Model.RejectedPayrolls.Count</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(ViewBag.ActiveTab == "history" ? "active" : "")" 
+                       data-bs-toggle="tab" href="#history" role="tab" data-tab="history">
+                        All History <span class="badge bg-info">@Model.AllApprovalHistory.Count</span>
                     </a>
                 </li>
             </ul>
@@ -51,25 +136,49 @@
         <div class="card-body">
             <div class="tab-content">
                 <!-- Pending Approvals Tab -->
-                <div class="tab-pane fade show active" id="pending" role="tabpanel">
-                    @if (Model.Any(p => p.PaymentStatus == "Pending Approval"))
+                <div class="tab-pane fade @(ViewBag.ActiveTab != "approved" && ViewBag.ActiveTab != "rejected" && ViewBag.ActiveTab != "history" ? "show active" : "")" id="pending" role="tabpanel">
+                    @if (Model.PendingPayrolls.Any())
                     {
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>EmployeeID</th>
-                                        <th>Employee</th>
-                                        <th>Month/Year</th>
-                                        <th>Basic Salary</th>
-                                        <th>Net Salary</th>
-                                        <th>Total Cost</th>
+                                        <th>
+                                            <a href="@GetSortUrl("EmployeeID")" class="text-decoration-none">
+                                                EmployeeID <i class="fas fa-sort"></i>
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="@GetSortUrl("Employee")" class="text-decoration-none">
+                                                Employee <i class="fas fa-sort"></i>
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="@GetSortUrl("Date")" class="text-decoration-none">
+                                                Month/Year <i class="fas fa-sort"></i>
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="@GetSortUrl("BasicSalary")" class="text-decoration-none">
+                                                Basic Salary <i class="fas fa-sort"></i>
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="@GetSortUrl("NetSalary")" class="text-decoration-none">
+                                                Net Salary <i class="fas fa-sort"></i>
+                                            </a>
+                                        </th>
+                                        <th>
+                                            <a href="@GetSortUrl("TotalCost")" class="text-decoration-none">
+                                                Total Cost <i class="fas fa-sort"></i>
+                                            </a>
+                                        </th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Pending Approval"))
+                                    @foreach (var payroll in Model.PendingPayrolls)
                                     {
                                         <tr>
                                             <td>@payroll.EmployeeID</td>
@@ -95,15 +204,27 @@
                     else
                     {
                         <div class="alert alert-info mb-0">
-                            <p class="mb-0">No payroll entries pending approval.</p>
+                            <p class="mb-0">
+                                @if (HasActiveFilters())
+                                {
+                                    <text>No payroll entries match your current filters.</text>
+                                }
+                                else
+                                {
+                                    <text>No payroll entries pending approval.</text>
+                                }
+                            </p>
                         </div>
                     }
                 </div>
 
                 <!-- Approved Tab -->
-                <div class="tab-pane fade" id="approved" role="tabpanel">
-                    @if (Model.Any(p => p.PaymentStatus == "Approved"))
+                <div class="tab-pane fade @(ViewBag.ActiveTab == "approved" ? "show active" : "")" id="approved" role="tabpanel">
+                    @if (Model.ApprovedPayrolls.Any())
                     {
+                        <div class="mb-3">
+                            <h6 class="text-muted">Payrolls that have been approved (may have been paid already)</h6>
+                        </div>
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
@@ -114,11 +235,19 @@
                                         <th>Basic Salary</th>
                                         <th>Net Salary</th>
                                         <th>Total Cost</th>
+                                        <th>Current Status</th>
+                                        <th>Approved By</th>
+                                        <th>Approved Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Approved"))
+                                    @foreach (var payroll in Model.ApprovedPayrolls)
                                     {
+                                        var approvalRecord = payroll.Approvals?
+                                            .Where(a => a.Status == "Approved")
+                                            .OrderByDescending(a => a.ApprovalDate)
+                                            .FirstOrDefault();
+                                        
                                         <tr>
                                             <td>@payroll.EmployeeID</td>
                                             <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
@@ -126,6 +255,49 @@
                                             <td>RM @payroll.BasicSalary.ToString("N2")</td>
                                             <td>RM @payroll.TotalWages.ToString("N2")</td>
                                             <td>RM @payroll.TotalEmployerCost.ToString("N2")</td>
+                                            <td>
+                                                @if (payroll.PaymentStatus == "Approved")
+                                                {
+                                                    <span class="badge bg-info">@payroll.PaymentStatus</span>
+                                                }
+                                                else if (payroll.PaymentStatus == "Completed")
+                                                {
+                                                    <span class="badge bg-success">@payroll.PaymentStatus</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">@payroll.PaymentStatus</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (approvalRecord != null)
+                                                {
+                                                    <span>@approvalRecord.ActionByName</span>
+                                                    @if (!string.IsNullOrEmpty(approvalRecord.Remarks))
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-link p-0 ms-1" 
+                                                                data-bs-toggle="tooltip" 
+                                                                data-bs-placement="top" 
+                                                                title="@approvalRecord.Remarks">
+                                                            <i class="fas fa-comment-alt text-info"></i>
+                                                        </button>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Unknown</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (approvalRecord != null)
+                                                {
+                                                    @approvalRecord.ApprovalDate.ToString("dd MMM yyyy HH:mm")
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -135,15 +307,27 @@
                     else
                     {
                         <div class="alert alert-info mb-0">
-                            <p class="mb-0">No approved payroll entries found.</p>
+                            <p class="mb-0">
+                                @if (HasActiveFilters())
+                                {
+                                    <text>No approved payroll entries match your current filters.</text>
+                                }
+                                else
+                                {
+                                    <text>No approved payroll entries found.</text>
+                                }
+                            </p>
                         </div>
                     }
                 </div>
 
                 <!-- Rejected Tab -->
-                <div class="tab-pane fade" id="rejected" role="tabpanel">
-                    @if (Model.Any(p => p.PaymentStatus == "Rejected"))
+                <div class="tab-pane fade @(ViewBag.ActiveTab == "rejected" ? "show active" : "")" id="rejected" role="tabpanel">
+                    @if (Model.RejectedPayrolls.Any())
                     {
+                        <div class="mb-3">
+                            <h6 class="text-muted">Payrolls that have been rejected (may have been resubmitted)</h6>
+                        </div>
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
@@ -154,11 +338,20 @@
                                         <th>Basic Salary</th>
                                         <th>Net Salary</th>
                                         <th>Total Cost</th>
+                                        <th>Current Status</th>
+                                        <th>Rejected By</th>
+                                        <th>Rejected Date</th>
+                                        <th>Reason</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var payroll in Model.Where(p => p.PaymentStatus == "Rejected"))
+                                    @foreach (var payroll in Model.RejectedPayrolls)
                                     {
+                                        var rejectionRecord = payroll.Approvals?
+                                            .Where(a => a.Status == "Rejected")
+                                            .OrderByDescending(a => a.ApprovalDate)
+                                            .FirstOrDefault();
+                                        
                                         <tr>
                                             <td>@payroll.EmployeeID</td>
                                             <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
@@ -166,6 +359,65 @@
                                             <td>RM @payroll.BasicSalary.ToString("N2")</td>
                                             <td>RM @payroll.TotalWages.ToString("N2")</td>
                                             <td>RM @payroll.TotalEmployerCost.ToString("N2")</td>
+                                            <td>
+                                                @if (payroll.PaymentStatus == "Rejected")
+                                                {
+                                                    <span class="badge bg-danger">@payroll.PaymentStatus</span>
+                                                }
+                                                else if (payroll.PaymentStatus == "Pending")
+                                                {
+                                                    <span class="badge bg-secondary">@payroll.PaymentStatus</span>
+                                                    <small class="text-muted">(Resubmitted)</small>
+                                                }
+                                                else if (payroll.PaymentStatus == "Pending Approval")
+                                                {
+                                                    <span class="badge bg-warning">@payroll.PaymentStatus</span>
+                                                    <small class="text-muted">(Resubmitted)</small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">@payroll.PaymentStatus</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (rejectionRecord != null)
+                                                {
+                                                    @rejectionRecord.ActionByName
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Unknown</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (rejectionRecord != null)
+                                                {
+                                                    @rejectionRecord.ApprovalDate.ToString("dd MMM yyyy HH:mm")
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (rejectionRecord != null && !string.IsNullOrEmpty(rejectionRecord.Remarks))
+                                                {
+                                                    if (rejectionRecord.Remarks.Length > 50)
+                                                    {
+                                                        <span title="@rejectionRecord.Remarks" data-bs-toggle="tooltip">
+                                                            @rejectionRecord.Remarks.Substring(0, 50)...
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        @rejectionRecord.Remarks
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">No reason provided</span>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -175,7 +427,127 @@
                     else
                     {
                         <div class="alert alert-info mb-0">
-                            <p class="mb-0">No rejected payroll entries found.</p>
+                            <p class="mb-0">
+                                @if (HasActiveFilters())
+                                {
+                                    <text>No rejected payroll entries match your current filters.</text>
+                                }
+                                else
+                                {
+                                    <text>No rejected payroll entries found.</text>
+                                }
+                            </p>
+                        </div>
+                    }
+                </div>
+
+                <!-- All History Tab -->
+                <div class="tab-pane fade @(ViewBag.ActiveTab == "history" ? "show active" : "")" id="history" role="tabpanel">
+                    @if (Model.AllApprovalHistory.Any())
+                    {
+                        <div class="mb-3">
+                            <h6 class="text-muted">Complete approval history for all payrolls</h6>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>EmployeeID</th>
+                                        <th>Employee</th>
+                                        <th>Month/Year</th>
+                                        <th>Action</th>
+                                        <th>By</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in Model.AllApprovalHistory)
+                                    {
+                                        <tr>
+                                            <td>@item.Approval.ApprovalDate.ToString("dd MMM yyyy HH:mm")</td>
+                                            <td>@item.Payroll.EmployeeID</td>
+                                            <td>@item.Payroll.Employee.FirstName @item.Payroll.Employee.LastName</td>
+                                            <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(item.Payroll.Month) @item.Payroll.Year</td>
+                                            <td>@item.Approval.Action</td>
+                                            <td>@item.Approval.ActionByName</td>
+                                            <td>RM @item.Payroll.TotalWages.ToString("N2")</td>
+                                            <td>
+                                                @if (item.Approval.Status == "Approved")
+                                                {
+                                                    <span class="badge bg-success">@item.Approval.Status</span>
+                                                }
+                                                else if (item.Approval.Status == "Rejected")
+                                                {
+                                                    <span class="badge bg-danger">@item.Approval.Status</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">@item.Approval.Status</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(item.Approval.Remarks))
+                                                {
+                                                    if (item.Approval.Remarks.Length > 30)
+                                                    {
+                                                        <span title="@item.Approval.Remarks" data-bs-toggle="tooltip">
+                                                            @item.Approval.Remarks.Substring(0, 30)...
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        @item.Approval.Remarks
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Summary Statistics for History -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Approval Statistics</h6>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <p class="mb-1"><strong>Total Approved:</strong></p>
+                                                <span class="badge bg-success fs-6">@Model.AllApprovalHistory.Count(a => a.Approval.Status == "Approved")</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <p class="mb-1"><strong>Total Rejected:</strong></p>
+                                                <span class="badge bg-danger fs-6">@Model.AllApprovalHistory.Count(a => a.Approval.Status == "Rejected")</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">
+                                @if (HasActiveFilters())
+                                {
+                                    <text>No approval history matches your current filters.</text>
+                                }
+                                else
+                                {
+                                    <text>No approval history found.</text>
+                                }
+                            </p>
                         </div>
                     }
                 </div>
@@ -183,3 +555,301 @@
         </div>
     </div>
 </div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="filterModalLabel">
+                    <i class="fas fa-filter me-2"></i>Advanced Filters
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="get" asp-action="ApprovePayrolls" id="filterForm">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Employee</label>
+                            <select name="filterEmployee" class="form-select" id="modalFilterEmployee">
+                                <option value="">All Employees</option>
+                                @foreach (var emp in Model.AllEmployees)
+                                {
+                                    <option value="@emp.EmployeeID">
+                                        @emp.EmployeeID - @emp.FirstName @emp.LastName
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Month</label>
+                            <select name="filterMonth" class="form-select" id="modalFilterMonth">
+                                <option value="">All Months</option>
+                                @for (int m = 1; m <= 12; m++)
+                                {
+                                    <option value="@m">
+                                        @System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Year</label>
+                            <select name="filterYear" class="form-select" id="modalFilterYear">
+                                <option value="">All Years</option>
+                                @foreach (var year in Model.AvailableYears)
+                                {
+                                    <option value="@year">@year</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Min Amount (RM)</label>
+                            <input type="number" name="minAmount" value="@Model.MinAmount" 
+                                   class="form-control" placeholder="0.00" step="0.01" id="modalMinAmount">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Max Amount (RM)</label>
+                            <input type="number" name="maxAmount" value="@Model.MaxAmount" 
+                                   class="form-control" placeholder="0.00" step="0.01" id="modalMaxAmount">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Date From</label>
+                            <input type="date" name="dateFrom" value="@Model.DateFrom?.ToString("yyyy-MM-dd")" 
+                                   class="form-control" id="modalDateFrom">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date To</label>
+                            <input type="date" name="dateTo" value="@Model.DateTo?.ToString("yyyy-MM-dd")" 
+                                   class="form-control" id="modalDateTo">
+                        </div>
+                    </div>
+
+                    @if (HasActiveFilters())
+                    {
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            You currently have <strong>@GetActiveFilterCount()</strong> active filter@(GetActiveFilterCount() > 1 ? "s" : "").
+                        </div>
+                    }
+                </div>
+
+                <!-- Hidden fields to preserve search term and active tab -->
+                <input type="hidden" name="searchTerm" value="@Model.SearchTerm">
+                <input type="hidden" name="activeTab" value="" id="modalActiveTab">
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="clearAllFilters">
+                        <i class="fas fa-times me-1"></i>Clear All Filters
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i>Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@functions {
+    bool HasActiveFilters()
+    {
+        return !string.IsNullOrEmpty(Model.SearchTerm) ||
+               Model.FilterMonth.HasValue ||
+               Model.FilterYear.HasValue ||
+               !string.IsNullOrEmpty(Model.FilterEmployee) ||
+               Model.MinAmount.HasValue ||
+               Model.MaxAmount.HasValue ||
+               Model.DateFrom.HasValue ||
+               Model.DateTo.HasValue;
+    }
+
+    int GetActiveFilterCount()
+    {
+        int count = 0;
+        if (!string.IsNullOrEmpty(Model.SearchTerm)) count++;
+        if (Model.FilterMonth.HasValue) count++;
+        if (Model.FilterYear.HasValue) count++;
+        if (!string.IsNullOrEmpty(Model.FilterEmployee)) count++;
+        if (Model.MinAmount.HasValue) count++;
+        if (Model.MaxAmount.HasValue) count++;
+        if (Model.DateFrom.HasValue) count++;
+        if (Model.DateTo.HasValue) count++;
+        return count;
+    }
+
+    string GetFilterRemoveUrl(string filterToRemove)
+    {
+        var routeValues = new RouteValueDictionary();
+        
+        if (filterToRemove != "searchTerm" && !string.IsNullOrEmpty(Model.SearchTerm))
+            routeValues["searchTerm"] = Model.SearchTerm;
+        if (filterToRemove != "filterMonth" && Model.FilterMonth.HasValue)
+            routeValues["filterMonth"] = Model.FilterMonth;
+        if (filterToRemove != "filterYear" && Model.FilterYear.HasValue)
+            routeValues["filterYear"] = Model.FilterYear;
+        if (filterToRemove != "filterEmployee" && !string.IsNullOrEmpty(Model.FilterEmployee))
+            routeValues["filterEmployee"] = Model.FilterEmployee;
+        if (filterToRemove != "amount" && filterToRemove != "minAmount" && Model.MinAmount.HasValue)
+            routeValues["minAmount"] = Model.MinAmount;
+        if (filterToRemove != "amount" && filterToRemove != "maxAmount" && Model.MaxAmount.HasValue)
+            routeValues["maxAmount"] = Model.MaxAmount;
+        if (filterToRemove != "date" && filterToRemove != "dateFrom" && Model.DateFrom.HasValue)
+            routeValues["dateFrom"] = Model.DateFrom?.ToString("yyyy-MM-dd");
+        if (filterToRemove != "date" && filterToRemove != "dateTo" && Model.DateTo.HasValue)
+            routeValues["dateTo"] = Model.DateTo?.ToString("yyyy-MM-dd");
+
+        // Preserve active tab
+        if (!string.IsNullOrEmpty(ViewBag.ActiveTab))
+            routeValues["activeTab"] = ViewBag.ActiveTab;
+
+        return Url.Action("ApprovePayrolls", routeValues);
+    }
+
+    string GetSortUrl(string sortField)
+    {
+        var routeValues = new RouteValueDictionary();
+        
+        // Preserve current filters
+        if (!string.IsNullOrEmpty(Model.SearchTerm))
+            routeValues["searchTerm"] = Model.SearchTerm;
+        if (Model.FilterMonth.HasValue)
+            routeValues["filterMonth"] = Model.FilterMonth;
+        if (Model.FilterYear.HasValue)
+            routeValues["filterYear"] = Model.FilterYear;
+        if (!string.IsNullOrEmpty(Model.FilterEmployee))
+            routeValues["filterEmployee"] = Model.FilterEmployee;
+        if (Model.MinAmount.HasValue)
+            routeValues["minAmount"] = Model.MinAmount;
+        if (Model.MaxAmount.HasValue)
+            routeValues["maxAmount"] = Model.MaxAmount;
+        if (Model.DateFrom.HasValue)
+            routeValues["dateFrom"] = Model.DateFrom?.ToString("yyyy-MM-dd");
+        if (Model.DateTo.HasValue)
+            routeValues["dateTo"] = Model.DateTo?.ToString("yyyy-MM-dd");
+
+        // Preserve active tab
+        if (!string.IsNullOrEmpty(ViewBag.ActiveTab))
+            routeValues["activeTab"] = ViewBag.ActiveTab;
+
+        // Add sort parameter
+        routeValues["sortBy"] = sortField;
+
+        return Url.Action("ApprovePayrolls", routeValues);
+    }
+}
+
+@section Scripts {
+    <script>
+        let searchTimeout;
+
+        $(document).ready(function() {
+            // Initialize Bootstrap tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+
+            // Set current filter values in modal when it opens
+            $('#filterModal').on('show.bs.modal', function () {
+                // Set selected values from current filters
+                $('#modalFilterEmployee').val('@Model.FilterEmployee');
+                $('#modalFilterMonth').val('@Model.FilterMonth');
+                $('#modalFilterYear').val('@Model.FilterYear');
+                $('#modalMinAmount').val('@Model.MinAmount');
+                $('#modalMaxAmount').val('@Model.MaxAmount');
+                $('#modalDateFrom').val('@Model.DateFrom?.ToString("yyyy-MM-dd")');
+                $('#modalDateTo').val('@Model.DateTo?.ToString("yyyy-MM-dd")');
+            });
+
+            // Track active tab changes
+            $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                var activeTab = $(e.target).data('tab');
+                $('#hiddenActiveTab').val(activeTab);
+                $('#modalActiveTab').val(activeTab);
+            });
+
+            // Set initial active tab
+            var currentActiveTab = '@ViewBag.ActiveTab' || 'pending';
+            $('#hiddenActiveTab').val(currentActiveTab);
+            $('#modalActiveTab').val(currentActiveTab);
+
+            // Clear all filters in modal
+            $('#clearAllFilters').click(function() {
+                $('#modalFilterEmployee').val('');
+                $('#modalFilterMonth').val('');
+                $('#modalFilterYear').val('');
+                $('#modalFilterStatus').val('');
+                $('#modalMinAmount').val('');
+                $('#modalMaxAmount').val('');
+                $('#modalDateFrom').val('');
+                $('#modalDateTo').val('');
+            });
+        });
+
+        function debounceSearch(value) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                if (value.length >= 3 || value.length === 0) {
+                    document.getElementById('searchForm').submit();
+                }
+            }, 500);
+        }
+
+        function clearFilters() {
+            var currentTab = $('#hiddenActiveTab').val() || 'pending';
+            window.location.href = '@Url.Action("ApprovePayrolls")' + '?activeTab=' + currentTab;
+        }
+    </script>
+}
+
+@section Styles {
+    <style>
+        /* Filter modal styling */
+        .modal-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-footer {
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+
+        /* Badge on filter button */
+        .btn .badge {
+            font-size: 0.65em;
+        }
+
+        /* Active filter badges */
+        .badge a {
+            text-decoration: none;
+        }
+
+        .badge a:hover {
+            text-decoration: underline;
+        }
+
+        /* Tab content padding */
+        .tab-content {
+            padding-top: 1rem;
+        }
+
+        /* Filter button with active state */
+        .btn-outline-primary.active,
+        .btn-outline-primary:focus {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+    </style>
+}

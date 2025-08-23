@@ -70,9 +70,18 @@ namespace FinserveNew.Controllers
                                             p.Month == month &&
                                             p.Year == year);
 
-                // If found, populate the form with existing values
+                // If found, check if it can be edited
                 if (existingPayroll != null)
                 {
+                    var canEdit = existingPayroll.PaymentStatus == "Pending" || existingPayroll.PaymentStatus == "Rejected";
+                    
+                    // If payroll exists but cannot be edited, redirect to view page
+                    if (!canEdit)
+                    {
+                        return RedirectToAction(nameof(ViewPayroll), new { month = month, year = year, employeeId = employeeId });
+                    }
+
+                    // If it can be edited, populate the form
                     viewModel.ProjectName = existingPayroll.ProjectName;
                     viewModel.BasicSalary = existingPayroll.BasicSalary;
                     viewModel.EmployerEpf = existingPayroll.EmployerEpf;
@@ -84,8 +93,20 @@ namespace FinserveNew.Controllers
                     viewModel.EmployeeSocso = existingPayroll.EmployeeSocso;
                     viewModel.EmployeeEis = existingPayroll.EmployeeEis;
                     viewModel.EmployeeTax = existingPayroll.EmployeeTax;
+                    
+                    // Pass the current status to the view
+                    ViewBag.CurrentPayrollStatus = existingPayroll.PaymentStatus;
+                    ViewBag.PayrollID = existingPayroll.PayrollID;
                 }
             }
+
+            // Get payroll statuses for employees who have payroll records only
+            var employeePayrollStatuses = await _context.Payrolls
+                .Where(p => p.Month == month && p.Year == year)
+                .Select(p => new { p.EmployeeID, p.PaymentStatus })
+                .ToListAsync();
+
+            ViewBag.EmployeePayrollStatuses = employeePayrollStatuses.ToDictionary(x => x.EmployeeID, x => x.PaymentStatus);
 
             return View("~/Views/HR/Payroll/Process.cshtml", viewModel);
         }
@@ -128,15 +149,9 @@ namespace FinserveNew.Controllers
                     .ThenBy(e => e.LastName)
                     .ToListAsync();
 
-                model.Payrolls = await _context.Payrolls
-                    .Include(p => p.Employee)
-                    .Where(p => p.Month == model.Month && p.Year == model.Year)
-                    .ToListAsync();
-
                 return View("~/Views/HR/Payroll/Process.cshtml", model);
             }
 
-            // Check if an entry already exists for this employee in this month/year
             var existingEntry = await _context.Payrolls
                 .FirstOrDefaultAsync(p => p.EmployeeID == model.EmployeeID &&
                                          p.Month == model.Month &&
@@ -144,6 +159,13 @@ namespace FinserveNew.Controllers
 
             if (existingEntry != null)
             {
+                var canEdit = existingEntry.PaymentStatus == "Pending" || existingEntry.PaymentStatus == "Rejected";
+                if (!canEdit)
+                {
+                    TempData["Error"] = $"Payroll with status '{existingEntry.PaymentStatus}' cannot be edited.";
+                    return RedirectToAction(nameof(Summary), new { month = model.Month, year = model.Year });
+                }
+
                 // Update existing entry
                 existingEntry.ProjectName = model.ProjectName;
                 existingEntry.BasicSalary = model.BasicSalary;
@@ -158,6 +180,33 @@ namespace FinserveNew.Controllers
                 existingEntry.EmployeeTax = model.EmployeeTax;
                 existingEntry.TotalWages = model.TotalWages;
                 existingEntry.TotalEmployerCost = model.TotalEmployerCost;
+
+                // If it was rejected, reset status to Pending when modified
+                if (existingEntry.PaymentStatus == "Rejected")
+                {
+                    existingEntry.PaymentStatus = "Pending";
+                    
+                    var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
+                    var modifiedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
+
+                    _context.Approvals.Add(new Approval
+                    {
+                        ApprovalID = approvalId,
+                        ApprovalDate = DateTime.Now,
+                        Action = "Modify Rejected Payroll",
+                        ActionBy = modifiedByEmployeeId, // Store Employee ID instead of name
+                        Status = "Pending",
+                        Remarks = "Payroll modified and status reset to Pending",
+                        EmployeeID = existingEntry.EmployeeID,
+                        PayrollID = existingEntry.PayrollID
+                    });
+
+                    TempData["Success"] = "Rejected payroll has been modified and reset to Pending status.";
+                }
+                else
+                {
+                    TempData["Success"] = "Payroll data updated successfully!";
+                }
             }
             else
             {
@@ -187,18 +236,11 @@ namespace FinserveNew.Controllers
                     PaymentStatus = "Pending"
                 };
                 _context.Payrolls.Add(salary);
+                TempData["Success"] = "New payroll entry created successfully!";
             }
 
             await _context.SaveChangesAsync();
-            //TempData["Success"] = "Payroll data processed successfully!";
-            //return RedirectToAction(nameof(Process));
-
-            // Redirect to Summary instead of Process
-            //return RedirectToAction(nameof(Summary), new { month = model.Month, year = model.Year });
-
-            TempData["Success"] = "Payroll data saved successfully!";
             return RedirectToAction(nameof(Process), new { month = model.Month, year = model.Year, employeeId = model.EmployeeID });
-
         }
 
         // GET: /Payroll/GetPreviousMonthData
@@ -235,14 +277,16 @@ namespace FinserveNew.Controllers
         }
 
         // GET: /Payroll/HistoryByMonth
+        [Authorize(Roles = "HR")]
         public async Task<IActionResult> HistoryByMonth(int month = 0, int year = 0)
         {
             if (month == 0) month = DateTime.Now.Month;
             if (year == 0) year = DateTime.Now.Year;
 
+            // Only show completed payrolls in history
             var entries = await _context.Payrolls
                 .Include(p => p.Employee)
-                .Where(p => p.Month == month && p.Year == year)
+                .Where(p => p.Month == month && p.Year == year && p.PaymentStatus == "Completed")
                 .OrderBy(p => p.EmployeeID)
                 .ToListAsync();
 
@@ -271,6 +315,13 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            // Check if payroll can be sent for approval
+            if (payroll.PaymentStatus != "Pending")
+            {
+                TempData["Error"] = $"Only payrolls with 'Pending' status can be sent for approval. Current status: {payroll.PaymentStatus}";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            }
+
             // Update status to pending approval
             payroll.PaymentStatus = "Pending Approval";
 
@@ -278,10 +329,7 @@ namespace FinserveNew.Controllers
             var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
 
             // Record approval audit entry
-            var requestedBy = await _userManager.GetUserAsync(User);
-            var requestedByName = requestedBy != null
-                ? $"{requestedBy.FirstName} {requestedBy.LastName}"
-                : User.Identity?.Name;
+            var requestedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
             var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
 
             _context.Approvals.Add(new Approval
@@ -289,7 +337,7 @@ namespace FinserveNew.Controllers
                 ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Send for Approval",
-                ActionBy = requestedByName ?? string.Empty,
+                ActionBy = requestedByEmployeeId, // Store Employee ID instead of name
                 Status = "Pending Approval",
                 Remarks = "Sent for approval",
                 EmployeeID = payroll.EmployeeID,
@@ -353,10 +401,7 @@ namespace FinserveNew.Controllers
             // Update status to completed and record approval trail
             payroll.PaymentStatus = "Completed";
 
-            var currentUser = await _userManager.GetUserAsync(User);
-            var paidByName = currentUser != null
-                ? $"{currentUser.FirstName} {currentUser.LastName}"
-                : User.Identity?.Name;
+            var paidByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
             var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
 
             _context.Approvals.Add(new Approval
@@ -364,7 +409,7 @@ namespace FinserveNew.Controllers
                 ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Mark as Paid",
-                ActionBy = paidByName ?? string.Empty,
+                ActionBy = paidByEmployeeId, // Store Employee ID instead of name
                 Status = "Completed",
                 Remarks = "Marked as paid",
                 EmployeeID = payroll.EmployeeID,
@@ -398,25 +443,78 @@ namespace FinserveNew.Controllers
         // ========================== Senior HR Actions ========================== //
         // GET: Payroll/ApprovePayrolls
         [Authorize(Roles = "Senior HR")]
-        public async Task<IActionResult> ApprovePayrolls()
+        public async Task<IActionResult> ApprovePayrolls(
+            string searchTerm = "",
+            int? filterMonth = null,
+            int? filterYear = null,
+            string filterEmployee = "",
+            decimal? minAmount = null,
+            decimal? maxAmount = null,
+            DateTime? dateFrom = null,
+            DateTime? dateTo = null,
+            string activeTab = "")
         {
             try
             {
+                // Get all payrolls with their approval history
                 var payrolls = await _context.Payrolls
                     .Include(p => p.Employee)
+                    .Include(p => p.Approvals)
+                        .ThenInclude(a => a.ActionByEmployee)
                     .OrderByDescending(p => p.Year)
                     .ThenByDescending(p => p.Month)
                     .ToListAsync();
 
-                // Specify the exact path to the view
-                return View("~/Views/SeniorHR/Payroll/ApprovePayrolls.cshtml", payrolls);
+                // Get all employees for dropdown
+                var allEmployees = await _context.Employees
+                    .OrderBy(e => e.FirstName)
+                    .ThenBy(e => e.LastName)
+                    .ToListAsync();
+
+                // Get available years
+                var availableYears = payrolls
+                    .Select(p => p.Year)
+                    .Distinct()
+                    .OrderByDescending(y => y)
+                    .ToList();
+
+                // Apply filters (status filter removed)
+                var filteredPayrolls = ApplyFilters(payrolls, searchTerm, filterMonth, filterYear, 
+                                                  filterEmployee, minAmount, maxAmount, 
+                                                  dateFrom, dateTo);
+
+                // Create a view model that includes approval-based filtering
+                var viewModel = new PayrollApprovalViewModel
+                {
+                    AllPayrolls = filteredPayrolls,
+                    PendingPayrolls = filteredPayrolls.Where(p => p.PaymentStatus == "Pending Approval").ToList(),
+                    ApprovedPayrolls = GetApprovedPayrolls(filteredPayrolls),
+                    RejectedPayrolls = GetRejectedPayrolls(filteredPayrolls),
+                    AllApprovalHistory = GetAllApprovalHistory(filteredPayrolls),
+                    
+                    // Filter values (status filter removed)
+                    SearchTerm = searchTerm,
+                    FilterMonth = filterMonth,
+                    FilterYear = filterYear,
+                    FilterEmployee = filterEmployee,
+                    MinAmount = minAmount,
+                    MaxAmount = maxAmount,
+                    DateFrom = dateFrom,
+                    DateTo = dateTo,
+                    
+                    // Dropdown data
+                    AllEmployees = allEmployees,
+                    AvailableYears = availableYears
+                };
+
+                // Pass active tab to view
+                ViewBag.ActiveTab = activeTab;
+
+                return View("~/Views/SeniorHR/Payroll/ApprovePayrolls.cshtml", viewModel);
             }
             catch (Exception ex)
             {
-                // Log the exception
                 Console.WriteLine($"Error in ApprovePayrolls: {ex.Message}");
-
-                // Return an error view or redirect
                 TempData["Error"] = "An error occurred while loading payroll approvals.";
                 return RedirectToAction("Index", "Home");
             }
@@ -430,6 +528,7 @@ namespace FinserveNew.Controllers
             var payroll = await _context.Payrolls
                 .Include(p => p.Employee)
                 .Include(p => p.Approvals)
+                    .ThenInclude(a => a.ActionByEmployee) // Include ActionBy employee details
                 .FirstOrDefaultAsync(p => p.PayrollID == id);
 
             if (payroll == null)
@@ -437,7 +536,6 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // Specify the exact path to the view
             return View("~/Views/SeniorHR/Payroll/PayrollDetails.cshtml", payroll);
         }
 
@@ -456,10 +554,7 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            var currentUser = await _userManager.GetUserAsync(User);
-            string approverName = currentUser != null
-                ? $"{currentUser.FirstName} {currentUser.LastName}" : User.Identity.Name;
-
+            var approverEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
             // Generate new ApprovalID
             var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
 
@@ -471,7 +566,7 @@ namespace FinserveNew.Controllers
                 ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Approve payroll",
-                ActionBy = approverName ?? string.Empty,
+                ActionBy = approverEmployeeId, // Store Employee ID instead of name
                 Status = "Approved",
                 Remarks = comments,
                 EmployeeID = payroll.EmployeeID,
@@ -527,10 +622,7 @@ namespace FinserveNew.Controllers
 
             // Update status to rejected and record approval entry
             payroll.PaymentStatus = "Rejected";
-            var currentUser = await _userManager.GetUserAsync(User);
-            var rejectedByName = currentUser != null
-                ? $"{currentUser.FirstName} {currentUser.LastName}"
-                : User.Identity?.Name;
+            var rejectedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
             var monthName = GetMonthName(payroll.Month);
 
             _context.Approvals.Add(new Approval
@@ -538,7 +630,7 @@ namespace FinserveNew.Controllers
                 ApprovalID = approvalId,
                 ApprovalDate = DateTime.Now,
                 Action = "Reject payroll",
-                ActionBy = rejectedByName ?? string.Empty,
+                ActionBy = rejectedByEmployeeId, // Store Employee ID instead of name
                 Status = "Rejected",
                 Remarks = reason,
                 EmployeeID = payroll.EmployeeID,
@@ -670,6 +762,416 @@ namespace FinserveNew.Controllers
                 PageSize = Rotativa.AspNetCore.Options.Size.A4,
                 PageMargins = { Left = 10, Right = 10, Top = 10, Bottom = 10 }
             };
+        }
+
+        // GET: /Payroll/GetPendingPayrollCount
+        [HttpGet]
+        public async Task<IActionResult> GetPendingPayrollCount()
+        {
+            try
+            {
+                int count = await _context.Payrolls
+                    .CountAsync(p => p.PaymentStatus == "Pending Approval");
+                
+                return Json(new { count = count });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { count = 0 });
+            }
+        }
+
+        // GET: /Payroll/ViewPayroll - For viewing non-editable payrolls
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> ViewPayroll(int month = 0, int year = 0, string employeeId = null)
+        {
+            if (month == 0) month = DateTime.Now.Month;
+            if (year == 0) year = DateTime.Now.Year;
+
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                TempData["Error"] = "Employee ID is required to view payroll.";
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
+
+            // Try to find existing record for this employee in the selected month/year
+            var existingPayroll = await _context.Payrolls
+                .Include(p => p.Employee)
+                .Include(p => p.Approvals)
+                    .ThenInclude(a => a.ActionByEmployee) // Include ActionBy employee details
+                .FirstOrDefaultAsync(p => p.EmployeeID == employeeId &&
+                                        p.Month == month &&
+                                        p.Year == year);
+
+            if (existingPayroll == null)
+            {
+                TempData["Error"] = "Payroll record not found.";
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
+
+            var viewModel = new PayrollProcessViewModel
+            {
+                Month = month,
+                Year = year,
+                EmployeeID = employeeId,
+                ProjectName = existingPayroll.ProjectName,
+                BasicSalary = existingPayroll.BasicSalary,
+                EmployerEpf = existingPayroll.EmployerEpf,
+                EmployerSocso = existingPayroll.EmployerSocso,
+                EmployerEis = existingPayroll.EmployerEis,
+                EmployerTax = existingPayroll.EmployerTax,
+                EmployerOtherContributions = existingPayroll.EmployerOtherContributions,
+                EmployeeEpf = existingPayroll.EmployeeEpf,
+                EmployeeSocso = existingPayroll.EmployeeSocso,
+                EmployeeEis = existingPayroll.EmployeeEis,
+                EmployeeTax = existingPayroll.EmployeeTax,
+                //TotalWages = existingPayroll.TotalWages,
+                //TotalEmployerCost = existingPayroll.TotalEmployerCost
+            };
+
+            // Pass additional data for the view
+            ViewBag.CurrentPayrollStatus = existingPayroll.PaymentStatus;
+            ViewBag.PayrollID = existingPayroll.PayrollID;
+            ViewBag.Employee = existingPayroll.Employee;
+            ViewBag.IsReadOnly = true;
+            
+            // Get rejection reason if payroll was rejected
+            if (existingPayroll.PaymentStatus == "Rejected")
+            {
+                var rejectionApproval = existingPayroll.Approvals?
+                    .Where(a => a.Status == "Rejected")
+                    .OrderByDescending(a => a.ApprovalDate)
+                    .FirstOrDefault();
+                ViewBag.RejectionReason = rejectionApproval?.Remarks ?? "No rejection reason provided.";
+                ViewBag.RejectedBy = rejectionApproval?.ActionByName ?? "Unknown"; // Use ActionByName
+                ViewBag.RejectedDate = rejectionApproval?.ApprovalDate;
+            }
+
+            return View("~/Views/HR/Payroll/ViewPayroll.cshtml", viewModel);
+        }
+
+        // POST: Payroll/BatchSendForApproval
+        [Authorize(Roles = "HR")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BatchSendForApproval(int month, int year)
+        {
+            try
+            {
+                // Get all pending payrolls for the specified month/year
+                var pendingPayrolls = await _context.Payrolls
+                    .Include(p => p.Employee)
+                    .Where(p => p.Month == month && p.Year == year && p.PaymentStatus == "Pending")
+                    .ToListAsync();
+
+                if (!pendingPayrolls.Any())
+                {
+                    TempData["Error"] = "No pending payrolls found to send for approval.";
+                    return RedirectToAction(nameof(Summary), new { month = month, year = year });
+                }
+
+                var requestedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
+                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month);
+
+                int successCount = 0;
+                var approvalEntries = new List<Approval>();
+
+                var approvalIds = await _idGenerationService.GenerateBatchApprovalIdsAsync(pendingPayrolls.Count);
+
+                for (int i = 0; i < pendingPayrolls.Count; i++)
+                {
+                    var payroll = pendingPayrolls[i];
+                    payroll.PaymentStatus = "Pending Approval";
+
+                    var approvalEntry = new Approval
+                    {
+                        ApprovalID = approvalIds[i],
+                        ApprovalDate = DateTime.Now,
+                        Action = "Send for Approval (Batch)",
+                        ActionBy = requestedByEmployeeId, // Store Employee ID instead of name
+                        Status = "Pending Approval",
+                        Remarks = "Sent for approval via batch operation",
+                        EmployeeID = payroll.EmployeeID,
+                        PayrollID = payroll.PayrollID
+                    };
+
+                    approvalEntries.Add(approvalEntry);
+                    successCount++;
+                }
+
+                // Add all approval entries and save changes first
+                _context.Approvals.AddRange(approvalEntries);
+                await _context.SaveChangesAsync();
+
+                // Send email notifications separately (after database update)
+                try
+                {
+                    var seniorHRUsers = await _userManager.GetUsersInRoleAsync("Senior HR");
+                    foreach (var seniorHRUser in seniorHRUsers)
+                    {
+                        if (!string.IsNullOrEmpty(seniorHRUser.Email))
+                        {
+                            var subject = $"Batch Payroll Approval Request - {monthName} {year}";
+                            var body = $@"
+                            <h2>Batch Payroll Approval Request</h2>
+                            <p><strong>{successCount}</strong> payroll entries require your approval for <strong>{monthName} {year}</strong>:</p>
+                            <ul>
+                                {string.Join("", pendingPayrolls.Select(p => $"<li>{p.Employee.FirstName} {p.Employee.LastName} - RM {p.TotalWages:N2}</li>"))}
+                            </ul>
+                            <p><strong>Total Amount:</strong> RM {pendingPayrolls.Sum(p => p.TotalWages):N2}</p>
+                            <p><a href='{Url.Action("ApprovePayrolls", "Payroll", null, Request.Scheme)}'>Click here to review these payrolls</a></p>";
+
+                            await _emailSender.SendEmailAsync(seniorHRUser.Email, subject, body);
+                        }
+                    }
+                    TempData["Success"] = $"Successfully sent {successCount} payroll(s) for approval. Senior HR has been notified.";
+                }
+                catch (Exception emailEx)
+                {
+                    // Email failed but payrolls were updated successfully
+                    Console.WriteLine($"Email notification failed: {emailEx.Message}");
+                    TempData["Success"] = $"Successfully sent {successCount} payroll(s) for approval. Note: Email notification to Senior HR failed.";
+                }
+
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
+            catch (Exception ex)
+            {
+                // Log the detailed error
+                Console.WriteLine($"Error in BatchSendForApproval: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                
+                TempData["Error"] = "An error occurred while processing the batch approval request. Please try again.";
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
+        }
+
+        // POST: Payroll/BatchMarkAsPaid
+        [Authorize(Roles = "HR")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BatchMarkAsPaid(int month, int year)
+        {
+            try
+            {
+                // Get all approved payrolls for the specified month/year
+                var approvedPayrolls = await _context.Payrolls
+                    .Include(p => p.Employee)
+                    .Where(p => p.Month == month && p.Year == year && p.PaymentStatus == "Approved")
+                    .ToListAsync();
+
+                if (!approvedPayrolls.Any())
+                {
+                    TempData["Error"] = "No approved payrolls found to mark as paid.";
+                    return RedirectToAction(nameof(Summary), new { month = month, year = year });
+                }
+
+                var paidByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
+                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month);
+
+                int successCount = 0;
+                var approvalEntries = new List<Approval>();
+
+                // Process each approved payroll and generate unique approval IDs
+                var approvalIds = await _idGenerationService.GenerateBatchApprovalIdsAsync(approvedPayrolls.Count);
+
+                for (int i = 0; i < approvedPayrolls.Count; i++)
+                {
+                    var payroll = approvedPayrolls[i];
+                    payroll.PaymentStatus = "Completed";
+
+                    // Create approval audit entry
+                    var approvalEntry = new Approval
+                    {
+                        ApprovalID = approvalIds[i],
+                        ApprovalDate = DateTime.Now,
+                        Action = "Mark as Paid (Batch)",
+                        ActionBy = paidByEmployeeId, // Store Employee ID instead of name
+                        Status = "Completed",
+                        Remarks = "Marked as paid via batch operation",
+                        EmployeeID = payroll.EmployeeID,
+                        PayrollID = payroll.PayrollID
+                    };
+
+                    approvalEntries.Add(approvalEntry);
+                    successCount++;
+                }
+
+                // Add all approval entries at once and save database changes first
+                _context.Approvals.AddRange(approvalEntries);
+                await _context.SaveChangesAsync();
+
+                // Send email notifications separately (after database update)
+                int emailSuccessCount = 0;
+                int emailFailureCount = 0;
+
+                foreach (var payroll in approvedPayrolls)
+                {
+                    if (!string.IsNullOrEmpty(payroll.Employee?.Email))
+                    {
+                        try
+                        {
+                            var subject = $"Your Salary for {monthName} {year} Has Been Paid";
+                            var body = $@"
+                            <h2>Salary Payment Notification</h2>
+                            <p>Dear {payroll.Employee.FirstName},</p>
+                            <p>Your salary for {monthName} {year} has been paid to your bank account.</p>
+                            <ul>
+                                <li><strong>Net Amount:</strong> RM {payroll.TotalWages:N2}</li>
+                                <li><strong>Period:</strong> {monthName} {year}</li>
+                            </ul>
+                            <p>You can now view your payslip online.</p>";
+
+                            await _emailSender.SendEmailAsync(payroll.Employee.Email, subject, body);
+                            emailSuccessCount++;
+                        }
+                        catch (Exception emailEx)
+                        {
+                            // Log email failure but don't fail the entire operation
+                            Console.WriteLine($"Failed to send email to {payroll.Employee.Email}: {emailEx.Message}");
+                            emailFailureCount++;
+                        }
+                    }
+                }
+
+                // Provide detailed success message
+                var message = $"Successfully marked {successCount} payroll(s) as paid.";
+                if (emailSuccessCount > 0)
+                {
+                    message += $" {emailSuccessCount} employees were notified via email.";
+                }
+                if (emailFailureCount > 0)
+                {
+                    message += $" Note: {emailFailureCount} email notifications failed to send.";
+                }
+
+                TempData["Success"] = message;
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
+            catch (Exception ex)
+            {
+                // Log the detailed error
+                Console.WriteLine($"Error in BatchMarkAsPaid: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                
+                TempData["Error"] = "An error occurred while processing the batch payment operation. Please try again.";
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
+        }
+
+        // GET: Simplified AJAX endpoint
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeePayrollStatus(int month, int year)
+        {
+            var employeePayrollStatuses = await _context.Payrolls
+                .Where(p => p.Month == month && p.Year == year)
+                .Select(p => new { p.EmployeeID, p.PaymentStatus })
+                .ToListAsync();
+
+            return Json(employeePayrollStatuses.ToDictionary(x => x.EmployeeID, x => x.PaymentStatus));
+        }
+
+        // Helper method to get current user's employee ID
+        private async Task<string> GetCurrentUserEmployeeIdAsync()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser != null && !string.IsNullOrEmpty(currentUser.EmployeeID))
+            {
+                return currentUser.EmployeeID;
+            }
+            
+            // Fallback: try to find by username or email
+            if (currentUser != null)
+            {
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.Email == currentUser.Email || e.Username == currentUser.UserName);
+                return employee?.EmployeeID ?? currentUser.UserName ?? "Unknown";
+            }
+            
+            return User.Identity?.Name ?? "Unknown";
+        }
+
+        // Helper methods to get approval-based data
+        private List<Payroll> GetApprovedPayrolls(List<Payroll> payrolls)
+        {
+            return payrolls.Where(p => p.Approvals.Any(a => a.Status == "Approved")).ToList();
+        }
+
+        private List<Payroll> GetRejectedPayrolls(List<Payroll> payrolls)
+        {
+            return payrolls.Where(p => p.Approvals.Any(a => a.Status == "Rejected")).ToList();
+        }
+
+        private List<ApprovalHistoryItem> GetAllApprovalHistory(List<Payroll> payrolls)
+        {
+            return payrolls
+                .SelectMany(p => p.Approvals.Where(a => a.Status == "Approved" || a.Status == "Rejected")
+                    .Select(a => new ApprovalHistoryItem
+                    { 
+                        Payroll = p, 
+                        Approval = a 
+                    }))
+                .OrderByDescending(x => x.Approval.ApprovalDate)
+                .ToList();
+        }
+
+        // Helper method to apply filters (status filter removed)
+        private List<Payroll> ApplyFilters(List<Payroll> payrolls, string searchTerm, int? filterMonth, 
+            int? filterYear, string filterEmployee, decimal? minAmount, 
+            decimal? maxAmount, DateTime? dateFrom, DateTime? dateTo)
+        {
+            var filtered = payrolls.AsQueryable();
+
+            // Search term filter (searches employee name, ID, and payroll ID)
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                searchTerm = searchTerm.ToLower();
+                filtered = filtered.Where(p => 
+                    p.EmployeeID.ToLower().Contains(searchTerm) ||
+                    p.PayrollID.ToLower().Contains(searchTerm) ||
+                    p.Employee.FirstName.ToLower().Contains(searchTerm) ||
+                    p.Employee.LastName.ToLower().Contains(searchTerm) ||
+                    (p.Employee.FirstName + " " + p.Employee.LastName).ToLower().Contains(searchTerm));
+            }
+
+            // Month filter
+            if (filterMonth.HasValue)
+            {
+                filtered = filtered.Where(p => p.Month == filterMonth.Value);
+            }
+
+            // Year filter
+            if (filterYear.HasValue)
+            {
+                filtered = filtered.Where(p => p.Year == filterYear.Value);
+            }
+
+            // Employee filter
+            if (!string.IsNullOrEmpty(filterEmployee))
+            {
+                filtered = filtered.Where(p => p.EmployeeID == filterEmployee);
+            }
+
+            // Amount range filter
+            if (minAmount.HasValue)
+            {
+                filtered = filtered.Where(p => p.TotalWages >= minAmount.Value);
+            }
+
+            if (maxAmount.HasValue)
+            {
+                filtered = filtered.Where(p => p.TotalWages <= maxAmount.Value);
+            }
+
+            // Date range filter (based on creation or last approval date)
+            if (dateFrom.HasValue || dateTo.HasValue)
+            {
+                filtered = filtered.Where(p => p.Approvals.Any(a => 
+                    (!dateFrom.HasValue || a.ApprovalDate >= dateFrom.Value) &&
+                    (!dateTo.HasValue || a.ApprovalDate <= dateTo.Value.AddDays(1))));
+            }
+
+            return filtered.ToList();
         }
     }
 }

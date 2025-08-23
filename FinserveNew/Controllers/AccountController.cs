@@ -62,7 +62,7 @@ namespace FinserveNew.Controllers
                     {
                         _logger.LogInformation("User {Email} logged in.", model.Email);
 
-                        await _signInManager.RefreshSignInAsync(user);
+                        //await _signInManager.RefreshSignInAsync(user);
 
                         // Redirect based on user role
                         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
