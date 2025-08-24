@@ -171,53 +171,64 @@
                 <div class="card-body">
                     @if (ViewBag.RecentClaimApplications != null && ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaimApplications).Any())
                     {
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Claim ID</th>
-                                        <th>Employee</th>
-                                        <th>Type</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaimApplications)
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Claim ID</th>
+                                    <th>Employee Name</th>
+                                    <th>Date</th>
+                                    <th>Claim Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaimApplications)
                                     {
-                                        <tr>
-                                            <td>@claim.CreatedDate.ToString("dd MMM, yyyy")</td>
-                                            <td>#CLM-@claim.Id.ToString("D3")</td>
-                                            <td>@(claim.EmployeeID ?? "N/A")</td>
-                                            <td>@claim.ClaimType</td>
-                                            <td>RM @claim.ClaimAmount.ToString("N2")</td>
-                                            <td>
-                                                <span class="badge bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : claim.Status == "Processing" ? "info" : "danger")">
-                                                    @claim.Status
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <a href="@Url.Action("ClaimDetails", "Claim", new { id = claim.Id })" class="btn btn-sm btn-outline-primary">View</a>
-                                            </td>
-                                        </tr>
+                                <tr>
+                                    <td>#CLM-@claim.Id.ToString("D3")</td>
+                                    <td>
+                                        @if (claim.Employee != null)
+                                                {
+                                        <span>@claim.Employee.FirstName @claim.Employee.LastName</span>
+                                                }
+                                                else
+                                                {
+                                        <span class="text-muted">@(claim.EmployeeID ?? "N/A")</span>
+                                                }
+                                    </td>
+                                    <td>@claim.CreatedDate.ToString("dd MMM, yyyy")</td>
+                                    <td>
+                                        <span class="badge bg-light-blue text-dark">@claim.ClaimType</span>
+                                    </td>
+                                    <td><strong class="text-primary">RM @claim.ClaimAmount.ToString("N2")</strong></td>
+                                    <td>
+                                        <span class="badge bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : claim.Status == "Processing" ? "info" : "danger")">
+                                            @claim.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="@Url.Action("ClaimDetails", "Claim", new { id = claim.Id })" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
                                     }
-                                </tbody>
-                            </table>
-                        </div>
+                            </tbody>
+                        </table>
+                    </div>
                     }
                     else
                     {
-                        <div class="text-center py-4">
-                            <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No recent claims</p>
-                            <a href="@Url.Action("Index", "Claim")" class="btn btn-info">View All Claims</a>
-                        </div>
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No recent claims</p>
+                        <a href="@Url.Action("Index", "Claim")" class="btn btn-info">View All Claims</a>
+                    </div>
                     }
                 </div>
             </div>
-        
+
 
             <!-- Recent Leave Applications -->
             <div class="card mb-4">
@@ -230,50 +241,63 @@
                 <div class="card-body">
                     @if (ViewBag.RecentLeaveApplications != null && ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaveApplications).Any())
                     {
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Employee</th>
-                                        <th>Leave Type</th>
-                                        <th>From</th>
-                                        <th>To</th>
-                                        <th>Days</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaveApplications)
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Leave ID</th>
+                                    <th>Employee Name</th>
+                                    <th>Leave Type</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaveApplications)
                                     {
                                         var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
-                                        <tr>
-                                            <td>@(leave.Employee?.FirstName + " " + leave.Employee?.LastName ?? "N/A")</td>
-                                            <td>@(leave.LeaveType?.TypeName ?? "N/A")</td>
-                                            <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
-                                            <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
-                                            <td>@duration days</td>
-                                            <td>
-                                                <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
-                                                    @leave.Status
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <a href="@Url.Action("LeaveDetails", "Leaves", new { id = leave.LeaveID })" class="btn btn-sm btn-outline-primary">View</a>
-                                            </td>
-                                        </tr>
+                                <tr>
+                                    <td>#LVE-@leave.LeaveID.ToString("D3")</td>
+                                    <td>
+                                        @if (leave.Employee != null)
+                                                {
+                                        <span>@leave.Employee.FirstName @leave.Employee.LastName</span>
+                                                }
+                                                else
+                                                {
+                                        <span class="text-muted">N/A</span>
+                                                }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light-blue text-dark">@(leave.LeaveType?.TypeName ?? "N/A")</span>
+                                    </td>
+                                    <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
+                                    <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
+                                    <td><strong>@duration days</strong></td>
+                                    <td>
+                                        <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
+                                            @leave.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="@Url.Action("LeaveDetails", "Leaves", new { id = leave.LeaveID })" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
                                     }
-                                </tbody>
-                            </table>
-                        </div>
+                            </tbody>
+                        </table>
+                    </div>
                     }
                     else
                     {
-                        <div class="text-center py-4">
-                            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No recent leave applications</p>
-                            <a href="@Url.Action("Index", "Leaves")" class="btn btn-primary">View All Leaves</a>
-                        </div>
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No recent leave applications</p>
+                        <a href="@Url.Action("Index", "Leaves")" class="btn btn-primary">View All Leaves</a>
+                    </div>
                     }
                 </div>
             </div>
@@ -292,7 +316,7 @@
                 <div class="card-body">
                     @if (ViewBag.EmployeesByStatus != null && ((List<object>)ViewBag.EmployeesByStatus).Any())
                     {
-                        @foreach (var status in (List<object>)ViewBag.EmployeesByStatus)
+                    foreach (var status in (List<object>)ViewBag.EmployeesByStatus)
                         {
                             var statusData = status as dynamic;
                             var statusName = statusData?.Status ?? "Unknown";
@@ -300,20 +324,20 @@
                             var percentage = ViewBag.TotalEmployees > 0 ? (statusCount * 100.0 / ViewBag.TotalEmployees) : 0;
                             var progressColor = statusName == "Confirmed" ? "success" : statusName == "Probation" ? "warning" : "info";
 
-                            <div class="status-item mb-3">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span>@statusName</span>
-                                    <span class="fw-bold">@statusCount employees</span>
-                                </div>
-                                <div class="progress">
-                                    <div class="progress-bar bg-@progressColor" style="width: @percentage%"></div>
-                                </div>
-                            </div>
+                    <div class="status-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>@statusName</span>
+                            <span class="fw-bold">@statusCount employees</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-@progressColor" style="width: @percentage%"></div>
+                        </div>
+                    </div>
                         }
                     }
                     else
                     {
-                        <p class="text-muted text-center">No employee status data available</p>
+                    <p class="text-muted text-center">No employee status data available</p>
                     }
                 </div>
             </div>
@@ -385,7 +409,7 @@
             // Get leave data for current month
             const monthKey = `${currentCalendarYear}-${(currentCalendarMonth + 1).toString().padStart(2, '0')}`;
             const leaveDataForMonth = calendarData[monthKey] || [];
-            
+
             // Group leaves by day
             const leavesByDay = {};
             leaveDataForMonth.forEach(leave => {
@@ -457,7 +481,7 @@
                 day: 'numeric'
             });
 
-            let leavesList = leaves.map(leave => 
+            let leavesList = leaves.map(leave =>
                 `• ${leave.EmployeeName} (${leave.LeaveType})`
             ).join('\n');
 
@@ -551,6 +575,28 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/rbac_dashboard.css" />
     <style>
+        /* Light blue badge style */
+        .bg-light-blue {
+            background-color: #87CEEB !important; /* Sky blue */
+            color: #000 !important; /* Black text for better readability */
+        }
+
+        /* Alternative lighter blue options */
+        .bg-light-blue-alt1 {
+            background-color: #ADD8E6 !important; /* Light blue */
+            color: #000 !important;
+        }
+
+        .bg-light-blue-alt2 {
+            background-color: #B0E0E6 !important; /* Powder blue */
+            color: #000 !important;
+        }
+
+        .bg-light-blue-alt3 {
+            background-color: #E0F6FF !important; /* Very light blue */
+            color: #000 !important;
+        }
+
         /* Additional HR-specific styles */
         .leave-count {
             position: absolute;
@@ -568,4 +614,4 @@
             line-height: 1;
         }
     </style>
-      }
+}

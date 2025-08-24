@@ -1,212 +1,253 @@
 ﻿@model IEnumerable<FinserveNew.Models.LeaveModel>
-
-@{
+    @{
     ViewData["Title"] = "Leave Management";
-}
+    }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="page-title mb-0">Leave Management</h2>
-    <div class="btn-group" role="group">
-        <a asp-action="PendingLeaves" class="btn btn-custom-pending">
-            <i class="fas fa-clock me-2"></i>Pending (@Model.Count(l => l.Status == "Pending"))
-        </a>
-        <a asp-action="ApprovedLeaves" class="btn btn-custom-approved">
-            <i class="fas fa-check me-2"></i>Approved (@Model.Count(l => l.Status == "Approved"))
-        </a>
-        <a asp-action="RejectedLeaves" class="btn btn-custom-rejected">
-            <i class="fas fa-times me-2"></i>Rejected (@Model.Count(l => l.Status == "Rejected"))
-        </a>
-        <!-- ✅ ADD UNPAID LEAVE REQUESTS BUTTON -->
-        <a asp-action="UnpaidLeaveIndex" class="btn btn-custom-unpaid">
-            <i class="fas fa-money-bill-alt me-2"></i>Unpaid Requests
-        </a>
-        <a asp-action="EmployeeLeaveBalance" class="btn btn-custom-info">
-            <i class="fas fa-balance-scale me-2"></i>Employee Balance
-        </a>
-    </div>
-</div>
-
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["Error"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-@* <!-- ✅ ADD UNPAID LEAVE SUMMARY CARD -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card border-warning">
-            <div class="card-header bg-warning text-dark">
-                <h6 class="mb-0">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Quick Overview - Unpaid Leave Requests
-                </h6>
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Leave Management</h2>
+            <p class="text-muted">Review and approve pending leave entries</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group" role="group">
+                <a asp-action="UnpaidLeaveIndex" class="btn btn-outline-secondary">
+                    <i class="fas fa-money-bill-alt me-2"></i>Unpaid Requests
+                </a>
+                <a asp-action="EmployeeLeaveBalance" class="btn btn-outline-secondary">
+                    <i class="fas fa-balance-scale me-2"></i>Employee Balance
+                </a>
             </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-4">
-                        <div class="border-end">
-                            <h4 class="text-warning mb-1" id="pending-unpaid-count">Loading...</h4>
-                            <small class="text-muted">Pending Unpaid Requests</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="border-end">
-                            <h4 class="text-success mb-1" id="approved-unpaid-count">Loading...</h4>
-                            <small class="text-muted">Approved This Month</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <h4 class="text-danger mb-1" id="rejected-unpaid-count">Loading...</h4>
-                        <small class="text-muted">Rejected This Month</small>
-                    </div>
-                </div>
-                <div class="text-center mt-3">
-                    <a asp-action="UnpaidLeaveIndex" class="btn btn-warning">
-                        <i class="fas fa-eye me-2"></i>View All Unpaid Requests
-                    </a>
-                </div>
             </div>
         </div>
-    </div>
-</div> *@
 
-<div class="form-container">
-    @if (Model != null && Model.Any())
+        @if (TempData["Success"] != null)
     {
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>Leave ID</th>
-                        <th>Employee ID</th>
-                        <th>Leave Type</th>
-                        <th>Start Date</th>
-                        <th>End Date</th>
-                        <th>Duration</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var leave in Model)
-                    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+        @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#pending" role="tab">
+                        Pending <span class="badge bg-warning">@(Model?.Count(l => l.Status == "Pending") ?? 0)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#approved" role="tab">
+                        Approved <span class="badge bg-success">@(Model?.Count(l => l.Status == "Approved") ?? 0)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#rejected" role="tab">
+                        Rejected <span class="badge bg-secondary">@(Model?.Count(l => l.Status == "Rejected") ?? 0)</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Pending Leaves Tab -->
+                <div class="tab-pane fade show active" id="pending" role="tabpanel">
+                    @if (Model?.Any(l => l.Status == "Pending") == true)
+        {
+            <div class="table-responsive">
+                            <table class="table table-hover">
+                    <thead>
                         <tr>
-                            <td>
-                                <strong>#@leave.LeaveID</strong>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">@leave.EmployeeID</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-info">@leave.LeaveType.TypeName</span>
-                            </td>
-                            <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
-                            <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
-                            <td>
-                                <strong>
+                            <th>Leave ID</th>
+                            <th>Employee ID</th>
+                            <th>Leave Type</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                                        <th>Submission Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                                    @foreach (var leave in Model.Where(l => l.Status == "Pending"))
+                                    {
+                                        <tr>
+                                            <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
+                                            <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
+                                            <td><span class="badge bg-primary text-dark">@leave.LeaveType.TypeName</span></td>
+                                            <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
+                                            <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
+                                            <td>
+                                                <strong class="text-success">
                                     @{
-                                        var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
+                                            var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
                                     }
                                     @duration day@(duration != 1 ? "s" : "")
                                 </strong>
                             </td>
-                            <td>
-                                @if (leave.Status == "Pending")
-                                {
-                                    <span class="badge badge-pending">@leave.Status</span>
-                                }
-                                else if (leave.Status == "Approved")
-                                {
-                                    <span class="badge badge-approved">@leave.Status</span>
-                                }
-                                else
-                                {
-                                    <span class="badge badge-rejected">@leave.Status</span>
-                                }
-                            </td>
-                            <td>@leave.SubmissionDate.ToString("dd MMM yyyy")</td>
-                            <td>
-                                <a asp-action="LeaveDetails" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-info" title="View Details">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                @if (leave.Status == "Pending")
-                                {
-                                    <a asp-action="ProcessLeave" asp-route-id="@leave.LeaveID" class="btn btn-sm btn-outline-primary" title="Process Leave">
-                                        <i class="fas fa-clipboard-check"></i>
-                                    </a>
-                                }
+                                            <td><span class="badge bg-warning">@leave.Status</span></td>
+                                            <td>@leave.SubmissionDate.ToString("dd MMM yyyy")</td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewLeave(@leave.LeaveID)">
+                                                        <i class="fas fa-eye me-1"></i> View
+                                    </button>
+                                                    <button class="btn btn-sm btn-outline-primary" title="Process Leave" onclick="processLeave(@leave.LeaveID)">
+                                                        <i class="fas fa-edit me-1"></i> Process
+                                    </button>
+                                </div>
                             </td>
                         </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No leave entries pending approval.</p>
+                        </div>
                     }
-                </tbody>
-            </table>
+                </div>
+
+                <!-- Approved Leaves Tab -->
+                <div class="tab-pane fade" id="approved" role="tabpanel">
+                    @if (Model?.Any(l => l.Status == "Approved") == true)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Leave ID</th>
+                                        <th>Employee ID</th>
+                                        <th>Leave Type</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Duration</th>
+                                        <th>Status</th>
+                                        <th>Approval Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var leave in Model.Where(l => l.Status == "Approved"))
+                                    {
+                                        <tr>
+                                            <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
+                                            <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
+                                            <td><span class="badge bg-primary text-dark">@leave.LeaveType.TypeName</span></td>
+                                            <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
+                                            <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
+                                            <td>
+                                                <strong class="text-success">
+                                                    @{
+                                                        var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
+                                                    }
+                                                    @duration day@(duration != 1 ? "s" : "")
+                                                </strong>
+                                            </td>
+                                            <td><span class="badge bg-success">@leave.Status</span></td>
+                                            <td>@(leave.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewLeave(@leave.LeaveID)">
+                                                    <i class="fas fa-eye me-1"></i> View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No approved leave entries found.</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Rejected Leaves Tab -->
+                <div class="tab-pane fade" id="rejected" role="tabpanel">
+                    @if (Model?.Any(l => l.Status == "Rejected") == true)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Leave ID</th>
+                                        <th>Employee ID</th>
+                                        <th>Leave Type</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Duration</th>
+                                        <th>Status</th>
+                                        <th>Rejection Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var leave in Model.Where(l => l.Status == "Rejected"))
+                                    {
+                                        <tr>
+                                            <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
+                                            <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
+                                            <td><span class="badge bg-primary text-dark">@leave.LeaveType.TypeName</span></td>
+                                            <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
+                                            <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
+                                            <td>
+                                                <strong class="text-success">
+                                                    @{
+                                                        var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
+                                                    }
+                                                    @duration day@(duration != 1 ? "s" : "")
+                                                </strong>
+                                            </td>
+                                            <td><span class="badge bg-secondary">@leave.Status</span></td>
+                                            <td>@(leave.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewLeave(@leave.LeaveID)">
+                                                    <i class="fas fa-eye me-1"></i> View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No rejected leave entries found.</p>
+            </div>
+        }
         </div>
-    }
-    else
-    {
-        <div class="text-center py-5">
-            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
-            <h5 class="text-muted">No leaves found</h5>
-            <p class="text-muted">No employee leave applications have been submitted yet.</p>
+    </div>
         </div>
-    }
+    </div>
 </div>
 
-@section Styles {
-    <link rel="stylesheet" href="~/css/status.css">
-    <style>
-        /* ✅ ADD STYLING FOR UNPAID BUTTON */
-        .btn-custom-unpaid {
-            background-color: #fd7e14;
-            border-color: #fd7e14;
-            color: white;
+    @section Scripts {
+        <script>
+        function viewLeave(leaveId) {
+            window.location.href = '@Url.Action("LeaveDetails", "Leaves")/' + leaveId;
         }
 
-            .btn-custom-unpaid:hover {
-                background-color: #e76707;
-                border-color: #dc6602;
-                color: white;
-            }
-
-        .border-end {
-            border-right: 1px solid #dee2e6;
+        function processLeave(leaveId) {
+            window.location.href = '@Url.Action("ProcessLeave", "Leaves")/' + leaveId;
         }
-
-        
-    </style>
-}
-
-@section Scripts {
-    <script>
-        // ✅ LOAD UNPAID LEAVE STATISTICS
-        $(document).ready(function() {
-            // Fetch unpaid leave statistics
-            $.ajax({
-                url: '@Url.Action("GetUnpaidLeaveStats", "Leaves")',
-                method: 'GET',
-                success: function(data) {
-                    $('#pending-unpaid-count').text(data.pendingCount || 0);
-                    $('#approved-unpaid-count').text(data.approvedThisMonth || 0);
-                    $('#rejected-unpaid-count').text(data.rejectedThisMonth || 0);
-                },
-                error: function() {
-                    $('#pending-unpaid-count').text('--');
-                    $('#approved-unpaid-count').text('--');
-                    $('#rejected-unpaid-count').text('--');
-                }
-            });
-        });
-    </script>
-}
+        </script>
+    }

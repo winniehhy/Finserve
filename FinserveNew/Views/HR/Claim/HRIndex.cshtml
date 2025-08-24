@@ -3,122 +3,214 @@
     ViewData["Title"] = "Claims Management";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="page-title mb-0">Claims Management</h2>
-    <div class="btn-group" role="group">
-      
-        <a asp-action="PendingClaims" class="btn btn-custom-pending">
-            <i class="fas fa-clock me-2"></i>Pending (@Model.Count(c => c.Status == "Pending"))
-        </a>
-        <a asp-action="ApprovedClaims" class="btn btn-custom-approved">
-            <i class="fas fa-check me-2"></i>Approved (@Model.Count(c => c.Status == "Approved"))
-        </a>
-        <a asp-action="RejectedClaims" class="btn btn-custom-rejected">
-            <i class="fas fa-times me-2"></i>Rejected (@Model.Count(c => c.Status == "Rejected"))
-        </a>
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Claims Management</h2>
+            <p class="text-muted">Review and approve pending claim entries</p>
+        </div>
     </div>
-</div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["Error"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-
-
-<div class="form-container">
-    @if (Model != null && Model.Any())
+    @if (TempData["Success"] != null)
     {
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>Claim ID</th>
-                        <th>Employee ID</th>
-                        <th>Claim Type</th>
-                        <th>Amount</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var claim in Model)
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#pending" role="tab">
+                        Pending <span class="badge bg-warning">@Model.Count(c => c.Status == "Pending")</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#approved" role="tab">
+                        Approved <span class="badge bg-success">@Model.Count(c => c.Status == "Approved")</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#rejected" role="tab">
+                        Rejected <span class="badge bg-secondary">@Model.Count(c => c.Status == "Rejected")</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Pending Claims Tab -->
+                <div class="tab-pane fade show active" id="pending" role="tabpanel">
+                    @if (Model.Any(c => c.Status == "Pending"))
                     {
-                        <tr>
-                            <td>
-                                <strong>#@claim.Id</strong>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">@claim.EmployeeID</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-info">@claim.ClaimType</span>
-                            </td>
-                            <td>
-                                <strong>RM @claim.ClaimAmount.ToString("F2")</strong>
-                            </td>
-                            <td>
-                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
-                                    @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
-                                </span>
-                            </td>
-                            <td>
-                                @if (claim.Status == "Pending")
-                                {
-                                    <span class="badge badge-pending">@claim.Status</span>
-                                }
-                                else if (claim.Status == "Approved")
-                                {
-                                    <span class="badge badge-approved">@claim.Status</span>
-                                }
-                                else
-                                {
-                                    <span class="badge badge-rejected">@claim.Status</span>
-                                }
-                            </td>
-                            <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
-                            <td>
-                                <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                @if (claim.Status == "Pending")
-                                {
-                                    <a asp-action="ProcessClaim" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary" title="Process Claim">
-                                        <i class="fas fa-clipboard-check"></i>
-                                    </a>
-                                }
-                                @if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
-                                {
-                                    <a href="@claim.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-secondary" title="View Document">
-                                        <i class="fas fa-paperclip"></i>
-                                    </a>
-                                }
-                            </td>
-                        </tr>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Claim ID</th>
+                                        <th>Employee ID</th>
+                                        <th>Claim Type</th>
+                                        <th>Amount</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var claim in Model.Where(c => c.Status == "Pending"))
+                                    {
+                                        <tr>
+                                            <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                            <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
+                                            <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
+                                            <td><strong>RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
+                                                    @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
+                                                </span>
+                                            </td>
+                                            <td><span class="badge bg-warning">@claim.Status</span></td>
+                                            <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                        <i class="fas fa-eye me-1"></i> View
+                                                    </a>
+                                                    <a asp-action="ProcessClaim" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary" title="Process Claim">
+                                                        <i class="fas fa-clipboard-check me-1"></i> Process
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     }
-                </tbody>
-            </table>
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No claim entries pending approval.</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Approved Claims Tab -->
+                <div class="tab-pane fade" id="approved" role="tabpanel">
+                    @if (Model.Any(c => c.Status == "Approved"))
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Claim ID</th>
+                                        <th>Employee ID</th>
+                                        <th>Claim Type</th>
+                                        <th>Amount</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Approval Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var claim in Model.Where(c => c.Status == "Approved"))
+                                    {
+                                        <tr>
+                                            <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                            <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
+                                            <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
+                                            <td><strong>RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
+                                                    @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
+                                                </span>
+                                            </td>
+                                            <td><span class="badge bg-success">@claim.Status</span></td>
+                                            <td>@(claim.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
+                                            <td>
+                                                <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                    <i class="fas fa-eye me-1"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No approved claim entries found.</p>
+                        </div>
+                    }
+                </div>
+
+                <!-- Rejected Claims Tab -->
+                <div class="tab-pane fade" id="rejected" role="tabpanel">
+                    @if (Model.Any(c => c.Status == "Rejected"))
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Claim ID</th>
+                                        <th>Employee ID</th>
+                                        <th>Claim Type</th>
+                                        <th>Amount</th>
+                                        <th>Description</th>
+                                        <th>Status</th>
+                                        <th>Rejection Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var claim in Model.Where(c => c.Status == "Rejected"))
+                                    {
+                                        <tr>
+                                            <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                            <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
+                                            <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
+                                            <td><strong>RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                            <td>
+                                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
+                                                    @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
+                                                </span>
+                                            </td>
+                                            <td><span class="badge bg-secondary">@claim.Status</span></td>
+                                            <td>@(claim.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
+                                            <td>
+                                                <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">
+                                                    <i class="fas fa-eye me-1"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info mb-0">
+                            <p class="mb-0">No rejected claim entries found.</p>
+                        </div>
+                    }
+                </div>
+            </div>
         </div>
-    }
-    else
-    {
-        <div class="text-center py-5">
-            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
-            <h5 class="text-muted">No claims found</h5>
-            <p class="text-muted">No employee claims have been submitted yet.</p>
-        </div>
-    }
+    </div>
 </div>

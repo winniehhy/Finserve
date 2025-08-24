@@ -17,7 +17,7 @@
         <div class="card">
             <div class="card-header">
                 <h4 class="card-title">Application Information</h4>
-                <small class="text-muted">Claim ID: #@Model.Id</small>
+                <small class="text-muted">Claim ID: #CLM-@Model.Id.ToString("D3")</small>
             </div>
             <div class="card-body">
                 <div class="row mb-3">
@@ -178,7 +178,7 @@
                     </div>
                     <div class="col-md-6">
                         <strong>Processed By:</strong><br>
-                        <span class="text-muted">@(ViewBag.ApproverName ?? "HR Department")</span>
+                        <span class="text-muted">@(ViewBag.ApproverName ?? "Pending")</span>
                     </div>
                 </div>
 

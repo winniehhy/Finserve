@@ -17,7 +17,7 @@
         <div class="card">
             <div class="card-header">
                 <h4 class="card-title">Application Information</h4>
-                <small class="text-muted">Leave ID: #@Model.LeaveID</small>
+                <small class="text-muted">Leave ID: #LVE-@Model.LeaveID.ToString("D3")</small>
             </div>
             <div class="card-body">
                 <div class="row mb-3">
@@ -26,13 +26,9 @@
                         <span class="text-muted">
                             @if (!string.IsNullOrEmpty(Model.Employee.FirstName) || !string.IsNullOrEmpty(Model.Employee.LastName))
                             {
-                                @($"{Model.Employee.FirstName} {Model.Employee.LastName}".Trim())
+                            @($"{Model.Employee.FirstName} {Model.Employee.LastName}".Trim())
                             }
-                            
-                            else
-                            {
-                                @Model.Employee.Username
-                            }
+                         
                         </span>
                     </div>
                     <div class="col-md-6">
@@ -44,21 +40,21 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <strong>Leave Type:</strong><br>
-                        <span class="text-muted">@Model.LeaveType.TypeName</span>
+                        <span class="badge bg-primary text-dark">@Model.LeaveType.TypeName</span>
                     </div>
                     <div class="col-md-6">
                         <strong>Status:</strong><br>
                         @if (Model.Status == "Pending")
                         {
-                            <span class="badge bg-warning">@Model.Status</span>
+                        <span class="badge bg-warning">@Model.Status</span>
                         }
                         else if (Model.Status == "Approved")
                         {
-                            <span class="badge bg-success">@Model.Status</span>
+                        <span class="badge bg-success">@Model.Status</span>
                         }
                         else
                         {
-                            <span class="badge bg-danger">@Model.Status</span>
+                        <span class="badge bg-danger">@Model.Status</span>
                         }
                     </div>
                 </div>
@@ -95,80 +91,80 @@
                 <!-- Medical Certificate Section for HR -->
                 @if (Model.LeaveType?.TypeName != null && Model.LeaveType.TypeName.ToLower().Contains("medical"))
                 {
-                    <div class="mb-3 medical-certificate-section">
-                        <div class="card">
-                            <div class="card-header bg-light">
-                                <strong><i class="fas fa-file-medical me-2"></i>Medical Certificate</strong>
-                            </div>
-                            <div class="card-body">
-                                @if (ViewBag.HasMedicalCertificate == true && !string.IsNullOrEmpty(ViewBag.MedicalCertificateFileName?.ToString()))
+                <div class="mb-3 medical-certificate-section">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <strong><i class="fas fa-file-medical me-2"></i>Medical Certificate</strong>
+                        </div>
+                        <div class="card-body">
+                            @if (ViewBag.HasMedicalCertificate == true && !string.IsNullOrEmpty(ViewBag.MedicalCertificateFileName?.ToString()))
                                 {
-                                    <div class="alert alert-success mb-3">
-                                        <i class="fas fa-check-circle me-2"></i>
-                                        <strong>Medical certificate uploaded</strong>
-                                    </div>
-                                    
-                                    <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fas fa-file-medical text-success me-3 fa-2x"></i>
-                                            <div>
-                                                <div class="fw-bold">@ViewBag.MedicalCertificateFileName</div>
-                                                <small class="text-muted">
-                                                    Uploaded on: @ViewBag.MedicalCertificateUploadDate
-                                                </small>
-                                                @if (!string.IsNullOrEmpty(ViewBag.DocumentComment?.ToString()))
+                            <div class="alert alert-success mb-3">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Medical certificate uploaded</strong>
+                            </div>
+
+                            <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-file-medical text-success me-3 fa-2x"></i>
+                                    <div>
+                                        <div class="fw-bold">@ViewBag.MedicalCertificateFileName</div>
+                                        <small class="text-muted">
+                                            Uploaded on: @ViewBag.MedicalCertificateUploadDate
+                                        </small>
+                                        @if (!string.IsNullOrEmpty(ViewBag.DocumentComment?.ToString()))
                                                 {
-                                                    <br><small class="text-info">@ViewBag.DocumentComment</small>
+                                        <br><small class="text-info">@ViewBag.DocumentComment</small>
                                                 }
-                                            </div>
-                                        </div>
-                                        
                                     </div>
+                                </div>
+
+                            </div>
                                 }
                                 else
                                 {
-                                    <div class="alert alert-warning">
-                                        <i class="fas fa-exclamation-triangle me-2"></i>
-                                        <strong>No medical certificate uploaded</strong>
-                                        <br>
-                                        <small>Medical certificate is required for medical leave applications.</small>
-                                    </div>
-                                }
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>No medical certificate uploaded</strong>
+                                <br>
+                                <small>Medical certificate is required for medical leave applications.</small>
                             </div>
+                                }
                         </div>
                     </div>
+                </div>
                 }
 
                 @if (Model.Status == "Approved" || Model.Status == "Rejected")
                 {
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <strong>Processed Date:</strong><br>
-                            <span class="text-muted">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</span>
-                        </div>
-                        <div class="col-md-6">
-                            <strong>Processed By:</strong><br>
-                            <span class="text-muted">@Model.ApprovedBy</span>
-                        </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Processed Date:</strong><br>
+                        <span class="text-muted">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</span>
                     </div>
+                    <div class="col-md-6">
+                        <strong>Processed By:</strong><br>
+                        <span class="text-muted">@Model.ApprovedBy</span>
+                    </div>
+                </div>
 
-                    @if (!string.IsNullOrEmpty(Model.ApprovalRemarks))
+                if (!string.IsNullOrEmpty(Model.ApprovalRemarks))
                     {
-                        <div class="mb-3">
-                            <strong>HR Remarks:</strong><br>
-                            <div class="bg-light p-3 rounded mt-2">
-                                <p class="mb-0">@Model.ApprovalRemarks</p>
-                            </div>
-                        </div>
+                <div class="mb-3">
+                    <strong>HR Remarks:</strong><br>
+                    <div class="bg-light p-3 rounded mt-2">
+                        <p class="mb-0">@Model.ApprovalRemarks</p>
+                    </div>
+                </div>
                     }
                 }
 
                 <div class="d-flex justify-content-end gap-2">
                     @if (Model.Status == "Pending")
                     {
-                        <a asp-action="ProcessLeave" asp-route-id="@Model.LeaveID" class="btn btn-primary">
-                            <i class="fas fa-tasks me-2"></i>Process Leave
-                        </a>
+                    <a asp-action="ProcessLeave" asp-route-id="@Model.LeaveID" class="btn btn-primary">
+                        <i class="fas fa-tasks me-2"></i>Process Leave
+                    </a>
                     }
                 </div>
             </div>
@@ -192,22 +188,12 @@
                     <span class="text-muted">
                         @if (!string.IsNullOrEmpty(Model.Employee.FirstName) || !string.IsNullOrEmpty(Model.Employee.LastName))
                         {
-                            @($"{Model.Employee.FirstName} {Model.Employee.LastName}".Trim())
+                        @($"{Model.Employee.FirstName} {Model.Employee.LastName}".Trim())
                         }
-                        else if (!string.IsNullOrEmpty(Model.Employee.FirstName))
-                        {
-                            @Model.Employee.FirstName
-                        }
-                        else
-                        {
-                            @Model.Employee.Username
-                        }
+                       
                     </span>
                 </div>
-                <div class="mb-3">
-                    <strong>Username:</strong><br>
-                    <span class="text-muted">@Model.Employee.Username</span>
-                </div>
+                
                 <div class="mb-3">
                     <strong>Email:</strong><br>
                     <span class="text-muted">@Model.Employee.Email</span>
@@ -218,58 +204,58 @@
         <!-- Medical Certificate Information Card for HR -->
         @if (Model.LeaveType?.TypeName != null && Model.LeaveType.TypeName.ToLower().Contains("medical"))
         {
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-file-medical me-2"></i>Medical Certificate Status
-                    </h6>
-                </div>
-                <div class="card-body">
-                    @if (ViewBag.HasMedicalCertificate == true && !string.IsNullOrEmpty(ViewBag.MedicalCertificateFileName?.ToString()))
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-file-medical me-2"></i>Medical Certificate Status
+                </h6>
+            </div>
+            <div class="card-body">
+                @if (ViewBag.HasMedicalCertificate == true && !string.IsNullOrEmpty(ViewBag.MedicalCertificateFileName?.ToString()))
                     {
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="fas fa-check-circle text-success me-2"></i>
-                            <span class="text-success fw-bold">Certificate Available</span>
-                        </div>
-                        <div class="mb-2">
-                            <strong>File Name:</strong><br>
-                            <small class="text-muted">@ViewBag.MedicalCertificateFileName</small>
-                        </div>
-                        @if (!string.IsNullOrEmpty(ViewBag.MedicalCertificateUploadDate?.ToString()))
+                <div class="d-flex align-items-center mb-3">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    <span class="text-success fw-bold">Certificate Available</span>
+                </div>
+                <div class="mb-2">
+                    <strong>File Name:</strong><br>
+                    <small class="text-muted">@ViewBag.MedicalCertificateFileName</small>
+                </div>
+                if (!string.IsNullOrEmpty(ViewBag.MedicalCertificateUploadDate?.ToString()))
                         {
-                            <div class="mb-3">
-                                <strong>Upload Date:</strong><br>
-                                <small class="text-muted">@ViewBag.MedicalCertificateUploadDate</small>
-                            </div>
+                <div class="mb-3">
+                    <strong>Upload Date:</strong><br>
+                    <small class="text-muted">@ViewBag.MedicalCertificateUploadDate</small>
+                </div>
                         }
-                        <div class="d-grid gap-2">
-                            @if (!string.IsNullOrEmpty(ViewBag.MedicalCertificateUrl?.ToString()))
+                <div class="d-grid gap-2">
+                    @if (!string.IsNullOrEmpty(ViewBag.MedicalCertificateUrl?.ToString()))
                             {
-                                <a href="@ViewBag.MedicalCertificateUrl" target="_blank" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye me-1"></i>View Certificate
-                                </a>
-                                <a asp-action="DownloadMedicalCertificate" asp-route-leaveId="@Model.LeaveID" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-download me-1"></i>Download Certificate
-                                </a>
+                    <a href="@ViewBag.MedicalCertificateUrl" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i>View Certificate
+                    </a>
+                    <a asp-action="DownloadMedicalCertificate" asp-route-leaveId="@Model.LeaveID" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-download me-1"></i>Download Certificate
+                    </a>
                             }
-                        </div>
+                </div>
                     }
                     else
                     {
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                            <span class="text-warning fw-bold">No Certificate</span>
-                        </div>
-                        <small class="text-muted">No medical certificate was uploaded for this medical leave application.</small>
-                        <div class="mt-2">
-                            <small class="text-danger">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Medical certificate is required for medical leave applications.
-                            </small>
-                        </div>
-                    }
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    <span class="text-warning fw-bold">No Certificate</span>
                 </div>
+                <small class="text-muted">No medical certificate was uploaded for this medical leave application.</small>
+                <div class="mt-2">
+                    <small class="text-danger">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Medical certificate is required for medical leave applications.
+                    </small>
+                </div>
+                    }
             </div>
+        </div>
         }
 
         <div class="card mt-3">
@@ -290,33 +276,33 @@
 
                     @if (Model.Status == "Approved")
                     {
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-success"></div>
-                            <div class="timeline-content">
-                                <h6 class="timeline-title">Application Approved</h6>
-                                <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Application Approved</h6>
+                            <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
                         </div>
+                    </div>
                     }
                     else if (Model.Status == "Rejected")
                     {
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-danger"></div>
-                            <div class="timeline-content">
-                                <h6 class="timeline-title">Application Rejected</h6>
-                                <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-danger"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Application Rejected</h6>
+                            <p class="timeline-text">@Model.ApprovalDate?.ToString("dd/MM/yyyy HH:mm")</p>
                         </div>
+                    </div>
                     }
                     else
                     {
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-warning"></div>
-                            <div class="timeline-content">
-                                <h6 class="timeline-title">Pending Review</h6>
-                                <p class="timeline-text">Awaiting HR decision</p>
-                            </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-warning"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Pending Review</h6>
+                            <p class="timeline-text">Awaiting HR decision</p>
                         </div>
+                    </div>
                     }
                 </div>
             </div>
@@ -340,10 +326,10 @@
                     </li>
                     @if (Model.LeaveType?.TypeName != null && Model.LeaveType.TypeName.ToLower().Contains("medical"))
                     {
-                        <li class="mb-2">
-                            <i class="fas fa-check text-success me-2"></i>
-                            <small>Review medical certificate</small>
-                        </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Review medical certificate</small>
+                    </li>
                     }
                     <li class="mb-0">
                         <i class="fas fa-check text-success me-2"></i>
@@ -410,21 +396,21 @@
             border-bottom: 1px solid #dee2e6;
         }
 
-    /* Enhanced certificate display */
-    .medical-certificate-section .card {
-        border: 1px solid #17a2b8;
-        box-shadow: 0 2px 4px rgba(23, 162, 184, 0.1);
-    }
+        /* Enhanced certificate display */
+        .medical-certificate-section .card {
+            border: 1px solid #17a2b8;
+            box-shadow: 0 2px 4px rgba(23, 162, 184, 0.1);
+        }
 
-    .medical-certificate-section .alert-success {
-        background-color: #d1ecf1;
-        border-color: #bee5eb;
-        color: #0c5460;
-    }
+        .medical-certificate-section .alert-success {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
 
-    .medical-certificate-section .alert-warning {
-        background-color: #fff3cd;
-        border-color: #ffeaa7;
-        color: #856404;
-    }
+        .medical-certificate-section .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
 </style>

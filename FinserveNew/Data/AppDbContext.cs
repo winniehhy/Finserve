@@ -108,11 +108,12 @@ namespace FinserveNew.Data
 
                 // NEW: Configure currency-related fields
                 entity.Property(c => c.Currency).HasMaxLength(3).HasDefaultValue("MYR");
-                entity.Property(c => c.OriginalAmount).HasPrecision(18, 2);
-                entity.Property(c => c.OriginalCurrency).HasMaxLength(3);
-                entity.Property(c => c.ExchangeRate).HasPrecision(10, 6);
                 entity.Property(c => c.ClaimDate).IsRequired();
                 entity.Property(c => c.Description).HasMaxLength(1000);
+                
+                // Configure soft delete fields
+                entity.Property(c => c.IsDeleted).HasDefaultValue(false);
+                entity.Property(c => c.DeletedDate).IsRequired(false);
             });
 
             // Configure the Invoice table

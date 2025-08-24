@@ -4,126 +4,124 @@
     ViewData["Title"] = "Rejected Claims";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="page-title mb-0">Rejected Claims</h2>
-    <div class="btn-group" role="group">
-        <a asp-action="HRIndex" class="btn btn-outline-primary">
-            <i class="fas fa-list me-2"></i>All Claims
-        </a>
-        <a asp-action="PendingClaims" class="btn btn-outline-warning">
-            <i class="fas fa-clock me-2"></i>Pending
-        </a>
-        <a asp-action="ApprovedClaims" class="btn btn-outline-success">
-            <i class="fas fa-check me-2"></i>Approved
-        </a>
-        <a asp-action="RejectedClaims" class="btn btn-danger">
-            <i class="fas fa-times me-2"></i>Rejected (@Model.Count)
-        </a>
-    </div>
-</div>
-
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-@if (TempData["Error"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["Error"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-<div class="form-container">
-    @if (Model != null && Model.Any())
-    {
-        <div class="alert alert-danger mb-4">
-            <i class="fas fa-times-circle me-2"></i>
-            <strong>@Model.Count rejected claims</strong> with total amount of <strong>RM @Model.Sum(c => c.ClaimAmount).ToString("F2")</strong>.
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Rejected Claims</h2>
+            <p class="text-muted">Review rejected claim entries</p>
         </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group" role="group">
+                <a asp-action="HRIndex" class="btn btn-outline-primary">
+                    <i class="fas fa-list me-2"></i>All Claims
+                </a>
+                <a asp-action="PendingClaims" class="btn btn-outline-warning">
+                    <i class="fas fa-clock me-2"></i>Pending
+                </a>
+                <a asp-action="ApprovedClaims" class="btn btn-outline-success">
+                    <i class="fas fa-check me-2"></i>Approved
+                </a>
+                <a asp-action="RejectedClaims" class="btn btn-danger">
+                    <i class="fas fa-times me-2"></i>Rejected (@Model.Count)
+                </a>
+            </div>
+        </div>
+    </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>Claim ID</th>
-                        <th>Employee ID</th>
-                        <th>Claim Type</th>
-                        <th>Amount</th>
-                        <th>Description</th>
-                        <th>Submission Date</th>
-                        <th>Rejection Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var claim in Model)
-                    {
-                        <tr>
-                            <td>
-                                <strong>#@claim.Id</strong>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary">@claim.EmployeeID</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-info">@claim.ClaimType</span>
-                            </td>
-                            <td>
-                                <strong class="text-danger">RM @claim.ClaimAmount.ToString("F2")</strong>
-                            </td>
-                            <td>
-                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
-                                    @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
-                                </span>
-                            </td>
-                            <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
-                            <td>
-                                <span class="badge bg-danger">@claim.ApprovalDate?.ToString("dd MMM yyyy")</span>
-                            </td>
-                            <td>
-                                <a asp-action="ProcessClaim" asp-route-id="@claim.Id" class="btn btn-sm btn-primary" title="View Details">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Full Details">
-                                    <i class="fas fa-info-circle"></i>
-                                </a>
-                                @if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
-                                {
-                                    <a href="@claim.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-secondary" title="View Document">
-                                        <i class="fas fa-paperclip"></i>
-                                    </a>
-                                }
-                                <button type="button" class="btn btn-sm btn-outline-warning" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#reconsiderModal" 
-                                        data-claim-id="@claim.Id"
-                                        data-employee-id="@claim.EmployeeID"
-                                        title="Reconsider Claim">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
-    else
+
+    @if (TempData["Error"] != null)
     {
-        <div class="text-center py-5">
-            <i class="fas fa-times-circle fa-3x text-muted mb-3"></i>
-            <h5 class="text-muted">No rejected claims found</h5>
-            <p class="text-muted">There are currently no rejected claims in the system.</p>
-            <a asp-action="PendingClaims" class="btn btn-primary">
-                <i class="fas fa-clock me-2"></i>View Pending Claims
-            </a>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
+
+    <div class="card">
+        <div class="card-body">
+            @if (Model != null && Model.Any())
+            {
+                <div class="alert alert-danger mb-4">
+                    <i class="fas fa-times-circle me-2"></i>
+                    <strong>@Model.Count rejected claims</strong> with total amount of <strong>RM @Model.Sum(c => c.ClaimAmount).ToString("F2")</strong>.
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Claim ID</th>
+                                <th>Employee ID</th>
+                                <th>Claim Type</th>
+                                <th>Amount</th>
+                                <th>Description</th>
+                                <th>Submission Date</th>
+                                <th>Rejection Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var claim in Model)
+                            {
+                                <tr>
+                                    <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                    <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
+                                    <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
+                                    <td><strong class="text-danger">RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                    <td>
+                                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
+                                            @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
+                                        </span>
+                                    </td>
+                                    <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
+                                    <td><span class="badge bg-danger">@claim.ApprovalDate?.ToString("dd MMM yyyy")</span></td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Full Details">
+                                                <i class="fas fa-eye me-1"></i> View
+                                            </a>
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
+                                        {
+                                            <a href="@claim.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-secondary mt-1" title="View Document">
+                                                <i class="fas fa-paperclip me-1"></i> Document
+                                            </a>
+                                        }
+                                        <button type="button" class="btn btn-sm btn-outline-warning mt-1" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#reconsiderModal" 
+                                                data-claim-id="@claim.Id"
+                                                data-employee-id="@claim.EmployeeID"
+                                                title="Reconsider Claim">
+                                            <i class="fas fa-redo me-1"></i> Reconsider
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="fas fa-times-circle fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No rejected claims found</h5>
+                    <p class="text-muted">There are currently no rejected claims in the system.</p>
+                    <a asp-action="PendingClaims" class="btn btn-primary">
+                        <i class="fas fa-clock me-2"></i>View Pending Claims
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
 </div>
 
 <!-- Reconsider Modal -->

@@ -25,7 +25,7 @@
         <div class="card">
             <div class="card-header">
                 <h4 class="card-title">Edit Leave Application</h4>
-                <small class="text-muted">Leave ID: #@Model.LeaveID</small>
+                <small class="text-muted">Leave ID: #LVE-@Model.LeaveID.ToString("D3")</small>
             </div>
             <div class="card-body">
                 <form asp-action="Edit" method="post" enctype="multipart/form-data">
@@ -173,7 +173,7 @@
             <div class="card-body">
                 <div class="mb-3">
                     <strong>Application ID:</strong><br>
-                    <span class="text-muted">#@Model.LeaveID</span>
+                    <span class="text-muted">#LVE-@Model.LeaveID.ToString("D3")</span>
                 </div>
                 <div class="mb-3">
                     <strong>Current Status:</strong><br>

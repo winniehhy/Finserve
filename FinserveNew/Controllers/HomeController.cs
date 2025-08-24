@@ -103,6 +103,7 @@ namespace FinserveNew.Controllers
                     .SumAsync(c => c.ClaimAmount);
 
                 var recentClaimApplications = await _context.Claims
+                    .Include(c => c.Employee)
                     .OrderByDescending(c => c.CreatedDate)
                     .Take(5)
                     .ToListAsync();
