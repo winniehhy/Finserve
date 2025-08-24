@@ -85,17 +85,38 @@ namespace FinserveNew.Controllers
             // Get approver information if claim is processed
             if (!string.IsNullOrEmpty(claim.ApprovedBy))
             {
-                var approver = await _userManager.FindByIdAsync(claim.ApprovedBy);
-                if (approver != null)
+                _logger.LogInformation($"Claim {claim.Id} has ApprovedBy: '{claim.ApprovedBy}'");
+                
+                // Check if ApprovedBy contains a full name (new format) or user ID (old format)
+                if (claim.ApprovedBy.Contains(" "))
                 {
-                    ViewBag.ApproverName = $"{approver.FirstName} {approver.LastName}";
-                    ViewBag.ApproverEmail = approver.Email;
+                    // New format: ApprovedBy contains the full name directly
+                    ViewBag.ApproverName = claim.ApprovedBy;
+                    ViewBag.ApproverEmail = ""; // No email available in new format
+                    _logger.LogInformation($"Using new format - Approver Name: {ViewBag.ApproverName}");
                 }
                 else
                 {
-                    ViewBag.ApproverName = "Unknown Approver";
-                    ViewBag.ApproverEmail = "";
+                    // Old format: ApprovedBy contains user ID, try to get user details
+                    _logger.LogInformation($"Using old format - ApprovedBy is user ID: {claim.ApprovedBy}");
+                    var approver = await _userManager.FindByIdAsync(claim.ApprovedBy);
+                    if (approver != null)
+                    {
+                        ViewBag.ApproverName = $"{approver.FirstName} {approver.LastName}";
+                        ViewBag.ApproverEmail = approver.Email;
+                        _logger.LogInformation($"Found approver user: {ViewBag.ApproverName}");
+                    }
+                    else
+                    {
+                        ViewBag.ApproverName = "Unknown Approver";
+                        ViewBag.ApproverEmail = "";
+                        _logger.LogWarning($"Could not find approver user with ID: {claim.ApprovedBy}");
+                    }
                 }
+            }
+            else
+            {
+                _logger.LogInformation($"Claim {claim.Id} has no ApprovedBy value");
             }
 
             // FIXED: Initialize documents list properly
@@ -584,9 +605,17 @@ namespace FinserveNew.Controllers
                     {
                         var claimDataJson = TempData["ClaimData"].ToString();
                         _logger.LogInformation($"Found TempData ClaimData with length: {claimDataJson.Length}");
+                        _logger.LogInformation($"TempData content preview: {claimDataJson.Substring(0, Math.Min(200, claimDataJson.Length))}...");
 
                         using var document = System.Text.Json.JsonDocument.Parse(claimDataJson);
                         var root = document.RootElement;
+                        
+                        // Log all available properties
+                        _logger.LogInformation("Available JSON properties:");
+                        foreach (var property in root.EnumerateObject())
+                        {
+                            _logger.LogInformation($"  - {property.Name}: {property.Value.ValueKind}");
+                        }
 
                         // Parse all fields properly
                         if (root.TryGetProperty("ClaimType", out var claimTypeElement))
@@ -629,7 +658,7 @@ namespace FinserveNew.Controllers
                         {
                             var description = descriptionElement.GetString();
                             claim.Description = description ?? "";
-                            _logger.LogInformation($"✅ Set Description from TempData: '{claim.Description}'");
+                            _logger.LogInformation($"✅ Set Description from TempData: '{claim.Description}' (Length: {claim.Description?.Length ?? 0})");
                         }
 
                         // Store file information for client-side access
@@ -674,7 +703,7 @@ namespace FinserveNew.Controllers
                     if (!string.IsNullOrEmpty(Request.Query["description"]))
                     {
                         claim.Description = Request.Query["description"].ToString();
-                        _logger.LogInformation($"✅ Set Description from query: {claim.Description}");
+                        _logger.LogInformation($"✅ Set Description from query: '{claim.Description}' (Length: {claim.Description?.Length ?? 0})");
                     }
                 }
 
@@ -683,6 +712,20 @@ namespace FinserveNew.Controllers
                 {
                     claim.ClaimType = "Travel"; // Changed from "Medical" to match user expectation
                     _logger.LogWarning("⚠️ Using fallback ClaimType: Travel");
+                }
+                else
+                {
+                    _logger.LogInformation($"✅ Using provided ClaimType: {claim.ClaimType}");
+                }
+
+                // Log description status
+                if (string.IsNullOrWhiteSpace(claim.Description))
+                {
+                    _logger.LogWarning("⚠️ Description is empty or whitespace");
+                }
+                else
+                {
+                    _logger.LogInformation($"✅ Using provided Description: '{claim.Description}' (Length: {claim.Description.Length})");
                 }
 
                 // Add debug information
@@ -737,10 +780,17 @@ namespace FinserveNew.Controllers
             try
             {
                 _logger.LogInformation($"ProcessOCRAndSubmit called");
-                _logger.LogInformation($"Received ClaimType: {model.ClaimType}");
-                _logger.LogInformation($"Received Description: {model.Description}");
+                _logger.LogInformation($"Received ClaimType: '{model.ClaimType}' (Length: {model.ClaimType?.Length ?? 0})");
+                _logger.LogInformation($"Received Description: '{model.Description}' (Length: {model.Description?.Length ?? 0})");
                 _logger.LogInformation($"Received ClaimAmount: {model.ClaimAmount}");
                 _logger.LogInformation($"Received ClaimDate: {model.ClaimDate}");
+                
+                // Log all form data for debugging
+                _logger.LogInformation("Form data received:");
+                foreach (var key in Request.Form.Keys)
+                {
+                    _logger.LogInformation($"  {key}: '{Request.Form[key]}'");
+                }
 
                 // Get current employee ID
                 var employeeId = await GetCurrentEmployeeId();
@@ -753,7 +803,7 @@ namespace FinserveNew.Controllers
                 }
 
                 // Validate required fields
-                if (string.IsNullOrWhiteSpace(model.ClaimType) || model.ClaimType == "Not specified")
+                if (string.IsNullOrWhiteSpace(model.ClaimType))
                 {
                     ModelState.AddModelError("ClaimType", "Please select a valid Claim Type");
                 }
@@ -1201,12 +1251,31 @@ namespace FinserveNew.Controllers
             }
 
             var claim = await _context.Claims
+                .Include(c => c.ClaimDetails)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (claim == null)
             {
                 return NotFound();
             }
+
+            // Get employee information
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeID);
+
+            if (employee != null)
+            {
+                ViewBag.EmployeeName = $"{employee.FirstName} {employee.LastName}";
+            }
+
+            // Get supporting documents from ClaimDetails
+            var documents = new List<ClaimDetails>();
+            if (claim.ClaimDetails != null && claim.ClaimDetails.Any())
+            {
+                documents = claim.ClaimDetails.ToList();
+            }
+
+            ViewBag.Documents = documents;
 
             return View("~/Views/HR/Claim/ClaimDetails.cshtml", claim);
         }
@@ -1220,6 +1289,7 @@ namespace FinserveNew.Controllers
             }
 
             var claim = await _context.Claims
+                .Include(c => c.ClaimDetails)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (claim == null)
@@ -1233,6 +1303,24 @@ namespace FinserveNew.Controllers
                 TempData["Error"] = "This claim has already been processed.";
                 return RedirectToAction(nameof(HRIndex));
             }
+
+            // Get employee information
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.EmployeeID == claim.EmployeeID);
+
+            if (employee != null)
+            {
+                ViewBag.EmployeeName = $"{employee.FirstName} {employee.LastName}";
+            }
+
+            // Get supporting documents from ClaimDetails
+            var documents = new List<ClaimDetails>();
+            if (claim.ClaimDetails != null && claim.ClaimDetails.Any())
+            {
+                documents = claim.ClaimDetails.ToList();
+            }
+
+            ViewBag.Documents = documents;
 
             return View("~/Views/HR/Claim/ProcessClaim.cshtml", claim);
         }
@@ -1271,7 +1359,7 @@ namespace FinserveNew.Controllers
                 {
                     claim.Status = "Approved";
                     claim.ApprovalDate = DateTime.Now;
-                    claim.ApprovedBy = currentUser.Id; // HR user ID for approval tracking
+                    claim.ApprovedBy = $"{currentUser.FirstName} {currentUser.LastName}".Trim(); // HR user name for approval tracking
                     claim.ApprovalRemarks = remarks;
                     TempData["Success"] = "Claim approved successfully!";
                 }
@@ -1279,7 +1367,7 @@ namespace FinserveNew.Controllers
                 {
                     claim.Status = "Rejected";
                     claim.ApprovalDate = DateTime.Now;
-                    claim.ApprovedBy = currentUser.Id; // HR user ID for approval tracking
+                    claim.ApprovedBy = $"{currentUser.FirstName} {currentUser.LastName}".Trim(); // HR user name for approval tracking
                     claim.ApprovalRemarks = remarks;
                     TempData["Success"] = "Claim rejected successfully!";
                 }
@@ -1375,22 +1463,26 @@ namespace FinserveNew.Controllers
                 }
 
                 // Email subject and body
-                string subject = $"New Claim Submitted - ID: {claim.Id}";
+                string subject = $"Claim Approval Request for {employee.FirstName} {employee.LastName}";
 
                 string body = $@"
                 <html>
                 <body style='font-family: Arial, sans-serif;'>
-                    <h2 style='color: #2c3e50;'>New Claim Submission</h2>
+                    <h2 style='color: #2c3e50;'>Claim Approval Request</h2>
                     
+                    <div style='background-color: #e8f4fd; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;'>
+                        <h3 style='color: #007bff; margin-top: 0;'>New Claim Submitted</h3>
+                        <p style='margin-bottom: 0;'>A new claim has been submitted and requires your review.</p>
+                    </div>
+
                     <div style='background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;'>
                         <h3 style='color: #495057; margin-top: 0;'>Claim Details</h3>
-                        <p><strong>Claim ID:</strong> {claim.Id}</p>
-                        <p><strong>Employee:</strong> {employee?.FirstName} {employee?.LastName} ({claim.EmployeeID})</p>
+                        <p><strong>Employee:</strong> {employee.FirstName} {employee.LastName} ({employee.EmployeeID})</p>
                         <p><strong>Claim Type:</strong> {claim.ClaimType}</p>
                         <p><strong>Amount:</strong> {claim.Currency} {claim.ClaimAmount:F2}</p>
                         <p><strong>Claim Date:</strong> {claim.ClaimDate:dd/MM/yyyy}</p>
+                        <p><strong>Description:</strong> {claim.Description ?? "No description provided"}</p>
                         <p><strong>Submitted On:</strong> {claim.SubmissionDate:dd/MM/yyyy HH:mm}</p>
-                        <p><strong>Description:</strong> {claim.Description}</p>
                     </div>
 
                     <div style='background-color: #e8f4fd; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;'>
@@ -1398,7 +1490,7 @@ namespace FinserveNew.Controllers
                     </div>
 
                     <div style='margin-top: 30px;'>
-                        <p>Please log in to the system to review and process this claim.</p>
+                        <p><a href='{Url.Action("ClaimDetails", "Claim", new { id = claim.Id }, Request.Scheme)}' style='background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;'>Click here to review this claim</a></p>
                         <p style='font-size: 12px; color: #6c757d;'>
                             This is an automated notification from the Finserve Claim Management System.
                         </p>
@@ -1418,6 +1510,17 @@ namespace FinserveNew.Controllers
                     {
                         _logger.LogError(ex, $"Failed to send email to HR user: {hrUser.Email}");
                     }
+                }
+
+                // Also send email to the specific HR email address
+                try
+                {
+                    await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
+                    _logger.LogInformation("Claim submission notification sent to hr001@cubicsoftware.com.my");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send email to hr001@cubicsoftware.com.my");
                 }
             }
             catch (Exception ex)

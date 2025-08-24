@@ -5,6 +5,7 @@ using FinserveNew.Data;
 using FinserveNew.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 
 namespace FinserveNew.Controllers
 {
@@ -13,12 +14,14 @@ namespace FinserveNew.Controllers
         private readonly AppDbContext _context;
         private readonly ILogger<LeavesController> _logger;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IEmailSender _emailSender;
 
-        public LeavesController(AppDbContext context, ILogger<LeavesController> logger, UserManager<ApplicationUser> userManager)
+        public LeavesController(AppDbContext context, ILogger<LeavesController> logger, UserManager<ApplicationUser> userManager, IEmailSender emailSender)
         {
             _context = context;
             _logger = logger;
             _userManager = userManager;
+            _emailSender = emailSender;
         }
 
         // ================== HELPER METHOD TO GET EMPLOYEE ID ==================
@@ -395,6 +398,9 @@ namespace FinserveNew.Controllers
                                             breakdown + "\n\n" +
                                             "⏳ All requests have been sent for approval.";
 
+                        // Send email notification to HR
+                        await SendLeaveSubmissionNotificationToHR(leave);
+
                         return RedirectToAction(nameof(LeaveRecords));
                     }
                     // Check if this is an unpaid leave request
@@ -453,6 +459,10 @@ namespace FinserveNew.Controllers
                             $"⏳ Your request has been sent to HR for approval.";
 
                         TempData["Success"] = successMessage;
+
+                        // Send email notification to HR
+                        await SendUnpaidLeaveSubmissionNotificationToHR(unpaidLeaveRequest);
+
                         return RedirectToAction(nameof(UnpaidLeaveRequests));
                     }
                 }
@@ -489,6 +499,9 @@ namespace FinserveNew.Controllers
                     TempData["Success"] = isEmergencyLeave ?
                         $"✅ Emergency leave application submitted successfully! ({requestedDays:0.#} days from Annual Leave balance)" :
                         $"✅ Leave application submitted successfully! ({requestedDays:0.#} days)";
+
+                    // Send email notification to HR
+                    await SendLeaveSubmissionNotificationToHR(leave);
 
                     return RedirectToAction(nameof(LeaveRecords));
                 }
@@ -807,6 +820,9 @@ namespace FinserveNew.Controllers
                                         string.Join("\n", breakdownList) + "\n\n" +
                                         "⏳ All requests have been sent for approval.";
 
+                    // Send email notification to HR
+                    await SendLeaveSubmissionNotificationToHR(leave);
+
                     return RedirectToAction(nameof(LeaveRecords));
                 }
                 // Handle direct unpaid leave request
@@ -854,6 +870,9 @@ namespace FinserveNew.Controllers
                                         $"• From {leaveType.TypeName} Balance: {Math.Min(remainingBalance, requestedDays):0.#}\n" +
                                         $"• Unpaid Days: {excessDays:0.#}\n\n" +
                                         $"⏳ Your request has been sent to HR for approval.";
+
+                    // Send email notification to HR
+                    await SendUnpaidLeaveSubmissionNotificationToHR(unpaidLeaveRequest);
 
                     return RedirectToAction(nameof(UnpaidLeaveRequests));
                 }
@@ -905,6 +924,9 @@ namespace FinserveNew.Controllers
                     TempData["Success"] = isEmergencyLeave ?
                         "Emergency leave updated successfully! (Applied against Annual Leave balance)" :
                         "Leave updated successfully!";
+
+                    // Send email notification to HR
+                    await SendLeaveSubmissionNotificationToHR(leave);
 
                     return RedirectToAction(nameof(LeaveRecords));
                 }
@@ -1288,7 +1310,7 @@ namespace FinserveNew.Controllers
                 {
                     leave.Status = "Approved";
                     leave.ApprovalDate = DateTime.Now;
-                    leave.ApprovedBy = currentUser.Id;
+                    leave.ApprovedBy = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
                     leave.ApprovalRemarks = remarks;
                     TempData["Success"] = "Leave approved successfully!";
                 }
@@ -1303,7 +1325,7 @@ namespace FinserveNew.Controllers
 
                     leave.Status = "Rejected";
                     leave.ApprovalDate = DateTime.Now;
-                    leave.ApprovedBy = currentUser.Id;
+                    leave.ApprovedBy = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
                     leave.ApprovalRemarks = remarks;
                     TempData["Success"] = "Leave rejected successfully!";
                 }
@@ -1559,7 +1581,7 @@ namespace FinserveNew.Controllers
                     // ✅ STEP 1: Approve the unpaid leave request
                     unpaidRequest.Status = "Approved";
                     unpaidRequest.ApprovalDate = DateTime.Now;
-                    unpaidRequest.ApprovedBy = currentUser.Id;
+                    unpaidRequest.ApprovedBy = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
                     unpaidRequest.ApprovalRemarks = remarks;
 
                     // ✅ STEP 2: Create the actual leave record
@@ -1575,7 +1597,7 @@ namespace FinserveNew.Controllers
                         CreatedDate = unpaidRequest.CreatedDate,
                         SubmissionDate = unpaidRequest.SubmissionDate,
                         ApprovalDate = DateTime.Now,
-                        ApprovedBy = currentUser.Id,
+                        ApprovedBy = $"{currentUser.FirstName} {currentUser.LastName}".Trim(),
                         ApprovalRemarks = $"✅ APPROVED AS UNPAID LEAVE\n" +
                                          $"📊 Breakdown:\n" +
                                          $"• Total Days: {unpaidRequest.RequestedDays}\n" +
@@ -1638,7 +1660,7 @@ namespace FinserveNew.Controllers
 
                     unpaidRequest.Status = "Rejected";
                     unpaidRequest.ApprovalDate = DateTime.Now;
-                    unpaidRequest.ApprovedBy = currentUser.Id;
+                    unpaidRequest.ApprovedBy = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
                     unpaidRequest.ApprovalRemarks = remarks;
 
                     await _context.SaveChangesAsync();
@@ -2396,6 +2418,159 @@ namespace FinserveNew.Controllers
             {
                 _logger.LogError(ex, $"Error checking backdate permission for leave type {leaveTypeId}");
                 return false; // Default to not allowing backdate on error
+            }
+        }
+
+        /// <summary>
+        /// Sends email notification to HR when leave application is submitted
+        /// </summary>
+        private async Task SendLeaveSubmissionNotificationToHR(LeaveModel leave)
+        {
+            try
+            {
+                // Get employee information
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.EmployeeID == leave.EmployeeID);
+
+                if (employee == null)
+                {
+                    _logger.LogWarning($"Employee not found for employee ID: {leave.EmployeeID}");
+                    return;
+                }
+
+                // Get leave type information
+                var leaveType = await _context.LeaveTypes
+                    .FirstOrDefaultAsync(lt => lt.LeaveTypeID == leave.LeaveTypeID);
+
+                // Email subject and body
+                string subject = $"Leave Approval Request for {employee.FirstName} {employee.LastName}";
+
+                string body = $@"
+                <html>
+                <body style='font-family: Arial, sans-serif;'>
+                    <h2 style='color: #2c3e50;'>Leave Approval Request</h2>
+                    
+                    <div style='background-color: #e8f4fd; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff;'>
+                        <h3 style='color: #007bff; margin-top: 0;'>New Leave Application</h3>
+                        <p style='margin-bottom: 0;'>A new leave application has been submitted and requires your review.</p>
+                    </div>
+
+                    <div style='background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;'>
+                        <h3 style='color: #495057; margin-top: 0;'>Application Details</h3>
+                        <p><strong>Employee:</strong> {employee.FirstName} {employee.LastName} ({employee.EmployeeID})</p>
+                        <p><strong>Leave Type:</strong> {leaveType?.TypeName ?? "Unknown"}</p>
+                        <p><strong>Start Date:</strong> {leave.StartDate:dd/MM/yyyy}</p>
+                        <p><strong>End Date:</strong> {leave.EndDate:dd/MM/yyyy}</p>
+                        <p><strong>Duration:</strong> {leave.LeaveDays} day(s)</p>
+                        <p><strong>Reason:</strong> {leave.Reason ?? "No reason provided"}</p>
+                        <p><strong>Submitted On:</strong> {leave.SubmissionDate:dd/MM/yyyy HH:mm}</p>
+                    </div>
+
+                    <div style='background-color: #e8f4fd; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;'>
+                        <p style='margin: 0;'><strong>Action Required:</strong> This leave application requires your review and approval.</p>
+                    </div>
+
+                    <div style='margin-top: 30px;'>
+                        <p><a href='{Url.Action("LeaveDetails", "Leaves", new { id = leave.LeaveID }, Request.Scheme)}' style='background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;'>Click here to review this leave application</a></p>
+                        <p style='font-size: 12px; color: #6c757d;'>
+                            This is an automated notification from the Finserve Leave Management System.
+                        </p>
+                    </div>
+                </body>
+                </html>";
+
+                // Send email to the specific HR email address
+                try
+                {
+                    await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
+                    _logger.LogInformation("Leave submission notification sent to hr001@cubicsoftware.com.my");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send email to hr001@cubicsoftware.com.my");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending leave submission notification to HR");
+                // Don't throw the exception to avoid breaking the leave submission process
+            }
+        }
+
+        /// <summary>
+        /// Sends email notification to HR when unpaid leave request is submitted
+        /// </summary>
+        private async Task SendUnpaidLeaveSubmissionNotificationToHR(UnpaidLeaveRequestModel unpaidRequest)
+        {
+            try
+            {
+                // Get employee information
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.EmployeeID == unpaidRequest.EmployeeID);
+
+                if (employee == null)
+                {
+                    _logger.LogWarning($"Employee not found for employee ID: {unpaidRequest.EmployeeID}");
+                    return;
+                }
+
+                // Get leave type information
+                var leaveType = await _context.LeaveTypes
+                    .FirstOrDefaultAsync(lt => lt.LeaveTypeID == unpaidRequest.LeaveTypeID);
+
+                // Email subject and body
+                string subject = $"Unpaid Leave Approval Request for {employee.FirstName} {employee.LastName}";
+
+                string body = $@"
+                <html>
+                <body style='font-family: Arial, sans-serif;'>
+                    <h2 style='color: #2c3e50;'>Unpaid Leave Approval Request</h2>
+                    
+                    <div style='background-color: #fff3cd; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;'>
+                        <h3 style='color: #856404; margin-top: 0;'>New Unpaid Leave Request</h3>
+                        <p style='margin-bottom: 0;'>A new unpaid leave request has been submitted and requires your review.</p>
+                    </div>
+
+                    <div style='background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;'>
+                        <h3 style='color: #495057; margin-top: 0;'>Request Details</h3>
+                        <p><strong>Employee:</strong> {employee.FirstName} {employee.LastName} ({employee.EmployeeID})</p>
+                        <p><strong>Leave Type:</strong> {leaveType?.TypeName ?? "Unknown"}</p>
+                        <p><strong>Start Date:</strong> {unpaidRequest.StartDate:dd/MM/yyyy}</p>
+                        <p><strong>End Date:</strong> {unpaidRequest.EndDate:dd/MM/yyyy}</p>
+                        <p><strong>Duration:</strong> {unpaidRequest.RequestedDays} day(s)</p>
+                        <p><strong>Reason:</strong> {unpaidRequest.Reason ?? "No reason provided"}</p>
+                        <p><strong>Justification:</strong> {unpaidRequest.JustificationReason ?? "No justification provided"}</p>
+                        <p><strong>Submitted On:</strong> {unpaidRequest.SubmissionDate:dd/MM/yyyy HH:mm}</p>
+                    </div>
+
+                    <div style='background-color: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;'>
+                        <p style='margin: 0;'><strong>Action Required:</strong> This unpaid leave request requires your review and approval.</p>
+                    </div>
+
+                    <div style='margin-top: 30px;'>
+                        <p><a href='{Url.Action("ProcessLeave", "Leaves", new { id = unpaidRequest.UnpaidLeaveRequestID, isUnpaidLeave = true }, Request.Scheme)}' style='background-color: #ffc107; color: #856404; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;'>Click here to review this unpaid leave request</a></p>
+                        <p style='font-size: 12px; color: #6c757d;'>
+                            This is an automated notification from the Finserve Leave Management System.
+                        </p>
+                    </div>
+                </body>
+                </html>";
+
+                // Send email to the specific HR email address
+                try
+                {
+                    await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
+                    _logger.LogInformation("Unpaid leave submission notification sent to hr001@cubicsoftware.com.my");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send email to hr001@cubicsoftware.com.my");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending unpaid leave submission notification to HR");
+                // Don't throw the exception to avoid breaking the leave submission process
             }
         }
     }

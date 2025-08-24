@@ -67,13 +67,13 @@
                     {
                         <tr>
                             <td>
-                                <strong>#@leave.LeaveID</strong>
+                                <strong>#LVE-@leave.LeaveID.ToString("D3")</strong>
                             </td>
                             <td>
                                 <span class="badge bg-secondary">@leave.Employee.EmployeeID</span>
                             </td>
                             <td>
-                                <span class="badge bg-info">@leave.LeaveType.TypeName</span>
+                                <span class="badge bg-primary text-dark">@leave.LeaveType.TypeName</span>
                             </td>
                             <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
                             <td>@leave.EndDate.ToString("dd MMM yyyy")</td>

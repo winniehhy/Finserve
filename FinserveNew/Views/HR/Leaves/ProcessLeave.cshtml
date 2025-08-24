@@ -13,7 +13,7 @@
     }
     else
     {
-        <h2 class="page-title mb-0">Process Leave Application #@Model.LeaveID</h2>
+        <h2 class="page-title mb-0">Process Leave Application #LVE-@Model.LeaveID.ToString("D3")</h2>
     }
     <div class="btn-group" role="group">
         @if (isUnpaidLeave)
@@ -78,7 +78,7 @@
                         <div class="row mb-3">
                             <div class="col-sm-4"><strong>Leave Type:</strong></div>
                             <div class="col-sm-8">
-                                <span class="badge bg-info">@unpaidLeaveRequest.LeaveType.TypeName</span>
+                                <span class="badge bg-primary text-dark">@unpaidLeaveRequest.LeaveType.TypeName</span>
                             </div>
                         </div>
                         <div class="row mb-3">
@@ -117,7 +117,7 @@
                     {
                         <div class="row mb-3">
                             <div class="col-sm-4"><strong>Leave ID:</strong></div>
-                            <div class="col-sm-8">#@Model.LeaveID</div>
+                            <div class="col-sm-8">#LVE-@Model.LeaveID.ToString("D3")</div>
                         </div>
                         <div class="row mb-3">
                             <div class="col-sm-4"><strong>Employee:</strong></div>
@@ -129,7 +129,7 @@
                         <div class="row mb-3">
                             <div class="col-sm-4"><strong>Leave Type:</strong></div>
                             <div class="col-sm-8">
-                                <span class="badge bg-info">@Model.LeaveType.TypeName</span>
+                                <span class="badge bg-primary text-dark">@Model.LeaveType.TypeName</span>
                             </div>
                         </div>
                         <div class="row mb-3">

@@ -88,6 +88,10 @@ namespace FinserveNew.Models
 
         public virtual ICollection<ClaimDetails>? ClaimDetails { get; set; }
 
+        // Navigation property for Employee
+        [ForeignKey("EmployeeID")]
+        public virtual Employee? Employee { get; set; }
+
         // --- [NotMapped] properties stay unchanged ---
         [NotMapped] public List<IFormFile>? UploadedFiles { get; set; }
 
