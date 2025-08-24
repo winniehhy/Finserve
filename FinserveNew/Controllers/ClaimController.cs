@@ -51,7 +51,7 @@ namespace FinserveNew.Controllers
             }
 
             var claims = await _context.Claims
-                .Where(c => c.EmployeeID == employeeId)
+                .Where(c => c.EmployeeID == employeeId && !c.IsDeleted)
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
 
@@ -75,7 +75,7 @@ namespace FinserveNew.Controllers
 
             var claim = await _context.Claims
                 .Include(c => c.ClaimDetails) // Include claim details
-                .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeID == employeeId);
+                .FirstOrDefaultAsync(m => m.Id == id && m.EmployeeID == employeeId && !m.IsDeleted);
 
             if (claim == null)
             {
@@ -392,7 +392,7 @@ namespace FinserveNew.Controllers
             if (string.IsNullOrEmpty(employeeId))
                 return NotFound();
 
-            var claim = await _context.Claims.FindAsync(id);
+            var claim = await _context.Claims.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
             if (claim == null || claim.EmployeeID != employeeId)
                 return NotFound();
@@ -539,7 +539,7 @@ namespace FinserveNew.Controllers
             if (string.IsNullOrEmpty(employeeId))
                 return RedirectToAction(nameof(Index));
 
-            var claim = await _context.Claims.FindAsync(id);
+            var claim = await _context.Claims.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
             if (claim != null && claim.EmployeeID == employeeId)
             {
@@ -550,16 +550,20 @@ namespace FinserveNew.Controllers
                     return RedirectToAction(nameof(Index));
                 }
 
-                if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
-                {
-                    var filePath = Path.Combine(_environment.WebRootPath, claim.SupportingDocumentPath.TrimStart('/'));
-                    if (System.IO.File.Exists(filePath))
-                    {
-                        System.IO.File.Delete(filePath);
-                    }
-                }
+                // Soft delete - mark as deleted instead of removing from database
+                claim.IsDeleted = true;
+                claim.DeletedDate = DateTime.Now;
+                
+                // Note: We keep the files for audit purposes, but you can uncomment below if you want to delete files
+                // if (!string.IsNullOrEmpty(claim.SupportingDocumentPath))
+                // {
+                //     var filePath = Path.Combine(_environment.WebRootPath, claim.SupportingDocumentPath.TrimStart('/'));
+                //     if (System.IO.File.Exists(filePath))
+                //     {
+                //         System.IO.File.Delete(filePath);
+                //     }
+                // }
 
-                _context.Claims.Remove(claim);
                 await _context.SaveChangesAsync();
                 TempData["Success"] = "Claim deleted successfully!";
             }
@@ -1236,6 +1240,7 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> HRIndex()
         {
             var claims = await _context.Claims
+                .Where(c => !c.IsDeleted)
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
 
@@ -1252,6 +1257,7 @@ namespace FinserveNew.Controllers
 
             var claim = await _context.Claims
                 .Include(c => c.ClaimDetails)
+                .Where(c => !c.IsDeleted)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (claim == null)
@@ -1290,6 +1296,7 @@ namespace FinserveNew.Controllers
 
             var claim = await _context.Claims
                 .Include(c => c.ClaimDetails)
+                .Where(c => !c.IsDeleted)
                 .FirstOrDefaultAsync(m => m.Id == id);
 
             if (claim == null)
@@ -1330,7 +1337,7 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> ProcessClaim(int id, string action, string? remarks)
         {
-            var claim = await _context.Claims.FindAsync(id);
+            var claim = await _context.Claims.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
             if (claim == null)
             {
                 return NotFound();
@@ -1411,7 +1418,7 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> PendingClaims()
         {
             var pendingClaims = await _context.Claims
-                .Where(c => c.Status == "Pending")
+                .Where(c => c.Status == "Pending" && !c.IsDeleted)
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();
 
@@ -1422,7 +1429,7 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> ApprovedClaims()
         {
             var approvedClaims = await _context.Claims
-                .Where(c => c.Status == "Approved")
+                .Where(c => c.Status == "Approved" && !c.IsDeleted)
                 .OrderByDescending(c => c.ApprovalDate)
                 .ToListAsync();
 
@@ -1433,7 +1440,7 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> RejectedClaims()
         {
             var rejectedClaims = await _context.Claims
-                .Where(c => c.Status == "Rejected")
+                .Where(c => c.Status == "Rejected" && !c.IsDeleted)
                 .OrderByDescending(c => c.ApprovalDate)
                 .ToListAsync();
 

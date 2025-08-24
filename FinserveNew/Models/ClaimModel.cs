@@ -20,15 +20,6 @@ namespace FinserveNew.Models
         [MaxLength(3)]
         public string Currency { get; set; } = "MYR";
 
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? OriginalAmount { get; set; }
-
-        [MaxLength(3)]
-        public string? OriginalCurrency { get; set; }
-
-        [Column(TypeName = "decimal(10,6)")]
-        public decimal? ExchangeRate { get; set; }
-
         // ⚠️ Changed from varchar(1000) to TEXT
         [Column(TypeName = "TEXT")]
         public string? Description { get; set; }
@@ -63,28 +54,10 @@ namespace FinserveNew.Models
         [Column(TypeName = "decimal(18,2)")]
         public decimal? TotalAmount { get; set; }
 
-        public bool IsOCRProcessed { get; set; } = false;
+        // Soft delete field
+        public bool IsDeleted { get; set; } = false;
 
-        // ⚠️ Changed from varchar(10000) to LONGTEXT
-        [Column(TypeName = "LONGTEXT")]
-        public string? OCRRawText { get; set; }
-
-        [Range(0, 100)]
-        public int? OCRConfidence { get; set; }
-
-        // ⚠️ Changed from varchar(5000) to TEXT
-        [Column(TypeName = "TEXT")]
-        public string? OCRPriceAnalysis { get; set; }
-
-        [Column(TypeName = "decimal(18,2)")]
-        public decimal? OCRDetectedAmount { get; set; }
-
-        [MaxLength(3)]
-        public string? OCRDetectedCurrency { get; set; }
-
-        public bool OCRAmountVerified { get; set; } = false;
-
-        public DateTime? OCRProcessedDate { get; set; }
+        public DateTime? DeletedDate { get; set; }
 
         public virtual ICollection<ClaimDetails>? ClaimDetails { get; set; }
 
@@ -99,36 +72,42 @@ namespace FinserveNew.Models
         public string DisplayAmount => $"{(Currency == "USD" ? "$" : Currency == "MYR" ? "RM" : Currency)} {ClaimAmount:N2}";
 
         [NotMapped]
-        public string? ConversionInfo
+        public string StatusBadgeClass => Status switch
         {
-            get
-            {
-                if (OriginalAmount.HasValue && !string.IsNullOrEmpty(OriginalCurrency) &&
-                    OriginalCurrency != Currency && ExchangeRate.HasValue)
-                {
-                    var symbol = OriginalCurrency switch
-                    {
-                        "USD" => "$",
-                        "MYR" => "RM",
-                        _ => OriginalCurrency
-                    };
-                    return $"Original: {symbol} {OriginalAmount:N2} (Rate: {ExchangeRate:N4})";
-                }
-                return null;
-            }
-        }
+            "Pending" => "bg-warning",
+            "Approved" => "bg-success",
+            "Rejected" => "bg-danger",
+            _ => "bg-secondary"
+        };
 
         [NotMapped]
-        public int DocumentCount => (ClaimDetails?.Any() == true) ? ClaimDetails.Count : (!string.IsNullOrEmpty(SupportingDocumentPath) ? 1 : 0);
-
-        [NotMapped] public bool HasDocuments => DocumentCount > 0;
-
-        [NotMapped] public string FormattedClaimDate => ClaimDate.ToString("dd/MM/yyyy");
+        public string StatusDisplayText => Status switch
+        {
+            "Pending" => "Pending",
+            "Approved" => "Approved",
+            "Rejected" => "Rejected",
+            _ => Status
+        };
 
         [NotMapped]
-        public string OCRStatus => !IsOCRProcessed ? "Not Processed" : OCRAmountVerified ? "Verified" : "Pending Verification";
+        public string FormattedClaimDate => ClaimDate.ToString("dd/MM/yyyy");
 
         [NotMapped]
-        public string OCRConfidenceDisplay => OCRConfidence.HasValue ? $"{OCRConfidence}%" : "N/A";
+        public string FormattedSubmissionDate => SubmissionDate?.ToString("dd/MM/yyyy") ?? "Not submitted";
+
+        [NotMapped]
+        public string FormattedApprovalDate => ApprovalDate?.ToString("dd/MM/yyyy") ?? "Not approved";
+
+        [NotMapped]
+        public string FormattedCreatedDate => CreatedDate.ToString("dd/MM/yyyy HH:mm");
+
+        [NotMapped]
+        public string FormattedTotalAmount => TotalAmount?.ToString("N2") ?? ClaimAmount.ToString("N2");
+
+        [NotMapped]
+        public bool HasSupportingDocuments => !string.IsNullOrEmpty(SupportingDocumentPath) || (ClaimDetails != null && ClaimDetails.Any());
+
+        [NotMapped]
+        public int SupportingDocumentCount => ClaimDetails?.Count ?? 0;
     }
 }
