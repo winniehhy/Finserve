@@ -259,14 +259,13 @@ namespace FinserveNew.Controllers
                     .CountAsync();
 
                 // Claims data
+                // Pull claims exactly like the claim management Index: exclude soft-deleted
                 var claims = await _context.Claims
-                    .Where(c => c.EmployeeID == employeeId)
+                    .Where(c => c.EmployeeID == employeeId && !c.IsDeleted)
+                    .OrderByDescending(c => c.CreatedDate)
                     .ToListAsync();
 
-                var recentClaims = claims
-                    .OrderByDescending(c => c.CreatedDate)
-                    .Take(5)
-                    .ToList();
+                var recentClaims = claims.Take(5).ToList();
 
                 var totalClaimsCount = claims.Count;
                 var approvedClaimsCount = claims.Count(c => c.Status == "Approved");

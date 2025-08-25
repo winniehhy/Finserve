@@ -203,7 +203,7 @@
                                     <td>
                                         <span class="badge bg-light-blue text-dark">@claim.ClaimType</span>
                                     </td>
-                                    <td><strong class="text-primary">RM @claim.ClaimAmount.ToString("N2")</strong></td>
+                                    <td><strong class="text-primary">@claim.DisplayAmount</strong></td>
                                     <td>
                                         <span class="badge bg-@(claim.Status == "Approved" ? "success" : claim.Status == "Pending" ? "warning" : claim.Status == "Processing" ? "info" : "danger")">
                                             @claim.Status

@@ -402,7 +402,7 @@
         });
 
         // Preview and download functions
-        function previewInvoice() {
+        async function previewInvoice() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
@@ -448,6 +448,22 @@
             const pdfOutput = doc.output('datauristring');
             document.getElementById('pdfPreview').innerHTML =
                 `<iframe src="${pdfOutput}" width="100%" height="100%" style="border: none;"></iframe>`;
+
+            // Upload the PDF to the server so it can be emailed later (ensure valid base64)
+            try {
+                const idInput = document.querySelector('input[name="InvoiceID"], input[name="InvoiceId"], input[name="Invoice.InvoiceID"]');
+                const invoiceId = idInput ? idInput.value : null;
+                if (invoiceId) {
+                    const raw = currentPDF.output('datauristring'); // regenerate to be safe
+                    const fd = new FormData();
+                    fd.append('id', invoiceId);
+                    fd.append('pdfBase64', raw);
+                    const token = document.querySelector('input[name="__RequestVerificationToken"]');
+                    if (token) fd.append('__RequestVerificationToken', token.value);
+                    const res = await fetch('@Url.Action("UploadInvoicePdf","Invoice")', { method: 'POST', body: fd });
+                    console.log('PDF upload result', await res.json());
+                }
+            } catch (e) { console.warn('PDF upload skipped:', e); }
 
             const modal = new bootstrap.Modal(document.getElementById('previewModal'));
             modal.show();

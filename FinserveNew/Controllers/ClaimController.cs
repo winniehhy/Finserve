@@ -392,7 +392,9 @@ namespace FinserveNew.Controllers
             if (string.IsNullOrEmpty(employeeId))
                 return NotFound();
 
-            var claim = await _context.Claims.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            var claim = await _context.Claims
+                .Include(c => c.ClaimDetails)
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
             if (claim == null || claim.EmployeeID != employeeId)
                 return NotFound();
@@ -405,6 +407,8 @@ namespace FinserveNew.Controllers
             }
 
             await PopulateViewBagData();
+            // Provide existing documents to the view like Details page
+            ViewBag.Documents = claim.ClaimDetails?.ToList() ?? new List<ClaimDetails>();
             return View("~/Views/Employee/Claim/Edit.cshtml", claim);
         }
 
@@ -488,6 +492,7 @@ namespace FinserveNew.Controllers
                         claimToUpdate.SupportingDocumentPath = $"/uploads/claims/{firstUniqueFileName}";
                     }
 
+                    // TODO: Recalculate from OCR in future; keep total aligned
                     claimToUpdate.TotalAmount = claimToUpdate.ClaimAmount;
                     await _context.SaveChangesAsync();
                     TempData["Success"] = "Claim updated successfully!";
@@ -649,6 +654,17 @@ namespace FinserveNew.Controllers
                             _logger.LogInformation($"✅ Set ClaimAmount from TempData: {claim.ClaimAmount}");
                         }
 
+                        // Currency from TempData/session
+                        if (root.TryGetProperty("Currency", out var currencyElement))
+                        {
+                            var currency = currencyElement.GetString();
+                            if (!string.IsNullOrWhiteSpace(currency))
+                            {
+                                claim.Currency = currency;
+                                _logger.LogInformation($"✅ Set Currency from TempData: {claim.Currency}");
+                            }
+                        }
+
                         if (root.TryGetProperty("ClaimDate", out var claimDateElement))
                         {
                             if (DateTime.TryParse(claimDateElement.GetString(), out var date))
@@ -761,9 +777,67 @@ namespace FinserveNew.Controllers
                     return Json(new { success = false, error = "No data provided" });
                 }
 
-                // Store the claim data in TempData
-                TempData["ClaimData"] = ClaimDataJson;
-                TempData.Keep("ClaimData");
+                // Avoid 431 by not storing big base64 payloads in cookie-based TempData
+                bool looksLarge = (ClaimDataJson?.Length ?? 0) > 15000 || (ClaimDataJson?.Contains("\"data\":") ?? false);
+
+                // Clean any existing large TempData cookie
+                try { Response.Cookies.Delete("TempData"); } catch { }
+
+                if (!looksLarge)
+                {
+                    TempData["ClaimData"] = ClaimDataJson;
+                    TempData.Keep("ClaimData");
+                }
+                else
+                {
+                    // Parse minimal fields and store tiny metadata only
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(ClaimDataJson);
+                        var root = doc.RootElement;
+                        string claimType = root.TryGetProperty("ClaimType", out var ct) ? ct.GetString() : string.Empty;
+                        string claimDate = root.TryGetProperty("ClaimDate", out var cd) ? cd.GetString() : string.Empty;
+                        string currency = root.TryGetProperty("Currency", out var cu) ? cu.GetString() : "MYR";
+                        string description = root.TryGetProperty("Description", out var de) ? de.GetString() : string.Empty;
+                        decimal amount = 0;
+                        if (root.TryGetProperty("ClaimAmount", out var ca))
+                        {
+                            if (ca.ValueKind == JsonValueKind.String)
+                                decimal.TryParse(ca.GetString(), out amount);
+                            else if (ca.ValueKind == JsonValueKind.Number)
+                                amount = ca.GetDecimal();
+                        }
+
+                        var meta = new { ClaimType = claimType, ClaimDate = claimDate, ClaimAmount = amount, Currency = currency, Description = description };
+                        TempData["ClaimDataMeta"] = System.Text.Json.JsonSerializer.Serialize(meta);
+                        TempData["UseClientStorage"] = true; // tell OCR to use sessionStorage files
+                        TempData.Keep("ClaimDataMeta");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse claim meta for OCRWithData");
+                    }
+                }
+
+                // Also persist edit flags if provided (tiny)
+                try
+                {
+                    using var doc2 = System.Text.Json.JsonDocument.Parse(ClaimDataJson);
+                    var root2 = doc2.RootElement;
+                    if (root2.TryGetProperty("IsEdit", out var isEditElement) && isEditElement.ValueKind == JsonValueKind.True)
+                    {
+                        TempData["EditMode"] = true;
+                        if (root2.TryGetProperty("EditClaimId", out var idEl) && idEl.ValueKind == JsonValueKind.Number)
+                        {
+                            TempData["EditClaimId"] = idEl.GetInt32();
+                        }
+                        if (root2.TryGetProperty("RemovedDocumentIds", out var removedEl) && removedEl.ValueKind == JsonValueKind.Array)
+                        {
+                            TempData["RemovedDocumentIds"] = removedEl.GetRawText();
+                        }
+                    }
+                }
+                catch { }
 
                 _logger.LogInformation("✅ Successfully stored ClaimData in TempData");
 
@@ -829,29 +903,84 @@ namespace FinserveNew.Controllers
                     return View("~/Views/Employee/Claim/Create.cshtml", model);
                 }
 
-                // Set claim properties
-                model.EmployeeID = employeeId;
-                model.CreatedDate = DateTime.Now;
-                model.SubmissionDate = DateTime.Now;
-                model.Status = "Pending";
-                model.TotalAmount = model.ClaimAmount;
-                model.Currency = "MYR";
-                model.ApprovalDate = null;
-                model.ApprovedBy = null;
-                model.ApprovalRemarks = null;
+                // Detect edit mode (updating existing claim via OCR)
+                bool isEditMode = false;
+                int editClaimId = 0;
+                if (Request.Form.ContainsKey("IsEdit") && bool.TryParse(Request.Form["IsEdit"], out var isEditFlag))
+                    isEditMode = isEditFlag;
+                if (Request.Form.ContainsKey("EditClaimId"))
+                    int.TryParse(Request.Form["EditClaimId"], out editClaimId);
+
+                List<int> removedDocIds = new List<int>();
+                if (Request.Form.ContainsKey("RemovedDocumentIds"))
+                {
+                    var rawRemoved = Request.Form["RemovedDocumentIds"].ToString();
+                    if (!string.IsNullOrWhiteSpace(rawRemoved))
+                    {
+                        try
+                        {
+                            if (rawRemoved.TrimStart().StartsWith("["))
+                            {
+                                removedDocIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(rawRemoved) ?? new List<int>();
+                            }
+                            else
+                            {
+                                removedDocIds = rawRemoved.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(s => int.TryParse(s, out var id) ? id : 0).Where(id => id > 0).ToList();
+                            }
+                        }
+                        catch { }
+                    }
+                }
+
+                Claim existingClaim = null;
+                if (isEditMode && editClaimId > 0)
+                {
+                    existingClaim = await _context.Claims
+                        .Include(c => c.ClaimDetails)
+                        .FirstOrDefaultAsync(c => c.Id == editClaimId && c.EmployeeID == employeeId && !c.IsDeleted);
+                }
+
+                if (existingClaim == null)
+                {
+                    // Create new claim
+                    model.EmployeeID = employeeId;
+                    model.CreatedDate = DateTime.Now;
+                    model.SubmissionDate = DateTime.Now;
+                    model.Status = "Pending";
+                    model.TotalAmount = model.ClaimAmount;
+                    model.ApprovalDate = null;
+                    model.ApprovedBy = null;
+                    model.ApprovalRemarks = null;
+                }
 
                 if (string.IsNullOrWhiteSpace(model.Description))
                 {
                     model.Description = "";
                 }
 
-                _logger.LogInformation($"About to save claim: Type={model.ClaimType}, Amount={model.ClaimAmount}, Description={model.Description}");
+                _logger.LogInformation($"About to {(existingClaim==null?"create":"update")} claim: Type={model.ClaimType}, Amount={model.ClaimAmount}, Description={model.Description}");
 
-                // Save the claim first to get the ID
-                _context.Claims.Add(model);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"Claim saved with ID: {model.Id}");
+                if (existingClaim == null)
+                {
+                    _context.Claims.Add(model);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"Claim saved with ID: {model.Id}");
+                }
+                else
+                {
+                    existingClaim.ClaimType = model.ClaimType;
+                    existingClaim.ClaimDate = model.ClaimDate;
+                    existingClaim.ClaimAmount = model.ClaimAmount;
+                    existingClaim.Description = string.IsNullOrWhiteSpace(model.Description) ? "" : model.Description;
+                    existingClaim.Currency = string.IsNullOrWhiteSpace(model.Currency) ? existingClaim.Currency : model.Currency;
+                    existingClaim.TotalAmount = model.ClaimAmount;
+                    existingClaim.SubmissionDate = DateTime.Now;
+                    existingClaim.Status = "Pending";
+                    _context.Claims.Update(existingClaim);
+                    await _context.SaveChangesAsync();
+                    model = existingClaim;
+                }
 
                 // FIXED: Handle files from OCR results AND TempData
                 var savedFileCount = 0;
@@ -920,6 +1049,23 @@ namespace FinserveNew.Controllers
                 }
 
                 _logger.LogInformation($"Found {filesData.Count} files to process");
+
+                // If editing, remove selected existing documents
+                if (existingClaim != null && removedDocIds.Count > 0)
+                {
+                    var toRemove = existingClaim.ClaimDetails?.Where(d => removedDocIds.Contains(d.Id)).ToList() ?? new List<ClaimDetails>();
+                    foreach (var oldDetail in toRemove)
+                    {
+                        try
+                        {
+                            var oldPath = Path.Combine(_environment.WebRootPath, oldDetail.DocumentPath.TrimStart('/'));
+                            if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+                        }
+                        catch { }
+                        _context.ClaimDetails.Remove(oldDetail);
+                    }
+                    await _context.SaveChangesAsync();
+                }
 
                 // Process and save files
                 if (filesData.Count > 0)
@@ -1011,7 +1157,9 @@ namespace FinserveNew.Controllers
                     // Don't fail the entire operation if email fails
                 }
 
-                TempData["Success"] = $"Claim submitted successfully! Claim ID: {model.Id}";
+                TempData["Success"] = existingClaim == null ?
+                    $"Claim submitted successfully! Claim ID: {model.Id}" :
+                    $"Claim updated successfully! Claim ID: {model.Id}";
                 return RedirectToAction("Index", "Claim");
             }
             catch (Exception ex)

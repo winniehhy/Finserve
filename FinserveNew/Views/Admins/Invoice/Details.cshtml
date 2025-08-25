@@ -353,7 +353,7 @@
     <script>
         let currentPDF = null;
 
-        function previewInvoice() {
+        async function previewInvoice() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
@@ -382,6 +382,18 @@
             const pdfOutput = doc.output('datauristring');
             document.getElementById('pdfPreview').innerHTML =
                 `<iframe src="${pdfOutput}" width="100%" height="100%" style="border: none;"></iframe>`;
+
+            // Upload the generated PDF so it can be attached to the email when sending
+            try {
+                const raw = currentPDF.output('datauristring');
+                const fd = new FormData();
+                fd.append('id', '@Model.InvoiceID');
+                fd.append('pdfBase64', raw);
+                const token = document.querySelector('input[name="__RequestVerificationToken"]');
+                if (token) fd.append('__RequestVerificationToken', token.value);
+                const res = await fetch('@Url.Action("UploadInvoicePdf","Invoice")', { method: 'POST', body: fd });
+                console.log('PDF upload result', await res.json());
+            } catch (e) { console.warn('PDF upload skipped:', e); }
 
             const modal = new bootstrap.Modal(document.getElementById('previewModal'));
             modal.show();

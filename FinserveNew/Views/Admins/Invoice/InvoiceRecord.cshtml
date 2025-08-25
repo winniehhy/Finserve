@@ -86,7 +86,7 @@
             <table class="table table-hover" id="invoiceTable">
                 <thead class="table-light">
                     <tr>
-                        <th>Invoice #</th>
+                        <th>Invoice ID</th>
                         <th>Client</th>
                         <th>Issue Date</th>
                         <th>Due Date</th>
@@ -101,7 +101,7 @@
                     {
                         <tr>
                             <td>
-                                <strong>@invoice.InvoiceNumber</strong>
+                                #@invoice.InvoiceNumber
                                 @if (!string.IsNullOrEmpty(invoice.FilePath))
                                 {
                                     <br />

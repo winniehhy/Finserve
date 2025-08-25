@@ -67,7 +67,7 @@
             <div class="row">
                 <div class="col-md-8">
                     <div class="input-group">
-                        <select id="currencySelect" class="input-group-text" style="border-right: none; background-color: #e9ecef;">
+                        <select asp-for="Currency" id="currencySelect" class="input-group-text" style="border-right: none; background-color: #e9ecef;">
                             <option value="MYR">RM</option>
                             <option value="USD">$</option>
                         </select>
@@ -134,6 +134,8 @@
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
 <script>
+        // Maintain selected files across multiple add/remove actions
+        let selectedFiles = [];
         const exchangeRates = {
             USD_TO_MYR: 4.29,
             MYR_TO_USD: 0.233
@@ -156,7 +158,7 @@
             const claimDateInput = document.querySelector('[name="ClaimDate"]');
             const descriptionInput = document.getElementById('descriptionInput');
 
-            // Currency conversion
+            // Currency helper display (no conversion on submit)
             function updateConversion() {
                 const amount = parseFloat(claimAmountInput.value);
                 const selectedCurrency = currencySelect.value;
@@ -249,15 +251,11 @@ form.addEventListener('submit', async function (e) {
         return false;
     }
 
-    // Currency conversion
+    // Preserve entered currency and amount (no conversion)
     const selectedCurrency = currencySelect.value;
     let finalAmount = parseFloat(claimAmount);
     let originalAmount = finalAmount;
     let originalCurrency = selectedCurrency;
-
-    if (selectedCurrency === 'USD') {
-        finalAmount = finalAmount * exchangeRates.USD_TO_MYR;
-    }
 
     // FIXED: Create comprehensive claim data object
     const claimData = {
@@ -266,7 +264,7 @@ form.addEventListener('submit', async function (e) {
         ClaimDate: claimDate,
         ClaimAmount: finalAmount.toFixed(2),
         Description: description,  // CRITICAL: Ensure this is preserved
-        Currency: 'MYR',
+        Currency: selectedCurrency,
         OriginalAmount: originalAmount.toString(),
         OriginalCurrency: originalCurrency,
         Files: [],
@@ -284,8 +282,8 @@ form.addEventListener('submit', async function (e) {
 
     console.log('FIXED: Comprehensive claim data with metadata:', claimData);
 
-    // Process files (existing code remains the same)
-    const files = Array.from(fileInput.files);
+    // Process files from managed list
+    const files = selectedFiles;
     if (files.length > 0) {
         try {
             console.log(`Processing ${files.length} files...`);
@@ -404,52 +402,55 @@ form.addEventListener('submit', async function (e) {
             const maxFiles = 10;
             const maxSize = 5 * 1024 * 1024;
 
-            if (files.length === 0) {
+            if (files.length === 0 && selectedFiles.length === 0) {
                 fileLabel.textContent = 'Choose files...';
                 fileList.style.display = 'none';
                 fileDebugInfo.style.display = 'none';
                 return;
             }
 
-            if (files.length > maxFiles) {
-                alert(`Maximum ${maxFiles} files allowed.`);
+            // Merge new files into selectedFiles with constraints
+            const incoming = Array.from(files);
+            const currentCount = selectedFiles.length;
+            if (currentCount + incoming.length > maxFiles) {
+                alert(`Maximum ${maxFiles} files allowed. You can add ${maxFiles - currentCount} more.`);
                 input.value = '';
-                fileLabel.textContent = 'Choose files...';
-                fileList.style.display = 'none';
                 return;
             }
 
-            const validFiles = [];
             const invalidFiles = [];
-            let totalSize = 0;
-
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                totalSize += file.size;
-
+            for (const file of incoming) {
                 if (file.size > maxSize) {
                     invalidFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-                } else {
-                    validFiles.push(file);
+                    continue;
                 }
+                // Avoid duplicates by name+size
+                const dup = selectedFiles.some(f => f.name === file.name && f.size === file.size);
+                if (!dup) selectedFiles.push(file);
             }
 
             if (invalidFiles.length > 0) {
                 alert(`Files exceed 5MB limit:\n${invalidFiles.join('\n')}`);
-                input.value = '';
+            }
+
+            // Clear input so same file can be re-selected later
+            input.value = '';
+
+            // Render list
+            if (selectedFiles.length === 0) {
                 fileLabel.textContent = 'Choose files...';
                 fileList.style.display = 'none';
+                fileDebugInfo.style.display = 'none';
                 return;
             }
 
-            fileLabel.textContent = files.length === 1 ? files[0].name : `${files.length} files selected`;
+            fileLabel.textContent = selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} files selected`;
 
+            let totalSize = selectedFiles.reduce((s, f) => s + f.size, 0);
             let fileListHTML = '';
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
+            selectedFiles.forEach((file, idx) => {
                 const fileSize = (file.size / 1024 / 1024).toFixed(2);
                 const fileIcon = getFileIcon(file.type);
-
                 fileListHTML += `
                     <div class="d-flex justify-content-between align-items-center border-bottom py-2">
                         <div class="d-flex align-items-center">
@@ -460,29 +461,76 @@ form.addEventListener('submit', async function (e) {
                             </div>
                         </div>
                         <div class="text-end">
-                            <span class="badge bg-success mb-1">Valid</span><br>
-                            <small class="text-muted">Ready for OCR</small>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeSelectedFile(${idx})" title="Remove">
+                                <i class="fas fa-times"></i>
+                            </button>
                         </div>
-                    </div>
-                `;
-            }
+                    </div>`;
+            });
 
             fileListContent.innerHTML = fileListHTML;
             fileList.style.display = 'block';
 
             fileDebugInfo.innerHTML = `
                 <strong>Files Ready for Processing:</strong><br>
-                • Count: ${files.length}/${maxFiles}<br>
+                • Count: ${selectedFiles.length}/${maxFiles}<br>
                 • Total Size: ${(totalSize / 1024 / 1024).toFixed(2)} MB<br>
-                • Status: All files will be processed with OCR
+                • Status: Files will be processed with OCR
             `;
             fileDebugInfo.style.display = 'block';
 
-            console.log('Files selected for upload:', Array.from(files).map(f => ({
+            console.log('Files selected for upload:', selectedFiles.map(f => ({
                 name: f.name,
                 size: (f.size / 1024 / 1024).toFixed(2) + 'MB',
                 type: f.type
             })));
+        }
+
+        // Remove file from selection (exposed globally)
+        window.removeSelectedFile = function(index) {
+            const fileInput = document.getElementById('fileInput');
+            const fileLabel = document.getElementById('file-label');
+            const fileList = document.getElementById('fileList');
+            const fileListContent = document.getElementById('fileListContent');
+            const fileDebugInfo = document.getElementById('fileDebugInfo');
+
+            selectedFiles.splice(index, 1);
+            // Re-render
+            if (selectedFiles.length === 0) {
+                fileLabel.textContent = 'Choose files...';
+                fileList.style.display = 'none';
+                fileDebugInfo.style.display = 'none';
+                return;
+            }
+            let totalSize = selectedFiles.reduce((s, f) => s + f.size, 0);
+            let fileListHTML = '';
+            selectedFiles.forEach((file, idx) => {
+                const fileSize = (file.size / 1024 / 1024).toFixed(2);
+                const fileIcon = getFileIcon(file.type);
+                fileListHTML += `
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div class="d-flex align-items-center">
+                            <i class="${fileIcon} me-2 text-primary"></i>
+                            <div>
+                                <small class="fw-bold">${file.name}</small><br>
+                                <small class="text-muted">${fileSize} MB • ${file.type || 'Unknown'}</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeSelectedFile(${idx})" title="Remove">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>`;
+            });
+            fileListContent.innerHTML = fileListHTML;
+            fileLabel.textContent = selectedFiles.length === 1 ? selectedFiles[0].name : `${selectedFiles.length} files selected`;
+            fileDebugInfo.innerHTML = `
+                <strong>Files Ready for Processing:</strong><br>
+                • Count: ${selectedFiles.length}/10<br>
+                • Total Size: ${(totalSize / 1024 / 1024).toFixed(2)} MB
+            `;
+            fileDebugInfo.style.display = 'block';
         }
 
         // Get appropriate icon for file type

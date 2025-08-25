@@ -3,9 +3,462 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<!-- Your HR Dashboard content here -->
+<!-- Dashboard Content -->
 <div class="dashboard-container">
-    <h1>Admin Dashboard</h1>
-    <p>Welcome to the Admin Dashboard</p>
-    <!-- Add your HR-specific dashboard content -->
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-user-shield me-2"></i>
+                    Admin Dashboard
+                </h1>
+                <p class="page-subtitle">Welcome back, @User.Identity.Name | @ViewBag.CurrentMonth</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary" onclick="exportReport()">
+                    <i class="fas fa-download me-2"></i>Export Report
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-plus me-2"></i>Quick Action
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="@Url.Action("Create", "Invoice")">Create Invoice</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("InvoiceRecord", "Invoice")">Manage Invoices</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("AllAccounts", "Employees")">Manage Employees</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("Dashboard", "Payroll")">Process Payroll</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.TotalInvoices</div>
+                    <div class="stat-label">Total Invoices</div>
+                    <div class="stat-change positive">
+                        <i class="fas fa-check-circle"></i> @ViewBag.Paid completed
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.Pending</div>
+                    <div class="stat-label">Pending Invoices</div>
+                    <div class="stat-change @(ViewBag.Pending > 5 ? "negative" : "neutral")">
+                        <i class="fas fa-@(ViewBag.Pending > 5 ? "exclamation-triangle" : "hourglass-half")"></i>
+                        @(ViewBag.Pending > 5 ? "Needs attention" : "Under control")
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">@ViewBag.Sent</div>
+                    <div class="stat-label">Sent Invoices</div>
+                    <div class="stat-change neutral">
+                        <i class="fas fa-envelope"></i> Awaiting payment
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-number">RM @(((decimal?)ViewBag.ThisMonthTotal ?? 0m).ToString("N0"))</div>
+                    <div class="stat-label">This Month's Total</div>
+                    <div class="stat-change positive">
+                        <i class="fas fa-chart-line"></i> Monthly revenue
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="@Url.Action("Create", "Invoice")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-primary">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Create Invoice</h6>
+                                    <p>Generate new invoice</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="@Url.Action("InvoiceRecord", "Invoice")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-warning">
+                                    <i class="fas fa-list-alt"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Manage Invoices</h6>
+                                    <p>View all invoices</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="@Url.Action("AllAccounts", "Employees")" class="quick-action-btn">
+                                <div class="quick-action-icon bg-info">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Manage Users</h6>
+                                    <p>User administration</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="#" class="quick-action-btn" onclick="showSystemSettings()">
+                                <div class="quick-action-icon bg-success">
+                                    <i class="fas fa-cog"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>System Settings</h6>
+                                    <p>Configure system</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Invoices -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-invoice me-2"></i>Recent Invoices
+                    </h5>
+                    <a href="@Url.Action("InvoiceRecord", "Invoice")" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.RecentInvoices != null && ((IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices).Any())
+                    {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Client</th>
+                                    <th>Issue Date</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var inv in (IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices)
+                                {
+                                <tr>
+                                    <td><strong>@inv.InvoiceNumber</strong></td>
+                                    <td>@inv.ClientName</td>
+                                    <td>@inv.IssueDate.ToString("dd MMM, yyyy")</td>
+                                    <td><strong class="text-primary">@inv.FormattedAmount</strong></td>
+                                    <td>
+                                        <span class="badge @inv.StatusBadgeClass">
+                                            @inv.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="@Url.Action("Details", "Invoice", new { id = inv.InvoiceID })" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    }
+                    else
+                    {
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No recent invoices</p>
+                        <a href="@Url.Action("Create", "Invoice")" class="btn btn-primary">Create New Invoice</a>
+                    </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Invoice Status Distribution -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Invoice Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @{
+                        var totalInvoices = (int)(ViewBag.TotalInvoices ?? 0);
+                        var pending = (int)(ViewBag.Pending ?? 0);
+                        var sent = (int)(ViewBag.Sent ?? 0);
+                        var paid = (int)(ViewBag.Paid ?? 0);
+                    }
+                    
+                    @if (totalInvoices > 0)
+                    {
+                        <div class="status-item mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Paid</span>
+                                <span class="fw-bold">@paid invoices</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" style="width: @((paid * 100.0 / totalInvoices))%"></div>
+                            </div>
+                        </div>
+
+                        <div class="status-item mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Sent</span>
+                                <span class="fw-bold">@sent invoices</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-info" style="width: @((sent * 100.0 / totalInvoices))%"></div>
+                            </div>
+                        </div>
+
+                        <div class="status-item mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Pending</span>
+                                <span class="fw-bold">@pending invoices</span>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-warning" style="width: @((pending * 100.0 / totalInvoices))%"></div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted text-center">No invoice data available</p>
+                    }
+                </div>
+            </div>
+
+            <!-- Outstanding Amount Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Outstanding Amount
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="display-6 fw-bold text-warning mb-2">
+                            RM @(((decimal?)ViewBag.Outstanding ?? 0m).ToString("N2"))
+                        </div>
+                        <p class="text-muted mb-0">Pending + Sent + Overdue</p>
+                        <small class="text-muted">Total amount awaiting payment</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Monthly Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>This Month's Revenue</span>
+                        <strong class="text-success">RM @(((decimal?)ViewBag.ThisMonthTotal ?? 0m).ToString("N2"))</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span>Outstanding Amount</span>
+                        <strong class="text-warning">RM @(((decimal?)ViewBag.Outstanding ?? 0m).ToString("N2"))</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Collection Rate</span>
+                        <strong class="text-info">
+                            @{
+                                var collectionRate = totalInvoices > 0 ? (paid * 100.0 / totalInvoices) : 0;
+                            }
+                            @collectionRate.ToString("F1")%
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Admin Dashboard functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReadNotifications();
+        });
+
+        // Export report functionality
+        function exportReport() {
+            alert('Admin Report export functionality will be implemented soon!');
+        }
+
+        // System settings functionality
+        function showSystemSettings() {
+            alert('System settings panel will be implemented soon!');
+        }
+
+        // Notification functions (similar to HR dashboard)
+        let readNotifications = JSON.parse(localStorage.getItem('admin_readNotifications') || '[]');
+
+        function loadReadNotifications() {
+            readNotifications.forEach(function(notificationId) {
+                const notification = document.querySelector(`[data-id="${notificationId}"]`);
+                if (notification) {
+                    notification.style.display = 'none';
+                }
+            });
+            checkForEmptyNotifications();
+        }
+
+        function markAsRead(button, type, id) {
+            const notificationItem = button.closest('.notification-item');
+
+            if (!readNotifications.includes(id)) {
+                readNotifications.push(id);
+                localStorage.setItem('admin_readNotifications', JSON.stringify(readNotifications));
+            }
+
+            notificationItem.style.transition = 'opacity 0.3s ease';
+            notificationItem.style.opacity = '0';
+
+            setTimeout(() => {
+                notificationItem.style.display = 'none';
+                checkForEmptyNotifications();
+            }, 300);
+        }
+
+        function markAllAsRead() {
+            const notifications = document.querySelectorAll('.notification-item');
+
+            notifications.forEach(function(notification) {
+                const id = notification.getAttribute('data-id');
+                if (id && !readNotifications.includes(id)) {
+                    readNotifications.push(id);
+                }
+
+                notification.style.transition = 'opacity 0.3s ease';
+                notification.style.opacity = '0';
+
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 300);
+            });
+
+            localStorage.setItem('admin_readNotifications', JSON.stringify(readNotifications));
+
+            setTimeout(() => {
+                checkForEmptyNotifications();
+            }, 300);
+        }
+
+        function checkForEmptyNotifications() {
+            const visibleNotifications = document.querySelectorAll('.notification-item[style*="display: none"], .notification-item[style*="opacity: 0"]');
+            const allNotifications = document.querySelectorAll('.notification-item');
+
+            if (visibleNotifications.length === allNotifications.length || allNotifications.length === 0) {
+                const container = document.getElementById('notificationContainer');
+                let emptyState = document.getElementById('noNotifications');
+
+                if (!emptyState) {
+                    emptyState = document.createElement('div');
+                    emptyState.id = 'noNotifications';
+                    emptyState.className = 'text-center py-3';
+                    emptyState.innerHTML = `
+                        <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">All caught up! No urgent notifications.</p>
+                    `;
+                    if (container) container.appendChild(emptyState);
+                } else {
+                    emptyState.style.display = 'block';
+                }
+            }
+        }
+    </script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/rbac_dashboard.css" />
+    <style>
+        /* Admin-specific additional styles */
+        .display-6 {
+            font-size: 2rem;
+        }
+        
+        /* Status badge overrides for invoices */
+        .badge.bg-success {
+            background-color: #198754 !important;
+        }
+        
+        .badge.bg-warning {
+            background-color: #ffc107 !important;
+            color: #000 !important;
+        }
+        
+        .badge.bg-info {
+            background-color: #0dcaf0 !important;
+            color: #000 !important;
+        }
+        
+        .badge.bg-danger {
+            background-color: #dc3545 !important;
+        }
+
+        /* Quick action buttons hover effects */
+        .quick-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+        }
+
+        /* Progress bars styling */
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        .progress-bar {
+            transition: width 0.6s ease;
+        }
+    </style>
+}

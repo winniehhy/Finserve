@@ -139,7 +139,7 @@
                         <div class="row mt-2">
                             <div class="col-12">
                                 <small class="text-muted">Total Confirmed Amount:</small>
-                                <div id="calculatedTotal" class="fw-bold text-success fs-4">RM 0.00</div>
+                                <div id="calculatedTotal" class="fw-bold text-success fs-4">@((Model?.Currency == "USD" ? "$" : "RM")) 0.00</div>
                             </div>
                         </div>
                         <div class="mt-3">
@@ -186,7 +186,7 @@
                             <label class="form-label fw-bold">Claim Amount:</label>
                             <div class="info-value">
                                 <span class="fs-5 text-success fw-bold" id="displayClaimAmount" data-field="claimAmount">
-                                    RM @(Model?.ClaimAmount ?? 0)
+                                    @((Model?.Currency == "USD" ? "$" : "RM")) @(Model?.ClaimAmount ?? 0)
                                 </span>
                             </div>
                         </div>
@@ -283,8 +283,12 @@
     <input type="hidden" name="ClaimType" value="@Model.ClaimType" data-field="claimType" />
     <input type="hidden" name="ClaimDate" value="@Model.ClaimDate.ToString("yyyy-MM-dd")" data-field="claimDate" />
     <input type="hidden" name="ClaimAmount" value="@Model.ClaimAmount" id="hiddenClaimAmount" data-field="claimAmount" />
+    <input type="hidden" name="Currency" value="@Model.Currency" id="hiddenCurrency" data-field="currency" />
     <input type="hidden" name="Description" value="@(Model.Description ?? "")" data-field="description" />
     <input type="hidden" name="ocrResults" id="ocrResultsField" />
+    <input type="hidden" name="IsEdit" id="isEditField" />
+    <input type="hidden" name="EditClaimId" id="editClaimIdField" />
+    <input type="hidden" name="RemovedDocumentIds" id="removedDocIdsField" />
 </form>
 
 @section Scripts {
@@ -304,7 +308,8 @@
                 claimType: '@Model.ClaimType',
                 claimAmount: '@Model.ClaimAmount',
                 claimDate: '@Model.ClaimDate.ToString("yyyy-MM-dd")',
-                description: '@Model.Description'
+                description: '@Model.Description',
+                currency: '@Model.Currency'
             };
 
             // Enhanced session data recovery
@@ -318,13 +323,30 @@
                 // Ignore session parsing errors
             }
 
+            // Server may pass only meta when payload is large
+            let serverMeta = null;
+            try {
+                const metaEl = '@(TempData["ClaimDataMeta"] ?? "")';
+                const useClient = '@(TempData["UseClientStorage"] ?? "")' === 'True';
+                if (metaEl && useClient && sessionClaimData) {
+                    serverMeta = JSON.parse(metaEl);
+                    // Merge minimal server meta into session data
+                    sessionClaimData.ClaimType = serverMeta.ClaimType || sessionClaimData.ClaimType;
+                    sessionClaimData.ClaimDate = serverMeta.ClaimDate || sessionClaimData.ClaimDate;
+                    sessionClaimData.ClaimAmount = serverMeta.ClaimAmount || sessionClaimData.ClaimAmount;
+                    sessionClaimData.Currency = serverMeta.Currency || sessionClaimData.Currency;
+                    sessionClaimData.Description = serverMeta.Description || sessionClaimData.Description;
+                }
+            } catch { }
+
             // Data reconciliation - prefer session data if available and complete
             let finalClaimData = {
                 employeeId: modelData.employeeId || 'EM001',
                 claimType: modelData.claimType || 'Travel',
                 claimAmount: parseFloat(modelData.claimAmount) || 0,
                 claimDate: modelData.claimDate || new Date().toISOString().split('T')[0],
-                description: modelData.description || ''
+                description: modelData.description || '',
+                currency: modelData.currency || 'MYR'
             };
 
             let dataSource = 'fallback';
@@ -336,7 +358,8 @@
                     claimType: sessionClaimData.ClaimType,
                     claimAmount: parseFloat(sessionClaimData.ClaimAmount) || finalClaimData.claimAmount,
                     claimDate: sessionClaimData.ClaimDate || finalClaimData.claimDate,
-                    description: sessionClaimData.Description || ''
+                    description: sessionClaimData.Description || '',
+                    currency: sessionClaimData.Currency || finalClaimData.currency
                 };
                 dataSource = 'session';
             } else if (modelData.claimType && modelData.claimType !== '' && modelData.claimType !== 'Travel') {
@@ -408,7 +431,8 @@
                 const amountInputs = document.querySelectorAll('input[data-field="claimAmount"]');
 
                 amountDisplays.forEach(el => {
-                    el.textContent = `RM ${claimData.claimAmount.toFixed(2)}`;
+                    const symbol = (claimData.currency === 'USD') ? '$' : 'RM';
+                    el.textContent = `${symbol} ${claimData.claimAmount.toFixed(2)}`;
                 });
 
                 amountInputs.forEach(input => {
@@ -466,21 +490,40 @@
                 }
             }
 
-            // Initialize uploaded files
+            // Initialize uploaded files - merge base64 data and server URLs passed from edit
             function initializeUploadedFiles() {
-                // Try server files first
-                if (typeof window.serverUploadedFiles !== 'undefined' && window.serverUploadedFiles.length > 0) {
-                    uploadedFiles = window.serverUploadedFiles;
-                } else if (sessionClaimData && sessionClaimData.Files && sessionClaimData.Files.length > 0) {
-                    // Use session storage files
-                    uploadedFiles = sessionClaimData.Files.map(file => ({
-                        name: file.name,
-                        type: file.type,
-                        size: file.size || 0,
-                        data: file.data,
-                        url: `data:${file.type};base64,${file.data}`
-                    }));
+                const merged = [];
+                const pushUnique = f => {
+                    if (!f) return;
+                    if (!merged.some(x => x.url === f.url && x.name === f.name)) merged.push(f);
+                };
+
+                if (sessionClaimData && sessionClaimData.Files && sessionClaimData.Files.length > 0) {
+                    sessionClaimData.Files.forEach(file => {
+                        if (file.data) {
+                            pushUnique({
+                                name: file.name,
+                                type: file.type,
+                                size: file.size || 0,
+                                data: file.data,
+                                url: `data:${file.type};base64,${file.data}`
+                            });
+                        } else if (file.url) {
+                            pushUnique({
+                                name: file.name,
+                                type: file.type || (file.url.endsWith('.png') ? 'image/png' : 'image/jpeg'),
+                                size: file.size || 0,
+                                url: file.url
+                            });
+                        }
+                    });
                 }
+
+                if (typeof window.serverUploadedFiles !== 'undefined' && window.serverUploadedFiles.length > 0) {
+                    window.serverUploadedFiles.forEach(f => pushUnique(f));
+                }
+
+                uploadedFiles = merged;
 
                 if (uploadedFiles.length > 0) {
                     updateFileCounter();
@@ -664,6 +707,7 @@
                 const hasExtractedPrice = result.extractedPrice && result.extractedPrice.amount > 0;
                 const confirmedAmount = result.confirmedAmount !== undefined ? result.confirmedAmount : (hasExtractedPrice ? result.extractedPrice.amount : 0);
                 const isConfirmed = result.amountConfirmed || false;
+                const extractedSymbol = hasExtractedPrice ? (result.extractedPrice.currency === 'USD' ? '$' : 'RM') : (finalClaimData.currency === 'USD' ? '$' : 'RM');
 
                 priceInfo = `
                     <div class="alert ${hasExtractedPrice ? 'alert-info' : 'alert-warning'} mb-3">
@@ -671,7 +715,7 @@
                             <div>
                                 <strong><i class="fas fa-calculator me-1"></i>Extracted Amount:</strong>
                                 ${hasExtractedPrice ?
-                                    `<span class="text-success">RM ${result.extractedPrice.amount.toFixed(2)}</span>
+                                    `<span class="text-success">${extractedSymbol} ${result.extractedPrice.amount.toFixed(2)}</span>
                                      <br><small class="text-muted">${result.extractedPrice.type}: "${result.extractedPrice.text}"</small>`
                                     : '<span class="text-warning">No amount detected</span>'}
                             </div>
@@ -685,7 +729,7 @@
                                 <div class="col-md-4">
                                     <label class="form-label mb-1 fw-bold">Final Amount:</label>
                                     <div class="input-group">
-                                        <span class="input-group-text">RM</span>
+                                        <span class="input-group-text">${finalClaimData.currency === 'USD' ? '$' : 'RM'}</span>
                                         <input type="number"
                                                id="editAmount_${index}"
                                                class="form-control"
@@ -827,7 +871,8 @@
                 // Update display elements
                 document.getElementById('processedCount').textContent = `${processedCount} / ${uploadedFiles.length}`;
                 document.getElementById('confirmedCount').textContent = `${confirmedCount} / ${uploadedFiles.length}`;
-                document.getElementById('calculatedTotal').textContent = `RM ${totalAmount.toFixed(2)}`;
+                const symbol = (finalClaimData.currency === 'USD') ? '$' : 'RM';
+                document.getElementById('calculatedTotal').textContent = `${symbol} ${totalAmount.toFixed(2)}`;
 
                 // Update button states
                 const updateBtn = document.getElementById('updateClaimTotal');
@@ -930,7 +975,8 @@
                 updateConfirmationProgress();
 
                 // Show success message
-                showToast('success', `Amount RM ${amount.toFixed(2)} confirmed for ${uploadedFiles[index].name}`);
+                const symbol = (finalClaimData.currency === 'USD') ? '$' : 'RM';
+                showToast('success', `Amount ${symbol} ${amount.toFixed(2)} confirmed for ${uploadedFiles[index].name}`);
 
                 // Check if all files are processed and confirmed
                 checkAllFilesStatus();
@@ -949,7 +995,8 @@
                 if (ocrResults[index].extractedPrice) {
                     const extractedAmount = ocrResults[index].extractedPrice.amount;
                     document.getElementById(`editAmount_${index}`).value = extractedAmount.toFixed(2);
-                    showToast('info', `Amount reset to extracted value: RM ${extractedAmount.toFixed(2)}`);
+                    const sym = (ocrResults[index].extractedPrice.currency === 'USD') ? '$' : 'RM';
+                    showToast('info', `Amount reset to extracted value: ${sym} ${extractedAmount.toFixed(2)}`);
                 }
             }
 
@@ -1001,15 +1048,17 @@
                 uploadedFiles.forEach((file, index) => {
                     const result = ocrResults[index];
                     const extractedAmount = result?.extractedPrice?.amount || 0;
+                    const extractedSymbol = result?.extractedPrice?.currency === 'USD' ? '$' : 'RM';
                     const confirmedAmount = result?.confirmedAmount || 0;
+                    const confirmedSymbol = finalClaimData.currency === 'USD' ? '$' : 'RM';
                     const isConfirmed = result?.amountConfirmed || false;
                     const isIncluded = result?.includedInCalculation !== false;
 
                     html += `
                         <tr>
                             <td><small>${file.name}</small></td>
-                            <td>RM ${extractedAmount.toFixed(2)}</td>
-                            <td>RM ${confirmedAmount.toFixed(2)}</td>
+                            <td>${extractedAmount > 0 ? `${extractedSymbol} ${extractedAmount.toFixed(2)}` : '—'}</td>
+                            <td>${confirmedAmount > 0 ? `${confirmedSymbol} ${confirmedAmount.toFixed(2)}` : '—'}</td>
                             <td>
                                 <span class="badge ${isConfirmed ? 'bg-success' : 'bg-warning'}">
                                     ${isConfirmed ? 'Confirmed' : 'Pending'}
@@ -1116,9 +1165,11 @@
 
             document.getElementById('updateClaimTotal').addEventListener('click', () => {
                 const newAmount = totalCalculatedAmount;
-                document.getElementById('displayClaimAmount').textContent = `RM ${newAmount.toFixed(2)}`;
+                const symbol2 = (finalClaimData.currency === 'USD') ? '$' : 'RM';
+                document.getElementById('displayClaimAmount').textContent = `${symbol2} ${newAmount.toFixed(2)}`;
                 document.getElementById('hiddenClaimAmount').value = newAmount;
-                showToast('success', `Claim amount updated to RM ${newAmount.toFixed(2)}`);
+                document.getElementById('hiddenCurrency').value = finalClaimData.currency;
+                showToast('success', `Claim amount updated to ${symbol2} ${newAmount.toFixed(2)}`);
             });
 
             document.getElementById('approveAndSubmit').addEventListener('click', () => {
@@ -1139,6 +1190,18 @@
                     document.querySelector('input[name="ClaimType"]').value = finalClaimData.claimType;
                     document.querySelector('input[name="Description"]').value = finalClaimData.description;
                     document.getElementById('hiddenClaimAmount').value = totalCalculatedAmount;
+                    document.getElementById('hiddenCurrency').value = finalClaimData.currency;
+
+                    // Edit flags: if sessionClaimData indicates edit (EditClaimId present)
+                    try {
+                        if (sessionClaimData && (sessionClaimData.EditClaimId || sessionClaimData.IsEdit)) {
+                            document.getElementById('isEditField').value = 'true';
+                            document.getElementById('editClaimIdField').value = sessionClaimData.EditClaimId || '';
+                            if (Array.isArray(sessionClaimData.RemovedDocumentIds)) {
+                                document.getElementById('removedDocIdsField').value = JSON.stringify(sessionClaimData.RemovedDocumentIds);
+                            }
+                        }
+                    } catch {}
 
                     // Submit the form
                     document.getElementById('finalSubmissionForm').submit();

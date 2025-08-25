@@ -30,6 +30,7 @@
                     </div>
 
                     <form asp-action="Edit" method="post" enctype="multipart/form-data" id="editClaimForm">
+                        @Html.AntiForgeryToken()
                         <!-- Hidden fields -->
                         <input type="hidden" asp-for="Id" />
                         <input type="hidden" asp-for="EmployeeID" />
@@ -66,9 +67,9 @@
 
                         <!-- Claim Amount -->
                         <div class="mb-3">
-                            <label asp-for="ClaimAmount" class="form-label">Claim Amount (RM) *</label>
+                            <label asp-for="ClaimAmount" class="form-label">Claim Amount *</label>
                             <div class="input-group">
-                                <span class="input-group-text">RM</span>
+                                <span class="input-group-text">@((Model?.Currency == "USD" ? "$" : "RM"))</span>
                                 <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" id="claimAmount" required />
                             </div>
                             <span asp-validation-for="ClaimAmount" class="text-danger"></span>
@@ -92,48 +93,48 @@
                         <div class="mb-4">
                             <h5><i class="fas fa-file-alt"></i> Current Documents</h5>
                             <div id="currentDocuments">
-                                @if (ViewBag.Documents != null && ((List<FinserveNew.Models.ClaimDetails>)ViewBag.Documents).Count > 0)
+                                @if (Model.ClaimDetails != null && Model.ClaimDetails.Any())
                                 {
-                                foreach (var doc in (List<FinserveNew.Models.ClaimDetails>)ViewBag.Documents)
+                                    foreach (var doc in Model.ClaimDetails)
                                     {
-                                <div class="document-item" data-doc-id="@doc.Id">
-                                    <div class="document-info">
-                                        <h6 class="mb-1">@doc.OriginalFileName</h6>
-                                        <small class="text-muted">
-                                            Uploaded: @doc.UploadDate.ToString("dd/MM/yyyy HH:mm") |
-                                            Size: @((doc.FileSize.HasValue) ? FormatFileSize(doc.FileSize.Value) : "Unknown")
-                                        </small>
-                                    </div>
-                                    <div class="document-actions">
-                                        <a href="@doc.DocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
-                                            <i class="fas fa-eye"></i> View
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCurrentDocument(@doc.Id)">
-                                            <i class="fas fa-trash"></i> Remove
-                                        </button>
-                                    </div>
-                                </div>
+                                        <div class="document-item" data-doc-id="@doc.Id">
+                                            <div class="document-info">
+                                                <h6 class="mb-1">@doc.DisplayFileName</h6>
+                                                <small class="text-muted">
+                                                    Uploaded: @doc.UploadDate.ToString("dd/MM/yyyy HH:mm") |
+                                                    Size: @doc.FormattedFileSize
+                                                </small>
+                                            </div>
+                                            <div class="document-actions">
+                                                <a href="@doc.DocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
+                                                    <i class="fas fa-eye"></i> View
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeCurrentDocument(@doc.Id)">
+                                                    <i class="fas fa-trash"></i> Remove
+                                                </button>
+                                            </div>
+                                        </div>
                                     }
                                 }
                                 else if (!string.IsNullOrEmpty(Model.SupportingDocumentPath))
                                 {
-                                <div class="document-item" data-legacy="true">
-                                    <div class="document-info">
-                                        <h6 class="mb-1">@(Model.SupportingDocumentName ?? "Legacy Document")</h6>
-                                        <small class="text-muted">Legacy document</small>
+                                    <div class="document-item" data-legacy="true">
+                                        <div class="document-info">
+                                            <h6 class="mb-1">@(Model.SupportingDocumentName ?? "Legacy Document")</h6>
+                                            <small class="text-muted">Legacy document</small>
+                                        </div>
+                                        <div class="document-actions">
+                                            <a href="@Model.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                        </div>
                                     </div>
-                                    <div class="document-actions">
-                                        <a href="@Model.SupportingDocumentPath" target="_blank" class="btn btn-sm btn-outline-info">
-                                            <i class="fas fa-eye"></i> View
-                                        </a>
-                                    </div>
-                                </div>
                                 }
                                 else
                                 {
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i> No documents currently attached to this claim.
-                                </div>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i> No documents currently attached to this claim.
+                                    </div>
                                 }
                             </div>
                         </div>
@@ -153,6 +154,14 @@
 
                             <!-- File Previews -->
                             <div id="filePreviews"></div>
+                            <div class="mt-2">
+                                <button type="button" id="processOCRBtn" class="btn btn-ocr" onclick="redirectToOCR()">
+                                    <i class="fas fa-magic me-1"></i> Review with OCR
+                                </button>
+                                <span id="loadingSpinner" class="loading-spinner ms-2">
+                                    <i class="fas fa-spinner fa-spin"></i> Processing...
+                                </span>
+                            </div>
                         </div>
 
                         <!-- OCR Results -->
@@ -184,11 +193,6 @@
 
                         <!-- Action Buttons -->
                         <div class="d-flex justify-content-between mt-4">
-                            <div>
-                                <a asp-action="EditWithOCR" asp-route-id="@Model.Id" class="btn btn-ocr" id="editWithOCRBtn">
-                                    <i class="fas fa-robot"></i> Edit with OCR
-                                </a>
-                            </div>
                             <div>
                                 <button type="submit" class="btn btn-primary" id="saveChangesBtn">
                                     <i class="fas fa-save"></i> Save Changes
@@ -315,6 +319,21 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script>
+        // Existing claim documents exposed to JS for OCR (images only)
+        window.existingDocuments = [
+        @if (Model.ClaimDetails != null)
+        {
+            foreach (var d in Model.ClaimDetails)
+            {
+                var ext = System.IO.Path.GetExtension(d.DocumentPath ?? "").ToLower();
+                var isImg = ext == ".jpg" || ext == ".jpeg" || ext == ".png";
+                if (isImg)
+                {
+            @: { id: @d.Id, name: '@(d.OriginalFileName ?? System.IO.Path.GetFileName(d.DocumentPath))'.replace("'", "\'"), url: '@d.DocumentPath', type: '@(ext == ".png" ? "image/png" : "image/jpeg")' },
+                }
+            }
+        }
+        ];
         let uploadedFiles = [];
         let ocrProcessed = false;
         let ocrData = {};
@@ -355,7 +374,7 @@
         }
 
         function handleFiles(files) {
-            uploadedFiles = [];
+            // keep existing files; add newly selected ones
             Array.from(files).forEach(file => {
                 if (validateFile(file)) {
                     uploadedFiles.push(file);
@@ -364,8 +383,85 @@
 
             displayFilePreviews();
 
-            if (uploadedFiles.length > 0) {
-                processOCRBtn.style.display = 'inline-block';
+            // Always allow OCR review
+            processOCRBtn.style.display = 'inline-block';
+        }
+        async function redirectToOCR() {
+            // Build claim data similar to create page and post to OCRWithData, then redirect
+            const claimData = {
+                IsEdit: true,
+                EditClaimId: @Model.Id,
+                EmployeeId: '@Model.EmployeeID',
+                ClaimType: document.getElementById('claimType').value || '@Model.ClaimType',
+                ClaimDate: document.getElementById('claimDate').value || '@Model.ClaimDate.ToString("yyyy-MM-dd")',
+                ClaimAmount: document.getElementById('claimAmount').value || '@Model.ClaimAmount',
+                Description: document.getElementById('description').value || '@(Model.Description ?? string.Empty)'.replace(/\n/g, ' '),
+                Currency: '@Model.Currency',
+                Files: []
+            };
+
+            // Attach newly selected files
+            for (const file of uploadedFiles) {
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = err => reject(err);
+                    reader.readAsDataURL(file);
+                });
+                claimData.Files.push({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: base64
+                });
+            }
+
+            // Track removed documents (already added as hidden inputs)
+            const removedInputs = document.querySelectorAll('input[name="RemovedDocumentIds"]');
+            const removedIds = Array.from(removedInputs).map(i => parseInt(i.value)).filter(v => !isNaN(v));
+            if (removedIds.length > 0) {
+                claimData.RemovedDocumentIds = removedIds;
+            }
+
+            // Include remaining existing image documents for OCR
+            try {
+                const remainingExisting = (window.existingDocuments || []).filter(d => !removedIds.includes(d.id));
+                remainingExisting.forEach(d => {
+                    claimData.Files.push({ name: d.name, type: d.type, url: d.url });
+                });
+            } catch {}
+
+            // Make data available to OCR page via sessionStorage to avoid large cookies
+            try {
+                sessionStorage.setItem('claimData', JSON.stringify(claimData));
+            } catch (e) { /* ignore quota issues */ }
+
+            const formData = new FormData();
+            formData.append('ClaimDataJson', JSON.stringify(claimData));
+
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            if (tokenInput) {
+                formData.append('__RequestVerificationToken', tokenInput.value);
+            }
+
+            try {
+                const response = await fetch('@Url.Action("OCRWithData", "Claim")', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                const result = await response.json();
+                if (result && result.success) {
+                    window.location.href = '@Url.Action("OCR", "Claim")' + '?verify=' + Date.now();
+                } else {
+                    showAlert('error', result && result.error ? result.error : 'Failed to prepare OCR review.');
+                }
+            } catch (err) {
+                showAlert('error', 'Unable to start OCR review. Please try again.');
             }
         }
 
@@ -599,14 +695,12 @@
 
         // Form submission handling
         document.getElementById('editClaimForm').addEventListener('submit', function(e) {
-            if (uploadedFiles.length > 0 && !ocrProcessed) {
+            // Only require OCR if user added new files or removed existing ones
+            const removedInputs = document.querySelectorAll('input[name="RemovedDocumentIds"]');
+            const filesChanged = (uploadedFiles && uploadedFiles.length > 0) || removedInputs.length > 0;
+            if (filesChanged && !ocrProcessed) {
                 e.preventDefault();
-                if (confirm('You have uploaded new documents but haven\'t processed them with OCR. Do you want to continue without OCR processing?')) {
-                    // Continue with submission
-                    this.submit();
-                } else {
-                    showAlert('info', 'Please process the uploaded documents with OCR first, or remove them to continue.');
-                }
+                showAlert('warning', 'Please review with OCR before saving changes because you added/removed documents.');
                 return false;
             }
         });

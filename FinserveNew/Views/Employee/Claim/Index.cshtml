@@ -41,14 +41,14 @@
                     {
                     <tr>
                         <td>
-                            <strong>#@claim.Id</strong>
+                            #@claim.Id
                         </td>
                         <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
                         <td>
                             <span class="badge bg-info">@claim.ClaimType</span>
                         </td>
                         <td>
-                            <strong>RM @claim.ClaimAmount.ToString("F2")</strong>
+                            <strong>@claim.DisplayAmount</strong>
                         </td>
                         <td>
                             <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
