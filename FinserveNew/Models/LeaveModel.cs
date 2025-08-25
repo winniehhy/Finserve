@@ -74,6 +74,9 @@ namespace FinserveNew.Models
         // Calculated property for leave duration (as backup) - Updated to return double
         [NotMapped]
         public double CalculatedLeaveDays => EndDate.DayNumber - StartDate.DayNumber + 1;
+
+        [NotMapped]
+        public string DisplayLeaveId => $"#LVE-{LeaveID:D3}";
     }
 
     public class UnpaidLeaveRequestModel

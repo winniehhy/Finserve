@@ -50,7 +50,7 @@
             {
                 <div class="alert alert-danger mb-4">
                     <i class="fas fa-times-circle me-2"></i>
-                    <strong>@Model.Count rejected claims</strong> with total amount of <strong>RM @Model.Sum(c => c.ClaimAmount).ToString("F2")</strong>.
+                    <strong>@Model.Count rejected claims</strong>.
                 </div>
 
                 <div class="table-responsive">
@@ -71,10 +71,10 @@
                             @foreach (var claim in Model)
                             {
                                 <tr>
-                                    <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                    <td><strong>@claim.DisplayClaimId</strong></td>
                                     <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
-                                    <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
-                                    <td><strong class="text-danger">RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                    <td><span class="badge bg-info">@claim.ClaimType</span></td>
+                                    <td><strong class="text-danger">@claim.DisplayAmount</strong></td>
                                     <td>
                                         <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
                                             @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)

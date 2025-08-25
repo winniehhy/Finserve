@@ -7,7 +7,7 @@
 <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-md-8">
-            <h2>Claim Details #CLM-@Model.Id.ToString("D3")</h2>
+            <h2>Claim Details @Model.DisplayClaimId</h2>
             <p class="text-muted">Review claim information and supporting documents</p>
         </div>
         <div class="col-md-4 text-end">
@@ -37,7 +37,7 @@
                 <div class="card-body">
                     <div class="row mb-3">
                         <div class="col-sm-4"><strong>Claim ID:</strong></div>
-                        <div class="col-sm-8">#CLM-@Model.Id.ToString("D3")</div>
+                        <div class="col-sm-8">@Model.DisplayClaimId</div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-sm-4"><strong>Employee ID:</strong></div>
@@ -61,13 +61,13 @@
                     <div class="row mb-3">
                         <div class="col-sm-4"><strong>Claim Type:</strong></div>
                         <div class="col-sm-8">
-                            <span class="badge bg-primary text-dark">@Model.ClaimType</span>
+                            <span class="badge bg-info">@Model.ClaimType</span>
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-sm-4"><strong>Amount:</strong></div>
                         <div class="col-sm-8">
-                            <strong class="text-primary fs-5">RM @Model.ClaimAmount.ToString("F2")</strong>
+                            <strong class="text-primary fs-5">@Model.DisplayAmount</strong>
                         </div>
                     </div>
                     <div class="row mb-3">

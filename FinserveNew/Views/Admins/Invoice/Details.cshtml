@@ -17,9 +17,9 @@
         </button>
         @if (Model.CanEdit)
         {
-            <a href="@Url.Action("Edit", "Invoice", new { id = Model.InvoiceID })" class="btn btn-outline-warning me-2">
-                <i class="fas fa-edit me-2"></i>Edit
-            </a>
+        <a href="@Url.Action("Edit", "Invoice", new { id = Model.InvoiceID })" class="btn btn-outline-warning me-2">
+            <i class="fas fa-edit me-2"></i>Edit
+        </a>
         }
         <a href="@Url.Action("InvoiceRecord", "Invoice")" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-2"></i>Back to List
@@ -29,18 +29,18 @@
 
 @if (TempData["Success"] != null)
 {
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @TempData["Success"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    @TempData["Success"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
 }
 
 @if (TempData["Error"] != null)
 {
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @TempData["Error"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    @TempData["Error"]
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
 }
 
 <div class="form-container">
@@ -77,11 +77,11 @@
                                 <p class="form-control-plaintext">
                                     @if (!string.IsNullOrEmpty(Model.ClientEmail))
                                     {
-                                        <a href="mailto:@Model.ClientEmail">@Model.ClientEmail</a>
+                                    <a href="mailto:@Model.ClientEmail">@Model.ClientEmail</a>
                                     }
                                     else
                                     {
-                                        <span class="text-muted">N/A</span>
+                                    <span class="text-muted">N/A</span>
                                     }
                                 </p>
                             </div>
@@ -100,7 +100,7 @@
                                     @Model.DueDate.ToString("dd/MM/yyyy")
                                     @if (Model.IsOverdue)
                                     {
-                                        <span class="badge bg-danger ms-2">Overdue</span>
+                                    <span class="badge bg-danger ms-2">Overdue</span>
                                     }
                                 </p>
                             </div>
@@ -117,35 +117,35 @@
 
                     @if (!string.IsNullOrEmpty(Model.Remark))
                     {
-                        <div class="row">
-                            <div class="col-12">
-                                <hr>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Remarks:</label>
-                                    <div class="border rounded p-3 bg-light">
-                                        @Model.Remark
-                                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <hr>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Remarks:</label>
+                                <div class="border rounded p-3 bg-light">
+                                    @Model.Remark
                                 </div>
                             </div>
                         </div>
+                    </div>
                     }
 
                     @if (!string.IsNullOrEmpty(Model.FilePath))
                     {
-                        <div class="row">
-                            <div class="col-12">
-                                <hr>
-                                <div class="mb-3">
-                                    <label class="form-label fw-bold">Attached File:</label>
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-paperclip me-2"></i>
-                                        <a href="@Model.FilePath" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-external-link-alt me-1"></i>View Attachment
-                                        </a>
-                                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <hr>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Attached File:</label>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-paperclip me-2"></i>
+                                    <a href="@Model.FilePath" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-external-link-alt me-1"></i>View Attachment
+                                    </a>
                                 </div>
                             </div>
                         </div>
+                    </div>
                     }
                 </div>
             </div>
@@ -160,54 +160,54 @@
                 <div class="card-body">
                     @if (Model.InvoiceItems != null && Model.InvoiceItems.Any())
                     {
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Description</th>
-                                        <th class="text-center">Quantity</th>
-                                        <th class="text-end">Unit Price</th>
-                                        <th class="text-end">Line Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var item in Model.InvoiceItems)
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Line Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.InvoiceItems)
                                     {
-                                        <tr>
-                                            <td>@item.Description</td>
-                                            <td class="text-center">@item.Quantity</td>
-                                            <td class="text-end">
-                                                @(Model.Currency == "MYR" ? "RM" : Model.Currency == "USD" ? "$" : Model.Currency) @item.UnitPrice.ToString("N2")
-                                            </td>
-                                            <td class="text-end fw-bold">
-                                                @(Model.Currency == "MYR" ? "RM" : Model.Currency == "USD" ? "$" : Model.Currency) @item.LineTotal.ToString("N2")
-                                            </td>
-                                        </tr>
+                                <tr>
+                                    <td>@item.Description</td>
+                                    <td class="text-center">@item.Quantity</td>
+                                    <td class="text-end">
+                                        @(Model.Currency == "MYR" ? "RM" : Model.Currency == "USD" ? "$" : Model.Currency) @item.UnitPrice.ToString("N2")
+                                    </td>
+                                    <td class="text-end fw-bold">
+                                        @(Model.Currency == "MYR" ? "RM" : Model.Currency == "USD" ? "$" : Model.Currency) @item.LineTotal.ToString("N2")
+                                    </td>
+                                </tr>
                                     }
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <th colspan="3" class="text-end">Subtotal:</th>
-                                        <th class="text-end">@Model.FormattedAmount</th>
-                                    </tr>
-                                    <tr>
-                                        <th colspan="3" class="text-end">Tax:</th>
-                                        <th class="text-end">@(Model.Currency == "MYR" ? "RM" : Model.Currency == "USD" ? "$" : Model.Currency) 0.00</th>
-                                    </tr>
-                                    <tr>
-                                        <th colspan="3" class="text-end fs-5">TOTAL:</th>
-                                        <th class="text-end fs-5">@Model.FormattedAmount</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="3" class="text-end">Subtotal:</th>
+                                    <th class="text-end">@Model.FormattedAmount</th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end">Tax:</th>
+                                    <th class="text-end">@(Model.Currency == "MYR" ? "RM" : Model.Currency == "USD" ? "$" : Model.Currency) 0.00</th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end fs-5">TOTAL:</th>
+                                    <th class="text-end fs-5">@Model.FormattedAmount</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                     }
                     else
                     {
-                        <div class="text-center py-4">
-                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No invoice items found.</p>
-                        </div>
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No invoice items found.</p>
+                    </div>
                     }
                 </div>
             </div>
@@ -247,41 +247,41 @@
             <!-- Quick Actions -->
             @if (Model.Status != "Paid" && Model.Status != "Cancelled")
             {
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h6 class="mb-0">
-                            <i class="fas fa-cogs me-2"></i>Quick Actions
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        @if (Model.CanSend)
-                        {
-                            <form asp-action="SendToClient" asp-route-id="@Model.InvoiceID" method="post" class="mb-2">
-                                <button type="submit" class="btn btn-primary btn-sm w-100" onclick="return confirm('Send this invoice to client?')">
-                                    <i class="fas fa-paper-plane me-1"></i>Send to Client
-                                </button>
-                            </form>
-                        }
-                        @if (Model.CanMarkPaid)
-                        {
-                            <form asp-action="MarkAsPaid" asp-route-id="@Model.InvoiceID" method="post" class="mb-2">
-                                <button type="submit" class="btn btn-success btn-sm w-100" onclick="return confirm('Mark this invoice as paid?')">
-                                    <i class="fas fa-money-bill-wave me-1"></i>Mark as Paid
-                                </button>
-                            </form>
-                        }
-                        @if (Model.Status == "Pending" || Model.Status == "Sent")
-                        {
-                            <hr>
-                            <form asp-action="UpdateStatus" asp-route-id="@Model.InvoiceID" method="post">
-                                <input type="hidden" name="status" value="Cancelled" />
-                                <button type="submit" class="btn btn-danger btn-sm w-100" onclick="return confirm('Are you sure you want to cancel this invoice?')">
-                                    <i class="fas fa-times me-1"></i>Cancel Invoice
-                                </button>
-                            </form>
-                        }
-                    </div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Quick Actions
+                    </h6>
                 </div>
+                <div class="card-body">
+                    @if (Model.CanSend)
+                        {
+                    <form asp-action="SendToClient" asp-route-id="@Model.InvoiceID" method="post" class="mb-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100" onclick="return confirm('Send this invoice to client?')">
+                            <i class="fas fa-paper-plane me-1"></i>Send to Client
+                        </button>
+                    </form>
+                        }
+                    @if (Model.CanMarkPaid)
+                        {
+                    <form asp-action="MarkAsPaid" asp-route-id="@Model.InvoiceID" method="post" class="mb-2">
+                        <button type="submit" class="btn btn-success btn-sm w-100" onclick="return confirm('Mark this invoice as paid?')">
+                            <i class="fas fa-money-bill-wave me-1"></i>Mark as Paid
+                        </button>
+                    </form>
+                        }
+                    @if (Model.Status == "Pending" || Model.Status == "Sent")
+                        {
+                    <hr>
+                    <form asp-action="UpdateStatus" asp-route-id="@Model.InvoiceID" method="post">
+                        <input type="hidden" name="status" value="Cancelled" />
+                        <button type="submit" class="btn btn-danger btn-sm w-100" onclick="return confirm('Are you sure you want to cancel this invoice?')">
+                            <i class="fas fa-times me-1"></i>Cancel Invoice
+                        </button>
+                    </form>
+                        }
+                </div>
+            </div>
             }
 
             <!-- Invoice Summary -->
@@ -315,10 +315,10 @@
                     </div>
                     @if (Model.IsOverdue)
                     {
-                        <div class="alert alert-danger mt-3 mb-0" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Overdue!</strong> This invoice is past its due date.
-                        </div>
+                    <div class="alert alert-danger mt-3 mb-0" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Overdue!</strong> This invoice is past its due date.
+                    </div>
                     }
                 </div>
             </div>
@@ -349,7 +349,7 @@
 
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
+
     <script>
         let currentPDF = null;
 
@@ -369,11 +369,11 @@
                 currency: '@Model.Currency',
                 remark: '@Html.Raw(Html.Encode(Model.Remark ?? ""))',
                 status: '@Model.Status',
-                items: @Html.Raw(Json.Serialize((Model.InvoiceItems ?? new List<FinserveNew.Models.InvoiceItem>()).Select(item => new { 
-                    description = item.Description, 
-                    quantity = item.Quantity, 
-                    price = item.UnitPrice.ToString("F2"), 
-                    amount = item.LineTotal.ToString("F2") 
+                items: @Html.Raw(Json.Serialize((Model.InvoiceItems ?? new List<FinserveNew.Models.InvoiceItem>()).Select(item => new {
+                    description = item.Description,
+                    quantity = item.Quantity,
+                    price = item.UnitPrice.ToString("F2"),
+                    amount = item.LineTotal.ToString("F2")
                 }).ToList()))
             });
 
@@ -404,7 +404,7 @@
                 // Generate PDF if not already generated
                 previewInvoice();
             }
-            
+
             if (currentPDF) {
                 currentPDF.save(`Invoice_@Model.InvoiceNumber`);
             }
@@ -469,13 +469,13 @@
 
             data.items.forEach((item, index) => {
                 doc.rect(20, currentY, 170, 10);
-                
+
                 // Truncate description if too long
                 let description = item.description;
                 if (description.length > 30) {
                     description = description.substring(0, 30) + '...';
                 }
-                
+
                 doc.text(description, 25, currentY + 7);
                 doc.text(item.quantity.toString(), 110, currentY + 7);
                 doc.text(`${currencySymbol} ${item.price}`, 130, currentY + 7);
@@ -490,21 +490,26 @@
                 currentY += 10;
             }
 
-            // Totals section
-            currentY += 10;
-            doc.setFont(undefined, 'bold');
-            doc.text('Subtotal:', 130, currentY);
-            doc.text(`${currencySymbol} ${subtotal.toFixed(2)}`, 160, currentY);
-
-           
+            // Totals section - Fixed spacing and alignment to match Create.cshtml
             currentY += 15;
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(12);
+
+            // Right-align the subtotal
+            doc.text('Subtotal:', 135, currentY);
+            doc.text(`${currencySymbol} ${subtotal.toFixed(2)}`, 165, currentY);
+
+            currentY += 15;
+            doc.setFont(undefined, 'bold');
             doc.setFontSize(14);
-            doc.text('TOTAL AMOUNT:', 130, currentY);
-            doc.text(`${currencySymbol} ${parseFloat(data.totalAmount).toFixed(2)}`, 160, currentY);
+
+            // Fixed positioning for total amount to prevent overlap
+            doc.text('TOTAL AMOUNT:', 105, currentY);
+            doc.text(`${currencySymbol} ${parseFloat(data.totalAmount).toFixed(2)}`, 165, currentY);
 
             // Notes section
             if (data.remark && data.remark.trim() !== '') {
-                currentY += 20;
+                currentY += 25;
                 doc.setFontSize(12);
                 doc.setFont(undefined, 'bold');
                 doc.text('Notes:', 20, currentY);
@@ -512,7 +517,7 @@
                 doc.rect(20, currentY + 5, 170, 30);
                 doc.setFont(undefined, 'normal');
                 doc.setFontSize(10);
-                
+
                 // Split long remarks into multiple lines
                 const lines = doc.splitTextToSize(data.remark, 160);
                 let noteY = currentY + 15;

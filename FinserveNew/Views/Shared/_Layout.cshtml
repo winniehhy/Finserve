@@ -64,7 +64,7 @@
                                     <i class="fas fa-sign-out-alt me-2"></i>Logout
                                 </button>
                             </form>
-                        </li>
+                        </li>   
                     </ul>
                 </div>
             </div>
@@ -96,6 +96,18 @@
                         <a href="@Url.Action("InvoiceRecord", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
                             <i class="fas fa-file-invoice menu-icon"></i>
                             Invoice Management
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("ViewHRReport", "Home")" class="menu-link @(currentController == "Home" && currentAction == "ViewHRReport" ? "active" : "")">
+                            <i class="fas fa-file-alt menu-icon"></i>
+                            HR Reports
+                        </a>
+                    </li>
+                    <li class="menu-item">
+                        <a href="@Url.Action("ViewEmployeeReport", "Home")" class="menu-link @(currentController == "Home" && currentAction == "ViewEmployeeReport" ? "active" : "")">
+                            <i class="fas fa-file-signature menu-icon"></i>
+                            Employee Reports
                         </a>
                     </li>
                     @* <li class="menu-item">
@@ -138,7 +150,7 @@
                 @if (User.IsInRole("HR"))
                 {
                     <li class="menu-section">
-                        <div class="menu-section-title">HR MANAGEMENT</div>
+                        <div class="menu-section-title">ACCOUNTS</div>
                     </li>
                     <li class="menu-item">
                         <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
@@ -146,18 +158,26 @@
                             Accounts Management
                         </a>
                     </li>
+                    <li class="menu-section">
+                        <div class="menu-section-title">PAYROLL</div>
+                    </li>
                     <li class="menu-item">
                         <a href="@Url.Action("Process", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
                             <i class="fas fa-money-bill-wave menu-icon"></i>
                             Payroll Management
                         </a>
                     </li>
-                    
+                    <li class="menu-section">
+                        <div class="menu-section-title">CLAIMS</div>
+                    </li>
                     <li class="menu-item">
                         <a href="@Url.Action("HRIndex", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
                             <i class="fa-solid fa-file menu-icon"></i>
                              Claim Management
                         </a>
+                    </li>
+                    <li class="menu-section">
+                        <div class="menu-section-title">LEAVE</div>
                     </li>
                     <li class="menu-item">
                         <a href="@Url.Action("LeaveIndex", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
@@ -215,7 +235,7 @@
                     </li> *@
                 }
 
-                <!-- General Section - All authenticated users -->
+                <!-- General Section - All authenticated users
                 <li class="menu-section">
                     <div class="menu-section-title">GENERAL</div>
                 </li>
@@ -224,7 +244,7 @@
                         <i class="fas fa-life-ring menu-icon"></i>
                         Help Center
                     </a>
-                </li>
+                </li> -->
                
             </ul>
         </nav>

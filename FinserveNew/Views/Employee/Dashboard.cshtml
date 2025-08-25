@@ -16,9 +16,12 @@
                 <p class="page-subtitle">Welcome back, @User.Identity.Name</p>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary" onclick="exportReport()">
-                    <i class="fas fa-download me-2"></i>Export Report
-                </button>
+                <form method="post" action="@Url.Action("ExportEmployeeReport", "Home")" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-primary" title="This will be sent to Admin for review">
+                        <i class="fas fa-download me-2"></i>Export Report
+                    </button>
+                </form>
                 <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <i class="fas fa-plus me-2"></i>Quick Action
@@ -129,7 +132,6 @@
             </div>
 
             <!-- Recent Claims -->
-            <!-- Recent Claims - FIXED VERSION -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
@@ -157,7 +159,7 @@
                                 @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaims)
                         {
                                 <tr>
-                                    <td>#@claim.Id</td>
+                                    <td>#CLM-@claim.Id</td>
                                     <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
                                     <td>
                                         <span class="badge bg-info">@claim.ClaimType</span>
@@ -230,6 +232,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th>Leave ID</th>
                                     <th>Leave Type</th>
                                     <th>From</th>
                                     <th>To</th>
@@ -243,7 +246,10 @@
                                     {
                                         var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                                 <tr>
-                                    <td>@(leave.LeaveType?.TypeName ?? "N/A")</td>
+                                    <td>#LVE-@leave.LeaveID</td>
+                                    <td>
+                                        <span class="badge bg-info">@(leave.LeaveType?.TypeName ?? "N/A")</span>
+                                    </td>
                                     <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
                                     <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
                                     <td>@duration days</td>

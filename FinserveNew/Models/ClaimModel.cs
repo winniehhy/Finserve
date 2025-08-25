@@ -109,5 +109,8 @@ namespace FinserveNew.Models
 
         [NotMapped]
         public int SupportingDocumentCount => ClaimDetails?.Count ?? 0;
+
+        [NotMapped]
+        public string DisplayClaimId => $"#CLM-{Id:D3}";
     }
 }

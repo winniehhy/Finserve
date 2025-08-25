@@ -1,0 +1,48 @@
+@model IEnumerable<dynamic>
+@{
+    ViewData["Title"] = "HR Reports";
+}
+
+<div class="container py-4">
+    <h2 class="mb-3">HR Reports</h2>
+    <p class="text-muted">Browse submitted HR dashboard reports. Click a row to open.</p>
+
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Submitted By</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model == null || !Model.Any())
+                {
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">No HR reports yet.</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var item in Model)
+                    {
+                        string submitter = item.Submitter ?? "-";
+                        DateTime created = item.CreatedAt;
+                        string file = item.File;
+                        <tr>
+                            <td>@submitter</td>
+                            <td>@created.ToString("dd MMM yyyy HH:mm")</td>
+                            <td>
+                                <a class="btn btn-sm btn-primary" href="@Url.Action("ViewHRReport", "Home", new { file = file })">Open</a>
+                                <a class="btn btn-sm btn-secondary" download href="@Url.Content($"~/reports/hr/{file}")">Download JSON</a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+

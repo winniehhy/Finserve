@@ -209,7 +209,7 @@
                                         @foreach (var leave in leaveApplications)
                                         {
                                             <tr>
-                                                <td>#@leave.LeaveID</td>
+                                                <td>#LVE-@leave.LeaveID</td>
                                                 <td>@leave.LeaveType.TypeName</td>
                                                 <td>@leave.StartDate.ToString("dd/MM/yyyy")</td>
                                                 <td>@leave.EndDate.ToString("dd/MM/yyyy")</td>
@@ -262,7 +262,7 @@
             else
             {
                 <!-- Show all employees' balances -->
-                @if (ViewBag.Employees != null && ViewBag.AllEmployeeBalances != null)
+                if (ViewBag.Employees != null && ViewBag.AllEmployeeBalances != null)
                 {
                     var employees = ViewBag.Employees as IEnumerable<dynamic>;
                     var allBalances = ViewBag.AllEmployeeBalances as Dictionary<string, Dictionary<string, object>>;
@@ -289,7 +289,7 @@
                                         
                                         @if (employeeBalances != null)
                                         {
-                                            @foreach (var leaveType in new[] { "Annual Leave", "Medical Leave", "Hospitalization Leave" })
+                                            foreach (var leaveType in new[] { "Annual Leave", "Medical Leave", "Hospitalization Leave" })
                                             {
                                                 if (employeeBalances.ContainsKey(leaveType))
                                                 {

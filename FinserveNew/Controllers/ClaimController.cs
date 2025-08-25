@@ -1388,6 +1388,7 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> HRIndex()
         {
             var claims = await _context.Claims
+                .Include(c => c.Employee)
                 .Where(c => !c.IsDeleted)
                 .OrderByDescending(c => c.CreatedDate)
                 .ToListAsync();

@@ -8,7 +8,7 @@
     <!-- Page Header -->
     <div class="page-header">
         <div class="d-flex justify-content-between align-items-center">
-            <div>
+    <div>
                 <h1 class="page-title">
                     <i class="fas fa-user-shield me-2"></i>
                     Admin Dashboard
@@ -16,9 +16,6 @@
                 <p class="page-subtitle">Welcome back, @User.Identity.Name | @ViewBag.CurrentMonth</p>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary" onclick="exportReport()">
-                    <i class="fas fa-download me-2"></i>Export Report
-                </button>
                 <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <i class="fas fa-plus me-2"></i>Quick Action
@@ -31,8 +28,8 @@
                     </ul>
                 </div>
             </div>
-        </div>
     </div>
+</div>
 
     <!-- Quick Stats Cards -->
     <div class="row mb-4">
@@ -47,9 +44,9 @@
                     <div class="stat-change positive">
                         <i class="fas fa-check-circle"></i> @ViewBag.Paid completed
                     </div>
-                </div>
             </div>
         </div>
+    </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stat-card">
@@ -63,9 +60,9 @@
                         <i class="fas fa-@(ViewBag.Pending > 5 ? "exclamation-triangle" : "hourglass-half")"></i>
                         @(ViewBag.Pending > 5 ? "Needs attention" : "Under control")
                     </div>
-                </div>
             </div>
         </div>
+    </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stat-card">
@@ -78,9 +75,9 @@
                     <div class="stat-change neutral">
                         <i class="fas fa-envelope"></i> Awaiting payment
                     </div>
-                </div>
             </div>
         </div>
+    </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stat-card">
@@ -93,10 +90,10 @@
                     <div class="stat-change positive">
                         <i class="fas fa-chart-line"></i> Monthly revenue
                     </div>
-                </div>
             </div>
         </div>
     </div>
+</div>
 
     <!-- Main Content Grid -->
     <div class="row">
@@ -109,7 +106,7 @@
                         <i class="fas fa-bolt me-2"></i>Quick Actions
                     </h5>
                 </div>
-                <div class="card-body">
+            <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-3">
                             <a href="@Url.Action("Create", "Invoice")" class="quick-action-btn">
@@ -143,51 +140,51 @@
                                     <p>User administration</p>
                                 </div>
                             </a>
-                        </div>
+            </div>
                         <div class="col-md-3 mb-3">
                             <a href="#" class="quick-action-btn" onclick="showSystemSettings()">
                                 <div class="quick-action-icon bg-success">
                                     <i class="fas fa-cog"></i>
-                                </div>
+        </div>
                                 <div class="quick-action-content">
                                     <h6>System Settings</h6>
                                     <p>Configure system</p>
-                                </div>
+    </div>
                             </a>
-                        </div>
-                    </div>
-                </div>
             </div>
+        </div>
+    </div>
+</div>
 
             <!-- Recent Invoices -->
-            <div class="card">
+<div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-file-invoice me-2"></i>Recent Invoices
                     </h5>
                     <a href="@Url.Action("InvoiceRecord", "Invoice")" class="btn btn-sm btn-outline-primary">View All</a>
-                </div>
-                <div class="card-body">
+    </div>
+    <div class="card-body">
                     @if (ViewBag.RecentInvoices != null && ((IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices).Any())
-                    {
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
                                     <th>Invoice #</th>
-                                    <th>Client</th>
+                            <th>Client</th>
                                     <th>Issue Date</th>
-                                    <th>Amount</th>
-                                    <th>Status</th>
+                            <th>Amount</th>
+                            <th>Status</th>
                                     <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var inv in (IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices)
-                                {
-                                <tr>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var inv in (IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices)
+                        {
+                            <tr>
                                     <td><strong>@inv.InvoiceNumber</strong></td>
-                                    <td>@inv.ClientName</td>
+                                <td>@inv.ClientName</td>
                                     <td>@inv.IssueDate.ToString("dd MMM, yyyy")</td>
                                     <td><strong class="text-primary">@inv.FormattedAmount</strong></td>
                                     <td>
@@ -197,15 +194,15 @@
                                     </td>
                                     <td>
                                         <a href="@Url.Action("Details", "Invoice", new { id = inv.InvoiceID })" class="btn btn-sm btn-outline-primary">View</a>
-                                    </td>
-                                </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                    }
-                    else
-                    {
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
                     <div class="text-center py-4">
                         <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
                         <p class="text-muted">No recent invoices</p>
@@ -268,9 +265,9 @@
                     else
                     {
                         <p class="text-muted text-center">No invoice data available</p>
-                    }
-                </div>
-            </div>
+        }
+    </div>
+</div>
 
             <!-- Outstanding Amount Card -->
             <div class="card mb-4">

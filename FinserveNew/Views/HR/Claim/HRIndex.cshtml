@@ -60,6 +60,7 @@
                                     <tr>
                                         <th>Claim ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Claim Type</th>
                                         <th>Amount</th>
                                         <th>Description</th>
@@ -72,10 +73,11 @@
                                     @foreach (var claim in Model.Where(c => c.Status == "Pending"))
                                     {
                                         <tr>
-                                            <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                            <td>@claim.DisplayClaimId</td>
                                             <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
-                                            <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
-                                            <td><strong>RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                            <td>@(claim.Employee != null ? ($"{claim.Employee.FirstName} {claim.Employee.LastName}") : "-")</td>
+                                            <td> <span class="badge bg-info">@claim.ClaimType</span></td>
+                                            <td><strong>@claim.DisplayAmount</strong></td>
                                             <td>
                                                 <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
                                                     @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
@@ -117,6 +119,7 @@
                                     <tr>
                                         <th>Claim ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Claim Type</th>
                                         <th>Amount</th>
                                         <th>Description</th>
@@ -129,10 +132,11 @@
                                     @foreach (var claim in Model.Where(c => c.Status == "Approved"))
                                     {
                                         <tr>
-                                            <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                            <td>@claim.DisplayClaimId</td>
                                             <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
-                                            <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
-                                            <td><strong>RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                            <td>@(claim.Employee != null ? ($"{claim.Employee.FirstName} {claim.Employee.LastName}") : "-")</td>
+                                            <td><span class="badge bg-info">@claim.ClaimType</span></td>
+                                            <td><strong>@claim.DisplayAmount</strong></td>
                                             <td>
                                                 <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
                                                     @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
@@ -169,6 +173,7 @@
                                     <tr>
                                         <th>Claim ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Claim Type</th>
                                         <th>Amount</th>
                                         <th>Description</th>
@@ -181,16 +186,17 @@
                                     @foreach (var claim in Model.Where(c => c.Status == "Rejected"))
                                     {
                                         <tr>
-                                            <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
+                                            <td>@claim.DisplayClaimId</td>
                                             <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
-                                            <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
-                                            <td><strong>RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                            <td>@(claim.Employee != null ? ($"{claim.Employee.FirstName} {claim.Employee.LastName}") : "-")</td>
+                                            <td><span class="badge bg-info">@claim.ClaimType</span></td>
+                                            <td><strong class="text-danger">@claim.DisplayAmount</strong></td>
                                             <td>
                                                 <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
                                                     @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
                                                 </span>
                                             </td>
-                                            <td><span class="badge bg-secondary">@claim.Status</span></td>
+                                            <td><span class="badge bg-danger">@claim.Status</span></td>
                                             <td>@(claim.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
                                             <td>
                                                 <a asp-action="ClaimDetails" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-info" title="View Details">

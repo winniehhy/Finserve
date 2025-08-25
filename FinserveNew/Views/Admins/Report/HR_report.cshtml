@@ -1,0 +1,130 @@
+@{
+    ViewData["Title"] = "HR Dashboard Report";
+    var submitter = ViewBag.SubmitterName ?? "HR User";
+    var submittedAt = DateTime.Now.ToString("dd MMM yyyy HH:mm");
+
+    // Claim metrics from HR dashboard
+    int totalPendingClaims = (int?)ViewBag.TotalPendingClaims ?? 0;
+    int totalApprovedClaims = (int?)ViewBag.TotalApprovedClaims ?? 0;
+    decimal totalClaimAmount = (decimal?)ViewBag.TotalClaimAmount ?? 0m;
+    var recentClaimApplications = ViewBag.RecentClaimApplications as IEnumerable<FinserveNew.Models.Claim> ?? new List<FinserveNew.Models.Claim>();
+
+    // Leave metrics
+    int pendingLeaves = (int?)ViewBag.TotalPendingLeaves ?? 0;
+    var recentLeaves = ViewBag.RecentLeaveApplications as IEnumerable<FinserveNew.Models.LeaveModel> ?? new List<FinserveNew.Models.LeaveModel>();
+    var calendarData = ViewBag.CalendarData as IDictionary<string, List<int>> ?? new Dictionary<string, List<int>>();
+}
+
+<div class="container py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">HR Dashboard Report</h3>
+        <small class="text-muted">Submitted by: @submitter • @submittedAt</small>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">Overview</div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-3 mb-2">
+                    <div class="fw-bold">Pending Claims</div>
+                    <div class="fs-4 text-warning">@totalPendingClaims</div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="fw-bold">Approved Claims</div>
+                    <div class="fs-4 text-success">@totalApprovedClaims</div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="fw-bold">Pending Leaves</div>
+                    <div class="fs-4 text-warning">@pendingLeaves</div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="fw-bold">Approved Leave Days (Year)</div>
+                    <div class="fs-4">@(calendarData?.Values.Sum(v => v.Count) ?? 0)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">Recent Claims</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Claim ID</th>
+                            <th>Employee</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in recentClaimApplications)
+                        {
+                            <tr>
+                                <td>@c.DisplayClaimId</td>
+                                <td>@(c.Employee != null ? ($"{c.Employee.FirstName} {c.Employee.LastName}") : c.EmployeeID)</td>
+                                <td>@c.CreatedDate.ToString("dd MMM yyyy")</td>
+                                <td>@c.ClaimType</td>
+                                <td>@c.DisplayAmount</td>
+                                <td>@c.Status</td>
+                            </tr>
+                        }
+                        @if (!recentClaimApplications.Any())
+                        {
+                            <tr><td colspan="6" class="text-center text-muted">No recent claims</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header">Recent Leaves</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Leave ID</th>
+                            <th>Employee</th>
+                            <th>Type</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Days</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var l in recentLeaves)
+                        {
+                            var days = l.LeaveDays > 0 ? l.LeaveDays : l.CalculatedLeaveDays;
+                            <tr>
+                                <td>@l.DisplayLeaveId</td>
+                                <td>@(l.Employee != null ? ($"{l.Employee.FirstName} {l.Employee.LastName}") : l.EmployeeID)</td>
+                                <td>@(l.LeaveType?.TypeName ?? "-")</td>
+                                <td>@l.StartDate.ToString("dd MMM yyyy")</td>
+                                <td>@l.EndDate.ToString("dd MMM yyyy")</td>
+                                <td>@days</td>
+                                <td>@l.Status</td>
+                            </tr>
+                        }
+                        @if (!recentLeaves.Any())
+                        {
+                            <tr><td colspan="7" class="text-center text-muted">No recent leaves</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        This report was submitted from the HR Dashboard to Admin for review.
+    </div>
+</div>
+
+

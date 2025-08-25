@@ -37,7 +37,7 @@
 <div class="row mb-4">
     @if (ViewBag.LeaveBalances != null)
     {
-        @foreach (var balance in ViewBag.LeaveBalances)
+        foreach (var balance in ViewBag.LeaveBalances)
         {
             var balanceData = balance.Value;
             var typeName = balance.Key;
@@ -160,10 +160,10 @@
                     {
                         <tr data-status="@leave.Status" data-year="@leave.StartDate.Year">
                             <td>
-                                <span class="badge bg-secondary">#@leave.LeaveID</span>
+                                #LVE-@leave.LeaveID
                             </td>
                             <td>
-                                <span class="badge bg-primary">@leave.LeaveType?.TypeName</span>
+                                <span class="badge bg-info">@leave.LeaveType?.TypeName</span>
                             </td>
                             <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
                             <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
@@ -303,7 +303,7 @@
                 @if (ViewBag.LeaveBalances != null)
                 {
                     var hasHighBalance = false;
-                    @foreach (var balance in ViewBag.LeaveBalances)
+                    foreach (var balance in ViewBag.LeaveBalances)
                     {
                         var remainingDays = balance.Value.RemainingDays;
                         if (remainingDays > 10)
@@ -313,7 +313,7 @@
                         }
                     }
                     
-                    @if (hasHighBalance)
+                    if (hasHighBalance)
                     {
                         <text>
                         // Check if reminder was already dismissed for this session
