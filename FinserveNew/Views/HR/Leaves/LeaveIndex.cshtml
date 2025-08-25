@@ -148,7 +148,7 @@
                                     @foreach (var leave in Model.Where(l => l.Status == "Approved"))
                                     {
                                         <tr>
-                                            <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
+                                            <td>#LVE-@leave.LeaveID.ToString("D3")</td>
                                             <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
                                             <td>@(leave.Employee != null ? ($"{leave.Employee.FirstName} {leave.Employee.LastName}") : "-")</td>
                                             <td><span class="badge bg-info">@leave.LeaveType.TypeName</span></td>
@@ -220,7 +220,7 @@
                                     @foreach (var leave in Model.Where(l => l.Status == "Rejected"))
                                     {
                                         <tr>
-                                            <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
+                                            <td>#LVE-@leave.LeaveID.ToString("D3")</td>
                                             <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
                                             <td>@(leave.Employee != null ? ($"{leave.Employee.FirstName} {leave.Employee.LastName}") : "-")</td>
                                             <td><span class="badge bg-info">@leave.LeaveType.TypeName</span></td>

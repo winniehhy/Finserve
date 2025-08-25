@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace FinserveNew.Controllers
 {
@@ -41,7 +42,7 @@ namespace FinserveNew.Controllers
             {
                 return RedirectToAction("EmployeeDashboard");
             }
-            
+
             // If user has no recognized role, log them out instead of redirect loop
             return RedirectToAction("Logout", "Account");
         }
@@ -431,7 +432,7 @@ namespace FinserveNew.Controllers
                 ViewBag.TotalPayrollAmount = totalPayrollAmount;
                 ViewBag.TotalPayrolls = totalPayrolls;
                 ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
-                
+
                 ViewBag.PendingPayrolls = pendingPayrolls.Take(5).ToList();
                 ViewBag.RecentPayrollActivities = recentPayrollActivities.Take(5).ToList();
                 ViewBag.PayrollStatusSummary = payrollStatusList;
@@ -632,6 +633,366 @@ namespace FinserveNew.Controllers
         public IActionResult Error()
         {
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
+
+
+        // Export Employee Dashboard report to Admin view
+        [HttpPost]
+        [Authorize(Roles = "Employee")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExportEmployeeReport()
+        {
+            // Reuse same data assembly as EmployeeDashboard
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                TempData["Error"] = "Employee record not found.";
+                return RedirectToAction(nameof(EmployeeDashboard));
+            }
+
+            var currentYear = DateTime.Now.Year;
+            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId, currentYear);
+
+            double totalDaysUsed = 0, totalRemainingDays = 0, totalDefaultDays = 0;
+            foreach (var balance in leaveBalances)
+            {
+                dynamic lb = balance.Value as dynamic;
+                totalDaysUsed += Convert.ToDouble(lb.UsedDays);
+                totalRemainingDays += Convert.ToDouble(lb.RemainingDays);
+                totalDefaultDays += Convert.ToDouble(lb.DefaultDays);
+            }
+
+            var recentLeaves = await _context.Leaves
+                .Include(l => l.LeaveType)
+                .Where(l => l.EmployeeID == employeeId)
+                .OrderByDescending(l => l.CreatedDate)
+                .Take(5)
+                .ToListAsync();
+
+            var claims = await _context.Claims.Where(c => c.EmployeeID == employeeId && !c.IsDeleted).ToListAsync();
+            var recentClaims = claims.OrderByDescending(c => c.CreatedDate).Take(5).ToList();
+            var totalClaimsCount = claims.Count;
+            var approvedClaimsCount = claims.Count(c => c.Status == "Approved");
+            var pendingClaimsCount = claims.Count(c => c.Status == "Pending");
+            var totalClaimAmount = claims.Where(c => c.Status == "Approved").Sum(c => c.ClaimAmount);
+            var approvalRate = totalClaimsCount > 0 ? (approvedClaimsCount * 100.0 / totalClaimsCount) : 0;
+
+            // approved leaves calendar
+            var approvedLeaves = await _context.Leaves
+                .Where(l => l.EmployeeID == employeeId && l.Status == "Approved" && (l.StartDate.Year == currentYear || l.EndDate.Year == currentYear))
+                .ToListAsync();
+            var calendarData = new Dictionary<string, List<int>>();
+            for (int m = 1; m <= 12; m++) calendarData[$"{currentYear}-{m:D2}"] = new List<int>();
+            foreach (var leave in approvedLeaves)
+            {
+                for (var date = leave.StartDate; date <= leave.EndDate; date = date.AddDays(1))
+                {
+                    if (date.Year == currentYear) calendarData[$"{date.Year}-{date.Month:D2}"].Add(date.Day);
+                }
+            }
+            foreach (var k in calendarData.Keys.ToList()) calendarData[k] = calendarData[k].Distinct().OrderBy(d => d).ToList();
+
+            ViewBag.SubmitterName = User.Identity?.Name;
+            ViewBag.TotalClaims = totalClaimsCount;
+            ViewBag.ApprovedClaims = approvedClaimsCount;
+            ViewBag.PendingClaims = pendingClaimsCount;
+            ViewBag.ApprovalRate = Math.Round(approvalRate, 1);
+            ViewBag.TotalClaimAmount = totalClaimAmount;
+            ViewBag.RecentClaims = recentClaims;
+            ViewBag.LeaveBalances = leaveBalances;
+            ViewBag.RecentLeaves = recentLeaves;
+            ViewBag.CalendarData = calendarData;
+            ViewBag.TotalLeaveDaysUsed = Math.Round(totalDaysUsed, 1);
+            ViewBag.TotalRemainingLeave = Math.Round(totalRemainingDays, 1);
+            ViewBag.TotalDefaultDays = Math.Round(totalDefaultDays, 1);
+
+            // Persist the report so Admin can review later
+            var payload = new
+            {
+                SubmitterName = User.Identity?.Name,
+                EmployeeId = employeeId,
+                CreatedAt = DateTime.Now,
+                TotalClaims = totalClaimsCount,
+                ApprovedClaims = approvedClaimsCount,
+                PendingClaims = pendingClaimsCount,
+                ApprovalRate = Math.Round(approvalRate, 1),
+                TotalClaimAmount = totalClaimAmount,
+                RecentClaims = recentClaims,
+                LeaveBalances = leaveBalances,
+                RecentLeaves = recentLeaves,
+                CalendarData = calendarData,
+                TotalLeaveDaysUsed = Math.Round(totalDaysUsed, 1),
+                TotalRemainingLeave = Math.Round(totalRemainingDays, 1),
+                TotalDefaultDays = Math.Round(totalDefaultDays, 1)
+            };
+            PersistReport(payload, "employee");
+            TempData["Success"] = "Report exported and sent to Admin.";
+
+            return View("~/Views/Admins/Report/employee_report.cshtml");
+        }
+
+        // Export HR Dashboard report to Admin view
+        [HttpPost]
+        [Authorize(Roles = "HR")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExportHRReport()
+        {
+            // Build the same data used in HR dashboard
+            var claims = await _context.Claims
+                .Include(c => c.Employee)
+                .Where(c => !c.IsDeleted)
+                .OrderByDescending(c => c.CreatedDate)
+                .ToListAsync();
+            ViewBag.TotalPendingClaims = claims.Count(c => c.Status == "Pending");
+            ViewBag.TotalApprovedClaims = claims.Count(c => c.Status == "Approved");
+            ViewBag.TotalClaimAmount = claims.Where(c => c.Status == "Approved").Sum(c => c.ClaimAmount);
+            ViewBag.RecentClaimApplications = claims.Take(10).ToList();
+
+            var leaveApps = await _context.Leaves
+                .Include(l => l.Employee)
+                .Include(l => l.LeaveType)
+                .OrderByDescending(l => l.CreatedDate)
+                .ToListAsync();
+            ViewBag.TotalPendingLeaves = leaveApps.Count(l => l.Status == "Pending");
+            ViewBag.RecentLeaveApplications = leaveApps.Take(10).ToList();
+
+            // Calendar days for approved leaves this year
+            var currentYear = DateTime.Now.Year;
+            var approvedLeaves = leaveApps.Where(l => l.Status == "Approved" && (l.StartDate.Year == currentYear || l.EndDate.Year == currentYear)).ToList();
+            var calendarData = new Dictionary<string, List<int>>();
+            for (int m = 1; m <= 12; m++) calendarData[$"{currentYear}-{m:D2}"] = new List<int>();
+            foreach (var leave in approvedLeaves)
+            {
+                for (var date = leave.StartDate; date <= leave.EndDate; date = date.AddDays(1))
+                {
+                    if (date.Year == currentYear) calendarData[$"{date.Year}-{date.Month:D2}"].Add(date.Day);
+                }
+            }
+            foreach (var k in calendarData.Keys.ToList()) calendarData[k] = calendarData[k].Distinct().OrderBy(d => d).ToList();
+
+            ViewBag.CalendarData = calendarData;
+            ViewBag.SubmitterName = User.Identity?.Name;
+
+            var payload = new
+            {
+                SubmitterName = User.Identity?.Name,
+                CreatedAt = DateTime.Now,
+                TotalPendingClaims = ViewBag.TotalPendingClaims,
+                TotalApprovedClaims = ViewBag.TotalApprovedClaims,
+                TotalClaimAmount = ViewBag.TotalClaimAmount,
+                RecentClaimApplications = ViewBag.RecentClaimApplications,
+                TotalPendingLeaves = ViewBag.TotalPendingLeaves,
+                RecentLeaveApplications = ViewBag.RecentLeaveApplications,
+                CalendarData = calendarData
+            };
+            PersistReport(payload, "hr");
+            TempData["Success"] = "HR report exported and sent to Admin.";
+
+            return View("~/Views/Admins/Report/HR_report.cshtml");
+        }
+
+        // Admin menu - view HR report snapshot
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ViewHRReport()
+        {
+            var file = Request.Query["file"].ToString();
+            if (!string.IsNullOrEmpty(file))
+            {
+                if (LoadReport(file, out var json, "hr"))
+                {
+                    ApplyHrViewBag(json);
+                    return View("~/Views/Admins/Report/HR_report.cshtml");
+                }
+            }
+            return await ExportHRReport();
+        }
+
+        // Admin menu - view Employee report snapshot (optional filter by employeeId)
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ViewEmployeeReport(string? employeeId)
+        {
+            var file = Request.Query["file"].ToString();
+            if (!string.IsNullOrEmpty(file))
+            {
+                if (LoadReport(file, out var json, "employee"))
+                {
+                    ApplyEmployeeViewBag(json);
+                    return View("~/Views/Admins/Report/employee_report.cshtml");
+                }
+            }
+            // If no employee specified, just render an empty shell with recent items
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                ViewBag.SubmitterName = "(Employee Report Preview)";
+                ViewBag.TotalClaims = 0;
+                ViewBag.ApprovedClaims = 0;
+                ViewBag.PendingClaims = 0;
+                ViewBag.ApprovalRate = 0.0;
+                ViewBag.TotalClaimAmount = 0m;
+                ViewBag.RecentClaims = new List<Claim>();
+                ViewBag.LeaveBalances = new Dictionary<string, object>();
+                ViewBag.RecentLeaves = new List<LeaveModel>();
+                ViewBag.CalendarData = new Dictionary<string, List<int>>();
+                ViewBag.TotalLeaveDaysUsed = 0.0;
+                ViewBag.TotalRemainingLeave = 0.0;
+                ViewBag.TotalDefaultDays = 0.0;
+                return View("~/Views/Admins/Report/employee_report.cshtml");
+            }
+
+            // Otherwise, build report for specified employee
+            var currentYear = DateTime.Now.Year;
+            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId, currentYear);
+
+            double totalDaysUsed = 0, totalRemainingDays = 0, totalDefaultDays = 0;
+            foreach (var balance in leaveBalances)
+            {
+                dynamic lb = balance.Value as dynamic;
+                totalDaysUsed += Convert.ToDouble(lb.UsedDays);
+                totalRemainingDays += Convert.ToDouble(lb.RemainingDays);
+                totalDefaultDays += Convert.ToDouble(lb.DefaultDays);
+            }
+
+            var recentLeaves = await _context.Leaves
+                .Include(l => l.LeaveType)
+                .Where(l => l.EmployeeID == employeeId)
+                .OrderByDescending(l => l.CreatedDate)
+                .Take(5)
+                .ToListAsync();
+
+            var claims = await _context.Claims.Where(c => c.EmployeeID == employeeId && !c.IsDeleted).ToListAsync();
+            var recentClaims = claims.OrderByDescending(c => c.CreatedDate).Take(5).ToList();
+            var totalClaimsCount = claims.Count;
+            var approvedClaimsCount = claims.Count(c => c.Status == "Approved");
+            var pendingClaimsCount = claims.Count(c => c.Status == "Pending");
+            var totalClaimAmount = claims.Where(c => c.Status == "Approved").Sum(c => c.ClaimAmount);
+            var approvalRate = totalClaimsCount > 0 ? (approvedClaimsCount * 100.0 / totalClaimsCount) : 0;
+
+            var approvedLeaves = await _context.Leaves
+                .Where(l => l.EmployeeID == employeeId && l.Status == "Approved" && (l.StartDate.Year == currentYear || l.EndDate.Year == currentYear))
+                .ToListAsync();
+            var calendarData = new Dictionary<string, List<int>>();
+            for (int m = 1; m <= 12; m++) calendarData[$"{currentYear}-{m:D2}"] = new List<int>();
+            foreach (var leave in approvedLeaves)
+            {
+                for (var date = leave.StartDate; date <= leave.EndDate; date = date.AddDays(1))
+                {
+                    if (date.Year == currentYear) calendarData[$"{date.Year}-{date.Month:D2}"].Add(date.Day);
+                }
+            }
+            foreach (var k in calendarData.Keys.ToList()) calendarData[k] = calendarData[k].Distinct().OrderBy(d => d).ToList();
+
+            var emp = await _context.Employees.FirstOrDefaultAsync(e => e.EmployeeID == employeeId);
+            ViewBag.SubmitterName = emp != null ? $"{emp.FirstName} {emp.LastName}" : employeeId;
+            ViewBag.TotalClaims = totalClaimsCount;
+            ViewBag.ApprovedClaims = approvedClaimsCount;
+            ViewBag.PendingClaims = pendingClaimsCount;
+            ViewBag.ApprovalRate = Math.Round(approvalRate, 1);
+            ViewBag.TotalClaimAmount = totalClaimAmount;
+            ViewBag.RecentClaims = recentClaims;
+            ViewBag.LeaveBalances = leaveBalances;
+            ViewBag.RecentLeaves = recentLeaves;
+            ViewBag.CalendarData = calendarData;
+            ViewBag.TotalLeaveDaysUsed = Math.Round(totalDaysUsed, 1);
+            ViewBag.TotalRemainingLeave = Math.Round(totalRemainingDays, 1);
+            ViewBag.TotalDefaultDays = Math.Round(totalDefaultDays, 1);
+
+            return View("~/Views/Admins/Report/employee_report.cshtml");
+        }
+
+        [Authorize(Roles = "Admin")]
+        public IActionResult EmployeeReportsList()
+        {
+            var list = ListReports("employee");
+            return View("~/Views/Admins/Report/EmployeeReportsList.cshtml", list);
+        }
+
+        [Authorize(Roles = "Admin")]
+        public IActionResult HRReportsList()
+        {
+            var list = ListReports("hr");
+            return View("~/Views/Admins/Report/HRReportsList.cshtml", list);
+        }
+
+        private class ReportIndexItem
+        {
+            public string File { get; set; } = string.Empty;
+            public string Submitter { get; set; } = string.Empty;
+            public DateTime CreatedAt { get; set; }
+            public string Type { get; set; } = string.Empty;
+            public string? EmployeeId { get; set; }
+        }
+
+        private List<object> ListReports(string type)
+        {
+            var root = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reports", type);
+            Directory.CreateDirectory(root);
+            var items = new List<object>();
+            foreach (var f in Directory.GetFiles(root, "*.json").OrderByDescending(p => p))
+            {
+                if (LoadReport(Path.GetFileName(f), out var json, type))
+                {
+                    var submitter = json.TryGetProperty("SubmitterName", out var s) ? s.GetString() ?? "-" : "-";
+                    var created = json.TryGetProperty("CreatedAt", out var c) && c.ValueKind == JsonValueKind.String ? DateTime.Parse(c.GetString()) : System.IO.File.GetCreationTime(f);
+                    var empId = json.TryGetProperty("EmployeeId", out var e) ? e.GetString() : null;
+                    items.Add(new { File = Path.GetFileName(f), Submitter = submitter, CreatedAt = created, Type = type, EmployeeId = empId });
+                }
+            }
+            return items;
+        }
+
+        private void PersistReport(object payload, string type)
+        {
+            var root = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reports", type);
+            Directory.CreateDirectory(root);
+            var file = $"{DateTime.Now:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}.json";
+            var full = Path.Combine(root, file);
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+            System.IO.File.WriteAllText(full, json);
+        }
+
+        private bool LoadReport(string file, out JsonElement json, string type)
+        {
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reports", type);
+            var full = Path.Combine(folder, file);
+            if (!System.IO.File.Exists(full))
+            {
+                json = default;
+                return false;
+            }
+            using var doc = JsonDocument.Parse(System.IO.File.ReadAllText(full));
+            json = doc.RootElement.Clone();
+            return true;
+        }
+
+        private void ApplyEmployeeViewBag(JsonElement json)
+        {
+            ViewBag.SubmitterName = json.GetProperty("SubmitterName").GetString();
+            ViewBag.TotalClaims = json.GetProperty("TotalClaims").GetInt32();
+            ViewBag.ApprovedClaims = json.GetProperty("ApprovedClaims").GetInt32();
+            ViewBag.PendingClaims = json.GetProperty("PendingClaims").GetInt32();
+            ViewBag.ApprovalRate = json.GetProperty("ApprovalRate").GetDouble();
+            ViewBag.TotalClaimAmount = json.GetProperty("TotalClaimAmount").GetDecimal();
+            ViewBag.RecentClaims = JsonSerializer.Deserialize<List<Claim>>(json.GetProperty("RecentClaims").GetRawText()) ?? new List<Claim>();
+            ViewBag.LeaveBalances = JsonSerializer.Deserialize<Dictionary<string, object>>(json.GetProperty("LeaveBalances").GetRawText()) ?? new Dictionary<string, object>();
+            ViewBag.RecentLeaves = JsonSerializer.Deserialize<List<LeaveModel>>(json.GetProperty("RecentLeaves").GetRawText()) ?? new List<LeaveModel>();
+            ViewBag.CalendarData = JsonSerializer.Deserialize<Dictionary<string, List<int>>>(json.GetProperty("CalendarData").GetRawText()) ?? new Dictionary<string, List<int>>();
+            ViewBag.TotalLeaveDaysUsed = json.GetProperty("TotalLeaveDaysUsed").GetDouble();
+            ViewBag.TotalRemainingLeave = json.GetProperty("TotalRemainingLeave").GetDouble();
+            ViewBag.TotalDefaultDays = json.GetProperty("TotalDefaultDays").GetDouble();
+        }
+
+        private void ApplyHrViewBag(JsonElement json)
+        {
+            ViewBag.SubmitterName = json.GetProperty("SubmitterName").GetString();
+            ViewBag.TotalPendingClaims = json.GetProperty("TotalPendingClaims").GetInt32();
+            ViewBag.TotalApprovedClaims = json.GetProperty("TotalApprovedClaims").GetInt32();
+            ViewBag.TotalClaimAmount = json.GetProperty("TotalClaimAmount").GetDecimal();
+            ViewBag.RecentClaimApplications = JsonSerializer.Deserialize<List<Claim>>(json.GetProperty("RecentClaimApplications").GetRawText()) ?? new List<Claim>();
+            ViewBag.TotalPendingLeaves = json.GetProperty("TotalPendingLeaves").GetInt32();
+            ViewBag.RecentLeaveApplications = JsonSerializer.Deserialize<List<LeaveModel>>(json.GetProperty("RecentLeaveApplications").GetRawText()) ?? new List<LeaveModel>();
+            ViewBag.CalendarData = JsonSerializer.Deserialize<Dictionary<string, List<int>>>(json.GetProperty("CalendarData").GetRawText()) ?? new Dictionary<string, List<int>>();
         }
     }
 }

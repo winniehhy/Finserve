@@ -132,7 +132,7 @@
                                     @foreach (var claim in Model.Where(c => c.Status == "Approved"))
                                     {
                                         <tr>
-                                            <td><strong>@claim.DisplayClaimId</strong></td>
+                                            <td>@claim.DisplayClaimId</td>
                                             <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
                                             <td>@(claim.Employee != null ? ($"{claim.Employee.FirstName} {claim.Employee.LastName}") : "-")</td>
                                             <td><span class="badge bg-info">@claim.ClaimType</span></td>
@@ -186,7 +186,7 @@
                                     @foreach (var claim in Model.Where(c => c.Status == "Rejected"))
                                     {
                                         <tr>
-                                            <td><strong>@claim.DisplayClaimId</strong></td>
+                                            <td>@claim.DisplayClaimId</td>
                                             <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
                                             <td>@(claim.Employee != null ? ($"{claim.Employee.FirstName} {claim.Employee.LastName}") : "-")</td>
                                             <td><span class="badge bg-info">@claim.ClaimType</span></td>

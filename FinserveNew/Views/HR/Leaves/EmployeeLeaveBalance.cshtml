@@ -262,7 +262,7 @@
             else
             {
                 <!-- Show all employees' balances -->
-                @if (ViewBag.Employees != null && ViewBag.AllEmployeeBalances != null)
+                if (ViewBag.Employees != null && ViewBag.AllEmployeeBalances != null)
                 {
                     var employees = ViewBag.Employees as IEnumerable<dynamic>;
                     var allBalances = ViewBag.AllEmployeeBalances as Dictionary<string, Dictionary<string, object>>;
@@ -289,7 +289,7 @@
                                         
                                         @if (employeeBalances != null)
                                         {
-                                            @foreach (var leaveType in new[] { "Annual Leave", "Medical Leave", "Hospitalization Leave" })
+                                            foreach (var leaveType in new[] { "Annual Leave", "Medical Leave", "Hospitalization Leave" })
                                             {
                                                 if (employeeBalances.ContainsKey(leaveType))
                                                 {
