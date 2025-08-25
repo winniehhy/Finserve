@@ -209,7 +209,7 @@
                                         @foreach (var leave in leaveApplications)
                                         {
                                             <tr>
-                                                <td>#@leave.LeaveID</td>
+                                                <td>#LVE-@leave.LeaveID</td>
                                                 <td>@leave.LeaveType.TypeName</td>
                                                 <td>@leave.StartDate.ToString("dd/MM/yyyy")</td>
                                                 <td>@leave.EndDate.ToString("dd/MM/yyyy")</td>

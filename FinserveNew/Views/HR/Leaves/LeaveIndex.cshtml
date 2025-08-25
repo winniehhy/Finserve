@@ -70,6 +70,7 @@
                         <tr>
                             <th>Leave ID</th>
                             <th>Employee ID</th>
+                            <th>Employee Name</th>
                             <th>Leave Type</th>
                             <th>Start Date</th>
                             <th>End Date</th>
@@ -83,9 +84,10 @@
                                     @foreach (var leave in Model.Where(l => l.Status == "Pending"))
                                     {
                                         <tr>
-                                            <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
+                                            <td>#LVE-@leave.LeaveID.ToString("D3")</td>
                                             <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
-                                            <td><span class="badge bg-primary text-dark">@leave.LeaveType.TypeName</span></td>
+                                            <td>@(leave.Employee != null ? ($"{leave.Employee.FirstName} {leave.Employee.LastName}") : "-")</td>
+                                            <td> <span class="badge bg-info">@leave.LeaveType.TypeName</span></td>
                                             <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
                                             <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
                                             <td>
@@ -132,6 +134,7 @@
                                     <tr>
                                         <th>Leave ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Leave Type</th>
                                         <th>Start Date</th>
                                         <th>End Date</th>
@@ -147,18 +150,32 @@
                                         <tr>
                                             <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
                                             <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
-                                            <td><span class="badge bg-primary text-dark">@leave.LeaveType.TypeName</span></td>
+                                            <td>@(leave.Employee != null ? ($"{leave.Employee.FirstName} {leave.Employee.LastName}") : "-")</td>
+                                            <td><span class="badge bg-info">@leave.LeaveType.TypeName</span></td>
                                             <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
                                             <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
                                             <td>
                                                 <strong class="text-success">
                                                     @{
-                                                        var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
+                var duration = leave.LeaveDays > 0 ? leave.LeaveDays : leave.CalculatedLeaveDays;
                                                     }
                                                     @duration day@(duration != 1 ? "s" : "")
                                                 </strong>
                                             </td>
-                                            <td><span class="badge bg-success">@leave.Status</span></td>
+                                            <td>
+                                                @if (leave.Status == "Pending")
+                                                {
+                                                <span class="badge bg-warning">@leave.Status</span>
+                                                    }
+                                                else if (leave.Status == "Approved")
+                                                {
+                                                <span class="badge bg-success">@leave.Status</span>
+                                                    }
+                                                else
+                                               {
+                                                <span class="badge bg-danger">@leave.Status</span>
+                                                    }
+                                            </td>
                                             <td>@(leave.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewLeave(@leave.LeaveID)">
@@ -189,6 +206,7 @@
                                     <tr>
                                         <th>Leave ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Leave Type</th>
                                         <th>Start Date</th>
                                         <th>End Date</th>
@@ -204,7 +222,8 @@
                                         <tr>
                                             <td><strong>#LVE-@leave.LeaveID.ToString("D3")</strong></td>
                                             <td><span class="badge bg-secondary">@leave.EmployeeID</span></td>
-                                            <td><span class="badge bg-primary text-dark">@leave.LeaveType.TypeName</span></td>
+                                            <td>@(leave.Employee != null ? ($"{leave.Employee.FirstName} {leave.Employee.LastName}") : "-")</td>
+                                            <td><span class="badge bg-info">@leave.LeaveType.TypeName</span></td>
                                             <td>@leave.StartDate.ToString("dd MMM yyyy")</td>
                                             <td>@leave.EndDate.ToString("dd MMM yyyy")</td>
                                             <td>

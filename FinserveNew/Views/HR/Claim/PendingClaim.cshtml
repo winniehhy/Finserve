@@ -73,8 +73,8 @@
                                 <tr class="@(daysPending > 7 ? "table-warning" : "")">
                                     <td><strong>#CLM-@claim.Id.ToString("D3")</strong></td>
                                     <td><span class="badge bg-secondary">@claim.EmployeeID</span></td>
-                                    <td><span class="badge bg-primary text-dark">@claim.ClaimType</span></td>
-                                    <td><strong>RM @claim.ClaimAmount.ToString("F2")</strong></td>
+                                    <td><span class="badge bg-info">@claim.ClaimType</span></td>
+                                    <td><strong>@claim.DisplayAmount</strong></td>
                                     <td>
                                         <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
                                             @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)

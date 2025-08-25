@@ -129,7 +129,6 @@
             </div>
 
             <!-- Recent Claims -->
-            <!-- Recent Claims - FIXED VERSION -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
@@ -157,7 +156,7 @@
                                 @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaims)
                         {
                                 <tr>
-                                    <td>#@claim.Id</td>
+                                    <td>#CLM-@claim.Id</td>
                                     <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
                                     <td>
                                         <span class="badge bg-info">@claim.ClaimType</span>
@@ -230,6 +229,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th>Leave ID</th>
                                     <th>Leave Type</th>
                                     <th>From</th>
                                     <th>To</th>
@@ -243,7 +243,10 @@
                                     {
                                         var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                                 <tr>
-                                    <td>@(leave.LeaveType?.TypeName ?? "N/A")</td>
+                                    <td>#LVE-@leave.LeaveID</td>
+                                    <td>
+                                        <span class="badge bg-info">@(leave.LeaveType?.TypeName ?? "N/A")</span>
+                                    </td>
                                     <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
                                     <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
                                     <td>@duration days</td>

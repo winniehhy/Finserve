@@ -188,7 +188,7 @@
                                 @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaimApplications)
                                     {
                                 <tr>
-                                    <td>#CLM-@claim.Id.ToString("D3")</td>
+                                    <td>@claim.DisplayClaimId</td>
                                     <td>
                                         @if (claim.Employee != null)
                                                 {
@@ -201,7 +201,7 @@
                                     </td>
                                     <td>@claim.CreatedDate.ToString("dd MMM, yyyy")</td>
                                     <td>
-                                        <span class="badge bg-light-blue text-dark">@claim.ClaimType</span>
+                                        <span class="badge bg-info">@claim.ClaimType</span>
                                     </td>
                                     <td><strong class="text-primary">@claim.DisplayAmount</strong></td>
                                     <td>
@@ -272,7 +272,7 @@
                                                 }
                                     </td>
                                     <td>
-                                        <span class="badge bg-light-blue text-dark">@(leave.LeaveType?.TypeName ?? "N/A")</span>
+                                        <span class="badge bg-info">@(leave.LeaveType?.TypeName ?? "N/A")</span>
                                     </td>
                                     <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
                                     <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>

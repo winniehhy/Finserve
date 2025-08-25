@@ -113,7 +113,7 @@
                         <div id="invoiceItems">
                             @if (Model.InvoiceItems != null && Model.InvoiceItems.Any())
                             {
-                                @for (int i = 0; i < Model.InvoiceItems.Count; i++)
+                                for (int i = 0; i < Model.InvoiceItems.Count; i++)
                                 {
                                     <div class="row invoice-item mb-2" data-index="@i">
                                         <div class="col-md-4">
@@ -515,10 +515,10 @@
             doc.setFillColor(240, 240, 240);
             doc.rect(20, startY, 170, 10, 'F');
 
-            doc.text('Item Description', 25, startY + 7);
-            doc.text('Quantity', 110, startY + 7);
-            doc.text('Price', 135, startY + 7);
-            doc.text('Amount', 160, startY + 7);
+            doc.text('Description', 25, startY + 7);
+            doc.text('Qty', 110, startY + 7);
+            doc.text('Unit Price', 135, startY + 7);
+            doc.text('Total', 165, startY + 7);
 
             // Table rows
             doc.setFont(undefined, 'normal');
@@ -530,42 +530,56 @@
                 doc.text(item.description, 25, currentY + 7);
                 doc.text(item.quantity.toString(), 110, currentY + 7);
                 doc.text(`${currencySymbol} ${parseFloat(item.price).toFixed(2)}`, 135, currentY + 7);
-                doc.text(`${currencySymbol} ${parseFloat(item.amount).toFixed(2)}`, 160, currentY + 7);
+                doc.text(`${currencySymbol} ${parseFloat(item.amount).toFixed(2)}`, 165, currentY + 7);
                 currentY += 10;
                 subtotal += parseFloat(item.amount);
             });
 
-            // Add empty rows if needed
-            for (let i = data.items.length; i < 5; i++) {
+            // Add empty rows if needed (minimum 3 rows for better spacing)
+            for (let i = data.items.length; i < 3; i++) {
                 doc.rect(20, currentY, 170, 10);
                 currentY += 10;
             }
 
-            // Totals section
-            currentY += 10;
+            // Totals section - Fixed spacing and alignment
+            currentY += 15;
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(12);
+
+            // Right-align the totals section
+            doc.text('Subtotal:', 135, currentY);
+            doc.text(`${currencySymbol} ${subtotal.toFixed(2)}`, 165, currentY);
+
+            currentY += 15;
             doc.setFont(undefined, 'bold');
-            doc.text('Subtotal', 135, currentY);
-            doc.text(`${currencySymbol} ${subtotal.toFixed(2)}`, 160, currentY);
-
-            currentY += 10;
-            doc.text('Tax', 135, currentY);
-            doc.text(`${currencySymbol} 0.00`, 160, currentY);
-
-            currentY += 10;
             doc.setFontSize(14);
-            doc.text('BALANCE DUE', 135, currentY);
-            doc.text(`${currencySymbol} ${parseFloat(data.totalAmount).toFixed(2)}`, 160, currentY);
+
+            // Create a clear separation for the total amount
+            doc.text('TOTAL AMOUNT:', 105, currentY);
+            doc.text(`${currencySymbol}${parseFloat(data.totalAmount).toFixed(2)}`, 165, currentY);
 
             // Notes section
             if (data.remark) {
-                currentY += 20;
+                currentY += 25;
                 doc.setFontSize(12);
-                doc.text('Notes', 20, currentY);
+                doc.setFont(undefined, 'bold');
+                doc.text('Notes:', 20, currentY);
 
                 doc.rect(20, currentY + 5, 170, 30);
                 doc.setFontSize(10);
-                doc.text(data.remark, 25, currentY + 15);
+                doc.setFont(undefined, 'normal');
+
+                // Handle long text by splitting it into multiple lines
+                const splitText = doc.splitTextToSize(data.remark, 160);
+                doc.text(splitText, 25, currentY + 15);
             }
+
+            // Thank you message
+            currentY += (data.remark ? 45 : 25);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'italic');
+            doc.text('Thank you for your business!', 20, currentY);
+            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 150, currentY);
         }
 
         function downloadPDF() {
