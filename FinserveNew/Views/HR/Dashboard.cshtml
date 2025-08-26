@@ -16,12 +16,7 @@
                 <p class="page-subtitle">Welcome back, @User.Identity.Name | @ViewBag.CurrentMonth</p>
             </div>
             <div class="d-flex gap-2">
-                <form method="post" action="@Url.Action("ExportHRReport", "Home")" class="d-inline">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="btn btn-outline-primary" title="This will be sent to Admin for review">
-                        <i class="fas fa-download me-2"></i>Export Report
-                    </button>
-                </form>
+
                 <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <i class="fas fa-plus me-2"></i>Quick Action
@@ -491,10 +486,7 @@
             alert(`Employees on leave for ${formattedDate}:\n\n${leavesList}`);
         }
 
-        // Export report functionality
-        function exportReport() {
-            alert('HR Report export functionality will be implemented soon!');
-        }
+        
 
         // Notification functions (similar to employee dashboard)
         let readNotifications = JSON.parse(localStorage.getItem('hr_readNotifications') || '[]');

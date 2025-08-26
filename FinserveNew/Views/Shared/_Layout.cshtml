@@ -98,31 +98,8 @@
                             Invoice Management
                         </a>
                     </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("ViewHRReport", "Home")" class="menu-link @(currentController == "Home" && currentAction == "ViewHRReport" ? "active" : "")">
-                            <i class="fas fa-file-alt menu-icon"></i>
-                            HR Reports
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("ViewEmployeeReport", "Home")" class="menu-link @(currentController == "Home" && currentAction == "ViewEmployeeReport" ? "active" : "")">
-                            <i class="fas fa-file-signature menu-icon"></i>
-                            Employee Reports
-                        </a>
-                    </li>
-                    @* <li class="menu-item">
-                        <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
-                            <i class="fas fa-check-circle menu-icon"></i>
-                            <span>Approve Payrolls</span>
-                            @{
-                                var pendingCount = await Component.InvokeAsync("PendingPayrollCount");
-                                if (pendingCount != null && int.TryParse(pendingCount.ToString(), out int count) && count > 0)
-                                {
-                                    <span class="badge bg-danger ms-2">@count</span>
-                                }
-                            }
-                        </a>
-                    </li> *@
+                    
+                    
                 }
 
                 <!-- Senior HR Only Sections -->

@@ -8,7 +8,7 @@
     <!-- Page Header -->
     <div class="page-header">
         <div class="d-flex justify-content-between align-items-center">
-    <div>
+            <div>
                 <h1 class="page-title">
                     <i class="fas fa-user-shield me-2"></i>
                     Admin Dashboard
@@ -22,14 +22,11 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="@Url.Action("Create", "Invoice")">Create Invoice</a></li>
-                        <li><a class="dropdown-item" href="@Url.Action("InvoiceRecord", "Invoice")">Manage Invoices</a></li>
-                        <li><a class="dropdown-item" href="@Url.Action("AllAccounts", "Employees")">Manage Employees</a></li>
-                        <li><a class="dropdown-item" href="@Url.Action("Dashboard", "Payroll")">Process Payroll</a></li>
                     </ul>
                 </div>
             </div>
+        </div>
     </div>
-</div>
 
     <!-- Quick Stats Cards -->
     <div class="row mb-4">
@@ -44,9 +41,9 @@
                     <div class="stat-change positive">
                         <i class="fas fa-check-circle"></i> @ViewBag.Paid completed
                     </div>
+                </div>
             </div>
         </div>
-    </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stat-card">
@@ -60,9 +57,9 @@
                         <i class="fas fa-@(ViewBag.Pending > 5 ? "exclamation-triangle" : "hourglass-half")"></i>
                         @(ViewBag.Pending > 5 ? "Needs attention" : "Under control")
                     </div>
+                </div>
             </div>
         </div>
-    </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stat-card">
@@ -75,9 +72,9 @@
                     <div class="stat-change neutral">
                         <i class="fas fa-envelope"></i> Awaiting payment
                     </div>
+                </div>
             </div>
         </div>
-    </div>
 
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="stat-card">
@@ -90,14 +87,14 @@
                     <div class="stat-change positive">
                         <i class="fas fa-chart-line"></i> Monthly revenue
                     </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
     <!-- Main Content Grid -->
     <div class="row">
-        <!-- Left Column -->
+        <!-- Left Column - Main Content -->
         <div class="col-lg-8">
             <!-- Quick Actions -->
             <div class="card mb-4">
@@ -106,9 +103,9 @@
                         <i class="fas fa-bolt me-2"></i>Quick Actions
                     </h5>
                 </div>
-            <div class="card-body">
+                <div class="card-body">
                     <div class="row">
-                        <div class="col-md-3 mb-3">
+                        <div class="col-md-6 mb-3">
                             <a href="@Url.Action("Create", "Invoice")" class="quick-action-btn">
                                 <div class="quick-action-icon bg-primary">
                                     <i class="fas fa-plus"></i>
@@ -119,7 +116,7 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="col-md-3 mb-3">
+                        <div class="col-md-6 mb-3">
                             <a href="@Url.Action("InvoiceRecord", "Invoice")" class="quick-action-btn">
                                 <div class="quick-action-icon bg-warning">
                                     <i class="fas fa-list-alt"></i>
@@ -130,61 +127,39 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="@Url.Action("AllAccounts", "Employees")" class="quick-action-btn">
-                                <div class="quick-action-icon bg-info">
-                                    <i class="fas fa-users"></i>
-                                </div>
-                                <div class="quick-action-content">
-                                    <h6>Manage Users</h6>
-                                    <p>User administration</p>
-                                </div>
-                            </a>
+                    </div>
+                </div>
             </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="#" class="quick-action-btn" onclick="showSystemSettings()">
-                                <div class="quick-action-icon bg-success">
-                                    <i class="fas fa-cog"></i>
-        </div>
-                                <div class="quick-action-content">
-                                    <h6>System Settings</h6>
-                                    <p>Configure system</p>
-    </div>
-                            </a>
-            </div>
-        </div>
-    </div>
-</div>
 
             <!-- Recent Invoices -->
-<div class="card">
+            <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-file-invoice me-2"></i>Recent Invoices
                     </h5>
                     <a href="@Url.Action("InvoiceRecord", "Invoice")" class="btn btn-sm btn-outline-primary">View All</a>
-    </div>
-    <div class="card-body">
+                </div>
+                <div class="card-body">
                     @if (ViewBag.RecentInvoices != null && ((IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices).Any())
-        {
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                                    <th>Invoice #</th>
-                            <th>Client</th>
+                    {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice ID</th>
+                                    <th>Client</th>
                                     <th>Issue Date</th>
-                            <th>Amount</th>
-                            <th>Status</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
                                     <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var inv in (IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices)
-                        {
-                            <tr>
-                                    <td><strong>@inv.InvoiceNumber</strong></td>
-                                <td>@inv.ClientName</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var inv in (IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices)
+                                    {
+                                <tr>
+                                    <td>@inv.InvoiceNumber</td>
+                                    <td>@inv.ClientName</td>
                                     <td>@inv.IssueDate.ToString("dd MMM, yyyy")</td>
                                     <td><strong class="text-primary">@inv.FormattedAmount</strong></td>
                                     <td>
@@ -194,15 +169,15 @@
                                     </td>
                                     <td>
                                         <a href="@Url.Action("Details", "Invoice", new { id = inv.InvoiceID })" class="btn btn-sm btn-outline-primary">View</a>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
+                                    </td>
+                                </tr>
+                                    }
+                            </tbody>
+                        </table>
+                    </div>
+                    }
+                    else
+                    {
                     <div class="text-center py-4">
                         <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
                         <p class="text-muted">No recent invoices</p>
@@ -213,7 +188,7 @@
             </div>
         </div>
 
-        <!-- Right Column -->
+        <!-- Right Column - Sidebar -->
         <div class="col-lg-4">
             <!-- Invoice Status Distribution -->
             <div class="card mb-4">
@@ -229,45 +204,45 @@
                         var sent = (int)(ViewBag.Sent ?? 0);
                         var paid = (int)(ViewBag.Paid ?? 0);
                     }
-                    
+
                     @if (totalInvoices > 0)
                     {
-                        <div class="status-item mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Paid</span>
-                                <span class="fw-bold">@paid invoices</span>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar bg-success" style="width: @((paid * 100.0 / totalInvoices))%"></div>
-                            </div>
+                    <div class="status-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Paid</span>
+                            <span class="fw-bold">@paid invoices</span>
                         </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: @((paid * 100.0 / totalInvoices))%"></div>
+                        </div>
+                    </div>
 
-                        <div class="status-item mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Sent</span>
-                                <span class="fw-bold">@sent invoices</span>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar bg-info" style="width: @((sent * 100.0 / totalInvoices))%"></div>
-                            </div>
+                    <div class="status-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Sent</span>
+                            <span class="fw-bold">@sent invoices</span>
                         </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" style="width: @((sent * 100.0 / totalInvoices))%"></div>
+                        </div>
+                    </div>
 
-                        <div class="status-item mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Pending</span>
-                                <span class="fw-bold">@pending invoices</span>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar bg-warning" style="width: @((pending * 100.0 / totalInvoices))%"></div>
-                            </div>
+                    <div class="status-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Pending</span>
+                            <span class="fw-bold">@pending invoices</span>
                         </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: @((pending * 100.0 / totalInvoices))%"></div>
+                        </div>
+                    </div>
                     }
                     else
                     {
-                        <p class="text-muted text-center">No invoice data available</p>
-        }
-    </div>
-</div>
+                    <p class="text-muted text-center">No invoice data available</p>
+                    }
+                </div>
+            </div>
 
             <!-- Outstanding Amount Card -->
             <div class="card mb-4">
@@ -321,7 +296,7 @@
 @section Scripts {
     <script>
         // Admin Dashboard functionality
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadReadNotifications();
         });
 
@@ -339,7 +314,7 @@
         let readNotifications = JSON.parse(localStorage.getItem('admin_readNotifications') || '[]');
 
         function loadReadNotifications() {
-            readNotifications.forEach(function(notificationId) {
+            readNotifications.forEach(function (notificationId) {
                 const notification = document.querySelector(`[data-id="${notificationId}"]`);
                 if (notification) {
                     notification.style.display = 'none';
@@ -368,7 +343,7 @@
         function markAllAsRead() {
             const notifications = document.querySelectorAll('.notification-item');
 
-            notifications.forEach(function(notification) {
+            notifications.forEach(function (notification) {
                 const id = notification.getAttribute('data-id');
                 if (id && !readNotifications.includes(id)) {
                     readNotifications.push(id);
@@ -402,9 +377,9 @@
                     emptyState.id = 'noNotifications';
                     emptyState.className = 'text-center py-3';
                     emptyState.innerHTML = `
-                        <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
-                        <p class="text-muted">All caught up! No urgent notifications.</p>
-                    `;
+                            <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                            <p class="text-muted">All caught up! No urgent notifications.</p>
+                        `;
                     if (container) container.appendChild(emptyState);
                 } else {
                     emptyState.style.display = 'block';
@@ -421,22 +396,22 @@
         .display-6 {
             font-size: 2rem;
         }
-        
+
         /* Status badge overrides for invoices */
         .badge.bg-success {
             background-color: #198754 !important;
         }
-        
+
         .badge.bg-warning {
             background-color: #ffc107 !important;
             color: #000 !important;
         }
-        
+
         .badge.bg-info {
             background-color: #0dcaf0 !important;
             color: #000 !important;
         }
-        
+
         .badge.bg-danger {
             background-color: #dc3545 !important;
         }
