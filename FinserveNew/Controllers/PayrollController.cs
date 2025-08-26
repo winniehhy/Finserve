@@ -829,10 +829,15 @@ namespace FinserveNew.Controllers
                 //TotalEmployerCost = existingPayroll.TotalEmployerCost
             };
 
+            var employee = await _context.Employees
+                .Include(e => e.BankInformation)
+                .Include(e => e.Role)
+                .FirstOrDefaultAsync(e => e.EmployeeID == employeeId);
+
             // Pass additional data for the view
             ViewBag.CurrentPayrollStatus = existingPayroll.PaymentStatus;
             ViewBag.PayrollID = existingPayroll.PayrollID;
-            ViewBag.Employee = existingPayroll.Employee;
+            ViewBag.Employee = employee;
             ViewBag.IsReadOnly = true;
             
             // Get rejection reason if payroll was rejected
