@@ -55,10 +55,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Views\Admins\Payroll\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="wwwroot\css\layout.css" />
     <None Include="wwwroot\js\layout.js" />
   </ItemGroup>

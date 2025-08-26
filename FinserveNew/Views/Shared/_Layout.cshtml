@@ -76,7 +76,19 @@
             @{
                     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
                     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+<<<<<<< HEAD
             }
+=======
+                }
+                
+                <!-- Main Dashboard -->
+                <li class="menu-item">
+                    <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" ? "active" : "")">
+                        <i class="fas fa-tachometer-alt menu-icon"></i>
+                        Dashboard
+                    </a>
+                </li>
+>>>>>>> b4ce959ca9aa6d80f9a2944a810c5de4629122d0
 
             <!-- Main Dashboard -->
             <li class="menu-item">
