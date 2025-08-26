@@ -76,23 +76,11 @@
             @{
                     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
                     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
-<<<<<<< HEAD
             }
-=======
-                }
-                
-                <!-- Main Dashboard -->
-                <li class="menu-item">
-                    <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" ? "active" : "")">
-                        <i class="fas fa-tachometer-alt menu-icon"></i>
-                        Dashboard
-                    </a>
-                </li>
->>>>>>> b4ce959ca9aa6d80f9a2944a810c5de4629122d0
 
             <!-- Main Dashboard -->
             <li class="menu-item">
-                <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" && currentAction == "Index" ? "active" : "")">
+                <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" ? "active" : "")">
                     <i class="fas fa-tachometer-alt menu-icon"></i>
                     Dashboard
                 </a>
@@ -131,12 +119,12 @@
                     <span class="badge bg-danger ms-4" id="pending-payroll-badge" style="display: none;">0</span>
                 </a>
             </li>
-            <li class="menu-item">
+            @* <li class="menu-item">
                 <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
                     <i class="fas fa-users menu-icon"></i>
                     Employee Management
                 </a>
-            </li>
+            </li> *@
                 }
 
             <!-- HR Only Sections -->
@@ -241,6 +229,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.3/jquery.validate.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="~/js/layout.js"></script>
 
     <!-- Pending Payroll Count Script -->

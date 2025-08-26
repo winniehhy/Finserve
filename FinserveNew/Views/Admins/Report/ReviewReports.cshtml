@@ -2,9 +2,10 @@
     ViewData["Title"] = "Review Reports";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    dynamic invoiceSummary = ViewBag.InvoiceSummary ?? new { TotalInvoices = 0, PaidAmount = 0m, PendingAmount = 0m, OverdueAmount = 0m, SentAmount = 0m };
-    dynamic payrollSummary = ViewBag.PayrollSummary ?? new { TotalEmployees = 0, MonthlyPayroll = 0m, PendingPayments = 0m, AverageSalary = 0m };
-    dynamic employeeSummary = ViewBag.EmployeeSummary ?? new { ActiveEmployees = 0, TotalDepartments = 0, NewHires = 0, PendingReviews = 0 };
+    dynamic invoiceSummary = ViewBag.InvoiceSummary ?? new { TotalInvoices = 0, PaidAmount = 0m, PendingAmount = 0m, OverdueAmount = 0m };
+    dynamic payrollSummary = ViewBag.PayrollSummary ?? new { TotalPayrolls = 0, TotalAmount = 0m, TotalEmployerCost = 0m, AverageSalary = 0m, PendingPayrolls = 0, CompletedPayrolls = 0 };
+    dynamic employeeSummary = ViewBag.EmployeeSummary ?? new { TotalEmployees = 0, ActiveEmployees = 0, NewHires = 0, PendingConfirmation = 0 };
+    FinserveNew.Models.ViewModels.PayrollReportViewModel payrollReportData = ViewBag.PayrollReportData ?? new FinserveNew.Models.ViewModels.PayrollReportViewModel();
 }
 
 <div class="container-fluid">
@@ -18,12 +19,7 @@
                     <!-- Tab Navigation -->
                     <ul class="nav nav-tabs" id="reportTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-content" type="button" role="tab" aria-controls="invoice-content" aria-selected="true">
-                                <i class="fas fa-file-invoice me-2"></i>Invoice Reports
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="payroll-tab" data-bs-toggle="tab" data-bs-target="#payroll-content" type="button" role="tab" aria-controls="payroll-content" aria-selected="false">
+                            <button class="nav-link active" id="payroll-tab" data-bs-toggle="tab" data-bs-target="#payroll-content" type="button" role="tab" aria-controls="payroll-content" aria-selected="true">
                                 <i class="fas fa-money-bill-wave me-2"></i>Payroll Reports
                             </button>
                         </li>
@@ -32,13 +28,161 @@
                                 <i class="fas fa-users me-2"></i>Employee Reports
                             </button>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-content" type="button" role="tab" aria-controls="invoice-content" aria-selected="false">
+                                <i class="fas fa-file-invoice me-2"></i>Invoice Reports
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Tab Content -->
                     <div class="tab-content" id="reportTabContent">
 
+                        <!-- Payroll Reports Tab -->
+                        <div class="tab-pane fade show active" id="payroll-content" role="tabpanel" aria-labelledby="payroll-tab">
+                            <div class="mt-4">
+                                <h5><i class="fas fa-money-bill-wave me-2"></i>Payroll Reports & Analytics</h5>
+
+                                <!-- Filter Section -->
+                                <div class="card mb-4">
+                                    <div class="card-body">
+                                        <form id="payrollFilterForm" class="row g-3">
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Report Type</label>
+                                                <select name="reportType" class="form-select" id="reportType">
+                                                    <option value="register" selected>Payroll Register</option>
+                                                    <option value="summary">Summary Report</option>
+                                                    <option value="analytics">Analytics Dashboard</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Period Type</label>
+                                                <select name="periodType" class="form-select" id="periodType">
+                                                    <option value="monthly" selected>Monthly</option>
+                                                    <option value="yearly">Yearly</option>
+                                                    <option value="custom">Custom Range</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto" id="monthFilter">
+                                                <label class="form-label">Month</label>
+                                                <select name="month" class="form-select">
+                                                    <option value="">All Months</option>
+                                                    @for (int m = 1; m <= 12; m++)
+                                                    {
+                                                        <option value="@m" selected="@(DateTime.Now.Month == m)">
+                                                            @System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)
+                                                        </option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Year</label>
+                                                <select name="year" class="form-select">
+                                                    @foreach (var year in payrollReportData.AvailableYears)
+                                                    {
+                                                        <option value="@year" selected="@(DateTime.Now.Year == year)">@year</option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto" id="customDateRange" style="display: none;">
+                                                <label class="form-label">Date From</label>
+                                                <input type="date" name="dateFrom" class="form-control" />
+                                            </div>
+                                            <div class="col-md-auto" id="customDateRangeTo" style="display: none;">
+                                                <label class="form-label">Date To</label>
+                                                <input type="date" name="dateTo" class="form-control" />
+                                            </div>
+                                            <div class="col-md-auto" id="employeeFilter">
+                                                <label class="form-label">Employee</label>
+                                                <select name="employeeId" class="form-select">
+                                                    <option value="">All Employees</option>
+                                                    @foreach (var emp in payrollReportData.AllEmployees)
+                                                    {
+                                                        <option value="@emp.EmployeeID">
+                                                            @emp.EmployeeID - @emp.FirstName @emp.LastName
+                                                        </option>
+                                                    }
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto d-flex align-items-end">
+                                                <button type="button" id="generateReport" class="btn btn-primary w-100">
+                                                    <i class="fas fa-search me-1"></i>Generate
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Report Content -->
+                                <div id="reportContent">
+                                    <!-- Initial content will be loaded here -->
+                                    @await Html.PartialAsync("_PayrollReportContent", payrollReportData)
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employee Reports Tab -->
+                        <div class="tab-pane fade" id="employee-content" role="tabpanel" aria-labelledby="employee-tab">
+                            <div class="mt-4">
+                                <h5><i class="fas fa-users me-2"></i>Employee Reports & Analytics</h5>
+
+                                <!-- Filter Section -->
+                                <div class="card mb-4">
+                                    <div class="card-body">
+                                        <form id="employeeFilterForm" class="row g-3">
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Report Type</label>
+                                                <select name="reportType" class="form-select" id="employeeReportType">
+                                                    <option value="summary" selected>Employee Summary</option>
+                                                    <option value="analytics">Analytics Dashboard</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Status</label>
+                                                <select name="status" class="form-select">
+                                                    <option value="">All Statuses</option>
+                                                    <option value="Confirmed">Confirmed</option>
+                                                    <option value="Pending">Pending</option>
+                                                    <option value="Probation">Probation</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Role</label>
+                                                <select name="role" class="form-select">
+                                                    <option value="">All Roles</option>
+                                                    <option value="Admin">Admin</option>
+                                                    <option value="HR">HR</option>
+                                                    <option value="SeniorHR">Senior HR</option>
+                                                    <option value="Employee">Employee</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Join Date From</label>
+                                                <input type="date" name="joinDateFrom" class="form-control" />
+                                            </div>
+                                            <div class="col-md-auto">
+                                                <label class="form-label">Join Date To</label>
+                                                <input type="date" name="joinDateTo" class="form-control" />
+                                            </div>
+                                            <div class="col-md-auto d-flex align-items-end">
+                                                <button type="button" id="generateEmployeeReport" class="btn btn-primary w-100">
+                                                    <i class="fas fa-search me-1"></i>Generate
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <!-- Employee Report Content -->
+                                <div id="employeeReportContent">
+                                    <!-- Initial content will be loaded here -->
+                                    @await Html.PartialAsync("_EmployeeReportContent", new FinserveNew.Models.ViewModels.EmployeeReportViewModel())
+                                </div>
+                            </div>
+                        </div>
+                                               
                         <!-- Invoice Reports Tab -->
-                        <div class="tab-pane fade show active" id="invoice-content" role="tabpanel" aria-labelledby="invoice-tab">
+                        <div class="tab-pane fade" id="invoice-content" role="tabpanel" aria-labelledby="invoice-tab">
                             <div class="mt-4">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <h5><i class="fas fa-file-invoice me-2"></i>Invoice Reports & Analytics</h5>
@@ -118,29 +262,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Payroll Reports Tab -->
-                        <div class="tab-pane fade" id="payroll-content" role="tabpanel" aria-labelledby="payroll-tab">
-                            <div class="mt-4">
-                                <div class="text-center py-5">
-                                    <i class="fas fa-money-bill-wave fa-4x text-muted mb-4"></i>
-                                    <h4 class="text-muted">Payroll Reports Coming Soon</h4>
-                                    <p class="text-muted">This section is currently under development.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Employee Reports Tab -->
-                        <div class="tab-pane fade" id="employee-content" role="tabpanel" aria-labelledby="employee-tab">
-                            <div class="mt-4">
-                                <div class="text-center py-5">
-                                    <i class="fas fa-users fa-4x text-muted mb-4"></i>
-                                    <h4 class="text-muted">Employee Reports Coming Soon</h4>
-                                    <p class="text-muted">This section is currently under development.</p>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
             </div>
@@ -162,29 +283,23 @@
             transition: all 0.3s ease;
         }
 
-            .nav-tabs .nav-link:hover {
-                border-color: transparent;
-                color: #007bff;
-                background-color: rgba(0, 123, 255, 0.1);
-            }
+        .nav-tabs .nav-link:hover {
+            border-color: transparent;
+            color: #007bff;
+            background-color: rgba(0, 123, 255, 0.1);
+        }
 
-            .nav-tabs .nav-link.active {
-                color: #007bff;
-                background-color: transparent;
-                border-color: #007bff;
-                font-weight: 600;
-            }
+        .nav-tabs .nav-link.active {
+            color: #007bff;
+            background-color: transparent;
+            border-color: #007bff;
+            font-weight: 600;
+        }
 
     .card {
         box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         border: 1px solid rgba(0, 0, 0, 0.125);
-        transition: all 0.3s ease;
     }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        }
 
     .tab-content {
         min-height: 600px;
@@ -195,34 +310,462 @@
     .btn-outline-primary:hover {
         transform: translateY(-1px);
     }
+
+    .report-section {
+        margin-bottom: 2rem;
+    }
+
+    .table th {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .table td {
+        font-size: 0.9rem;
+    }
+
+    /* Chart toggle button styles */
+    .chart-toggle-btn.active {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+
+    .chart-toggle-btn:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+        color: white;
+    }
 </style>
 
-<script>
-    // Tab switching with URL hash support
-    const triggerTabList = document.querySelectorAll('#reportTabs button')
-    triggerTabList.forEach(triggerEl => {
-        const tabTrigger = new bootstrap.Tab(triggerEl)
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
 
-        triggerEl.addEventListener('click', event => {
-            event.preventDefault()
-            tabTrigger.show()
-            // Update URL hash
-            const target = event.target.getAttribute('data-bs-target');
-            if (target) {
-                window.location.hash = target.replace('#', '').replace('-content', '');
+    <script>
+        // Global variables for payroll charts
+        let payrollPieChart = null;
+        let payrollLineChart = null;
+        let currentPayrollChartView = 'both';
+
+        // Chart view function for payroll analytics - moved to global scope
+        function setPayrollChartView(viewType) {
+            currentPayrollChartView = viewType;
+            const pieContainer = document.getElementById('payrollPieChartContainer');
+            const lineContainer = document.getElementById('payrollLineChartContainer');
+            const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+
+            // Check if containers exist (analytics view is loaded)
+            if (!pieContainer || !lineContainer) {
+                console.log('Chart containers not found - analytics view may not be loaded');
+                return;
             }
-        })
-    })
 
-    // Check URL hash on page load
-    window.addEventListener('DOMContentLoaded', function () {
-        const hash = window.location.hash.substring(1);
-        if (hash) {
-            const targetTab = document.querySelector(`#${hash}-tab`);
-            if (targetTab) {
-                const tabTrigger = new bootstrap.Tab(targetTab);
-                tabTrigger.show();
+            // Remove active class from all buttons and add to selected
+            toggleButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.chart === viewType) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Reset containers to original state first
+            pieContainer.className = 'col-md-6 mb-4';
+            lineContainer.className = 'col-md-6 mb-4';
+            pieContainer.style.display = 'block';
+            lineContainer.style.display = 'block';
+
+            // Apply view-specific changes
+            switch(viewType) {
+                case 'pie':
+                    pieContainer.className = 'col-md-12 mb-4';
+                    lineContainer.style.display = 'none';
+                    break;
+                case 'line':
+                    lineContainer.className = 'col-md-12 mb-4';
+                    pieContainer.style.display = 'none';
+                    break;
+                case 'both':
+                    // Already reset above, no additional changes needed
+                    break;
+            }
+
+            // Resize charts after layout change
+            setTimeout(() => {
+                if (payrollPieChart && pieContainer.style.display !== 'none') {
+                    payrollPieChart.resize();
+                }
+                if (payrollLineChart && lineContainer.style.display !== 'none') {
+                    payrollLineChart.resize();
+                }
+            }, 100);
+        }
+
+        // Tab switching with URL hash support
+        const triggerTabList = document.querySelectorAll('#reportTabs button')
+        triggerTabList.forEach(triggerEl => {
+            const tabTrigger = new bootstrap.Tab(triggerEl)
+
+            triggerEl.addEventListener('click', event => {
+                event.preventDefault()
+                tabTrigger.show()
+                // Update URL hash
+                const target = event.target.getAttribute('data-bs-target');
+                if (target) {
+                    window.location.hash = target.replace('#', '').replace('-content', '');
+                }
+            })
+        })
+
+        // Check URL hash on page load
+        window.addEventListener('DOMContentLoaded', function () {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                const targetTab = document.querySelector(`#${hash}-tab`);
+                if (targetTab) {
+                    const tabTrigger = new bootstrap.Tab(targetTab);
+                    tabTrigger.show();
+                }
+            }
+        });
+
+        // Handle period type changes
+        document.getElementById('periodType').addEventListener('change', function() {
+            const periodType = this.value;
+            const monthFilter = document.getElementById('monthFilter');
+            const customDateRange = document.getElementById('customDateRange');
+            const customDateRangeTo = document.getElementById('customDateRangeTo');
+            const employeeFilter = document.getElementById('employeeFilter');
+            
+            if (periodType === 'custom') {
+                monthFilter.style.display = 'none';
+                customDateRange.style.display = 'block';
+                customDateRangeTo.style.display = 'block';
+            } else if (periodType === 'yearly') {
+                monthFilter.style.display = 'none';
+                customDateRange.style.display = 'none';
+                customDateRangeTo.style.display = 'none';
+            } else {
+                monthFilter.style.display = 'block';
+                customDateRange.style.display = 'none';
+                customDateRangeTo.style.display = 'none';
+            }
+
+            // Only show employee filter for register report
+            const reportType = document.getElementById('reportType').value;
+            if (reportType === 'register') {
+                employeeFilter.style.display = 'block';
+            } else {
+                employeeFilter.style.display = 'none';
+            }
+        });
+
+        // Handle report type changes
+        document.getElementById('reportType').addEventListener('change', function() {
+            const reportType = this.value;
+            const employeeFilter = document.getElementById('employeeFilter');
+            
+            // Only show employee filter for register report
+            if (reportType === 'register') {
+                employeeFilter.style.display = 'block';
+            } else {
+                employeeFilter.style.display = 'none';
+            }
+        });
+
+        // Generate report with improved AJAX handling
+        document.getElementById('generateReport').addEventListener('click', function() {
+            const form = document.getElementById('payrollFilterForm');
+            const formData = new FormData(form);
+            
+            // Show loading indicator
+            const reportContent = document.getElementById('reportContent');
+            reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading report...</p></div>';
+            
+            // Build query parameters
+            const params = new URLSearchParams();
+            for (let [key, value] of formData.entries()) {
+                if (value) {
+                    params.append(key, value);
+                }
+            }
+            
+            // Make AJAX request to get partial view content
+            fetch(`@Url.Action("PayrollReport", "Report")?${params.toString()}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    reportContent.innerHTML = html;
+                    
+                    // Reset chart variables when new content is loaded
+                    payrollPieChart = null;
+                    payrollLineChart = null;
+                    
+                    // Re-evaluate any scripts in the loaded content
+                    const scripts = reportContent.querySelectorAll('script');
+                    scripts.forEach(script => {
+                        const newScript = document.createElement('script');
+                        newScript.textContent = script.textContent;
+                        document.body.appendChild(newScript);
+                        document.body.removeChild(newScript);
+                    });
+                    
+                    // Initialize charts if analytics view is loaded
+                    if (typeof initializePayrollCharts === 'function') {
+                        console.log('Calling initializePayrollCharts after AJAX load');
+                        initializePayrollCharts();
+                    } else {
+                        console.log('initializePayrollCharts function not found');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading report:', error);
+                    reportContent.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error loading report. Please try again.
+                        </div>`;
+                });
+        });
+
+        // Chart view function for payroll analytics
+        function setPayrollChartView(viewType) {
+            const pieContainer = document.getElementById('payrollPieChartContainer');
+            const lineContainer = document.getElementById('payrollLineChartContainer');
+            const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+
+            // Check if containers exist (analytics view is loaded)
+            if (!pieContainer || !lineContainer) {
+                console.log('Chart containers not found - analytics view may not be loaded');
+                return;
+            }
+
+            // Remove active class from all buttons and add to selected
+            toggleButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.chart === viewType) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Reset containers to original state first
+            pieContainer.className = 'col-md-6 mb-4';
+            lineContainer.className = 'col-md-6 mb-4';
+            pieContainer.style.display = 'block';
+            lineContainer.style.display = 'block';
+
+            // Apply view-specific changes
+            switch (viewType) {
+                case 'pie':
+                    lineContainer.style.display = 'none';
+                    pieContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'line':
+                    pieContainer.style.display = 'none';
+                    lineContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'both':
+                default:
+                    // Both charts visible (default state)
+                    break;
             }
         }
-    });
-</script>
+
+        // Chart view function for employee analytics
+        function setEmployeeChartView(viewType) {
+            const pieContainer = document.getElementById('employeePieChartContainer');
+            const barContainer = document.getElementById('employeeBarChartContainer');
+            const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+
+            // Check if containers exist (analytics view is loaded)
+            if (!pieContainer || !barContainer) {
+                console.log('Employee chart containers not found - analytics view may not be loaded');
+                return;
+            }
+
+            // Remove active class from all buttons and add to selected
+            toggleButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.chart === viewType) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Reset containers to original state first
+            pieContainer.className = 'col-md-6 mb-4';
+            barContainer.className = 'col-md-6 mb-4';
+            pieContainer.style.display = 'block';
+            barContainer.style.display = 'block';
+
+            // Apply view-specific changes
+            switch (viewType) {
+                case 'pie':
+                    barContainer.style.display = 'none';
+                    pieContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'bar':
+                    pieContainer.style.display = 'none';
+                    barContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'both':
+                default:
+                    // Both charts visible (default state)
+                    break;
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('periodType').dispatchEvent(new Event('change'));
+            document.getElementById('reportType').dispatchEvent(new Event('change'));
+            
+            // Load initial employee report
+            loadEmployeeReport();
+        });
+
+        // Employee report generation
+        document.getElementById('generateEmployeeReport').addEventListener('click', function() {
+            loadEmployeeReport();
+        });
+
+        function loadEmployeeReport() {
+            const form = document.getElementById('employeeFilterForm');
+            const formData = new FormData(form);
+            
+            // Show loading indicator
+            const reportContent = document.getElementById('employeeReportContent');
+            reportContent.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading employee report...</p></div>';
+            
+            // Build query parameters
+            const params = new URLSearchParams();
+            for (let [key, value] of formData.entries()) {
+                if (value) {
+                    params.append(key, value);
+                }
+            }
+            
+            // Make AJAX request to get partial view content
+            fetch(`@Url.Action("EmployeeReport", "Report")?${params.toString()}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    reportContent.innerHTML = html;
+                    
+                    // Re-evaluate any scripts in the loaded content
+                    const scripts = reportContent.querySelectorAll('script');
+                    scripts.forEach(script => {
+                        const newScript = document.createElement('script');
+                        newScript.textContent = script.textContent;
+                        document.body.appendChild(newScript);
+                        document.body.removeChild(newScript);
+                    });
+                    
+                    // Initialize employee charts if analytics view is loaded
+                    if (typeof initializeEmployeeCharts === 'function') {
+                        console.log('Calling initializeEmployeeCharts after AJAX load');
+                        initializeEmployeeCharts();
+                    } else {
+                        console.log('initializeEmployeeCharts function not found');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading employee report:', error);
+                    reportContent.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error loading employee report. Please try again.
+                        </div>`;
+                });
+        }
+
+        // Export functions for payroll reports
+        function exportPayrollToExcel() {
+            const tables = document.querySelectorAll('#reportContent table');
+            if (tables.length === 0) {
+                alert('No payroll data to export');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            tables.forEach((table, index) => {
+                const ws = XLSX.utils.table_to_sheet(table);
+                const sheetName = `PayrollSheet${index + 1}`;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+            const filename = `PayrollReport_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+
+        // Export functions for employee reports
+        function exportEmployeeToExcel() {
+            const tables = document.querySelectorAll('#employeeReportContent table');
+            if (tables.length === 0) {
+                alert('No employee data to export');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            tables.forEach((table, index) => {
+                const ws = XLSX.utils.table_to_sheet(table);
+                const sheetName = `EmployeeSheet${index + 1}`;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+            const filename = `EmployeeReport_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+
+        // Legacy function for backwards compatibility - routes to appropriate export based on active tab
+        function exportToExcel() {
+            const activeTab = document.querySelector('#reportTabs .nav-link.active');
+            if (activeTab && activeTab.id === 'employee-tab') {
+                exportEmployeeToExcel();
+            } else {
+                exportPayrollToExcel();
+            }
+        }
+
+        function exportToPDF() {
+            const activeTab = document.querySelector('#reportTabs .nav-link.active');
+            let element;
+            let filename;
+            
+            if (activeTab && activeTab.id === 'employee-tab') {
+                element = document.querySelector('#employeeReportContent .report-section') || document.querySelector('#employeeReportContent');
+                filename = `EmployeeReport_${new Date().toISOString().split('T')[0]}.pdf`;
+            } else {
+                element = document.querySelector('#reportContent .report-section') || document.querySelector('#reportContent');
+                filename = `PayrollReport_${new Date().toISOString().split('T')[0]}.pdf`;
+            }
+            
+            if (!element) {
+                alert('No content to export');
+                return;
+            }
+
+            const opt = {
+                margin: 1,
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+}

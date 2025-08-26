@@ -1,0 +1,1117 @@
+﻿@model FinserveNew.Models.ViewModels.EmployeeReportViewModel
+@{
+    ViewData["Title"] = "Employee Analytics & Reports";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-users me-2"></i>Employee Analytics & Reports</h4>
+                        <div class="d-flex gap-2">
+                            <a href="@Url.Action("ReviewReports")" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Reports
+                            </a>
+                            <button type="button" class="btn btn-outline-success" onclick="exportToExcel()">
+                                <i class="fas fa-file-excel me-1"></i>Export Excel
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="exportToPDF()">
+                                <i class="fas fa-file-pdf me-1"></i>Export PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Filter Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-auto">
+                                    <label class="form-label">Report Type</label>
+                                    <select name="reportType" class="form-select" id="reportType">
+                                        <option value="summary" selected="@(ViewBag.ReportType == "summary" || ViewBag.ReportType == null)">Summary Report</option>
+                                        <option value="analytics" selected="@(ViewBag.ReportType == "analytics")">Analytics Dashboard</option>
+                                        <option value="demographics" selected="@(ViewBag.ReportType == "demographics")">Demographics Analysis</option>
+                                        <option value="tenure" selected="@(ViewBag.ReportType == "tenure")">Tenure Analysis</option>
+                                        <option value="performance" selected="@(ViewBag.ReportType == "performance")">Performance Metrics</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-auto">
+                                    <label class="form-label">Status</label>
+                                    <select name="status" class="form-select">
+                                        <option value="">All Status</option>
+                                        <option value="Pending" selected="@(Model.Status == "Pending")">Pending</option>
+                                        <option value="Confirmed" selected="@(Model.Status == "Confirmed")">Confirmed</option>
+                                        <option value="Probation" selected="@(Model.Status == "Probation")">Probation</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-auto">
+                                    <label class="form-label">Role</label>
+                                    <select name="role" class="form-select">
+                                        <option value="">All Roles</option>
+                                        @foreach (var role in Model.AvailableRoles)
+                                        {
+                                            <option value="@role" selected="@(Model.Role == role)">@role</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-auto">
+                                    <label class="form-label">Join Date From</label>
+                                    <input type="date" name="joinDateFrom" class="form-control" 
+                                           value="@Model.JoinDateFrom?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="col-md-auto">
+                                    <label class="form-label">Join Date To</label>
+                                    <input type="date" name="joinDateTo" class="form-control" 
+                                           value="@Model.JoinDateTo?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="col-md-auto d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-search me-1"></i>Generate
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Report Content -->
+                    @if (Model?.Employees != null && Model.Employees.Any())
+                    {
+                        @if (ViewBag.ReportType == "summary" || ViewBag.ReportType == null)
+                        {
+                            <!-- Summary Report -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Employee Summary Report</h5>
+                                
+                                <!-- Summary Cards -->
+                                <div class="row mb-4">
+                                    <div class="col-md-3">
+                                        <div class="card border-primary">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-primary">Total Employees</h6>
+                                                <h3 class="text-primary">@Model.Summary.TotalEmployees</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-success">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-success">Active Employees</h6>
+                                                <h3 class="text-success">@Model.Summary.ActiveEmployees</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-info">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-info">Confirmed</h6>
+                                                <h3 class="text-info">@Model.Summary.ConfirmedEmployees</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-warning">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-warning">Pending Confirmation</h6>
+                                                <h3 class="text-warning">@Model.Summary.PendingConfirmation</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Employee Data Table -->
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="employeeTable">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Employee ID</th>
+                                                <th>Name</th>
+                                                <th>Role</th>
+                                                <th>Email</th>
+                                                <th>Join Date</th>
+                                                <th>Status</th>
+                                                <th>Nationality</th>
+                                                <th>Age</th>
+                                                <th>Tenure</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var employee in Model.Employees)
+                                            {
+                                                <tr>
+                                                    <td>@employee.EmployeeID</td>
+                                                    <td>@employee.FirstName @employee.LastName</td>
+                                                    <td>@(employee.Role?.RoleName ?? "N/A")</td>
+                                                    <td>@employee.Email</td>
+                                                    <td>@employee.JoinDate.ToString("dd MMM yyyy")</td>
+                                                    <td><span class="badge bg-@GetStatusColor(employee.ConfirmationStatus)">@employee.ConfirmationStatus</span></td>
+                                                    <td>@employee.Nationality</td>
+                                                    <td>@(DateTime.Now.Year - employee.DateOfBirth.Year) years</td>
+                                                    <td>@(DateTime.Now.Year - employee.JoinDate.Year) years</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        }
+
+                        @if (ViewBag.ReportType == "analytics")
+                        {
+                            var statusGroups = Model.Employees.GroupBy(e => e.ConfirmationStatus)
+                                .Select(g => new { 
+                                    Status = g.Key, 
+                                    Count = g.Count(), 
+                                    Percentage = (double)g.Count() / Model.Employees.Count() * 100
+                                })
+                                .OrderByDescending(x => x.Count)
+                                .ToList();
+
+                            var positionGroups = Model.Employees.GroupBy(e => e.Position)
+                                .Select(g => new { 
+                                    Position = g.Key, 
+                                    Count = g.Count(), 
+                                    Percentage = (double)g.Count() / Model.Employees.Count() * 100
+                                })
+                                .OrderByDescending(x => x.Count)
+                                .ToList();
+
+                            <!-- Analytics Dashboard -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Employee Analytics Dashboard</h5>
+
+                                <!-- Chart Type Toggle Buttons -->
+                                <div class="row mb-3">
+                                    <div class="col-12 text-center">
+                                        <div class="btn-group" role="group" aria-label="Chart Type">
+                                            <button type="button" class="btn btn-outline-primary chart-toggle-btn active" data-chart="both" onclick="setEmployeeChartView('both')">
+                                                <i class="fas fa-chart-area me-1"></i>Both Charts
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="pie" onclick="setEmployeeChartView('pie')">
+                                                <i class="fas fa-chart-pie me-1"></i>Status Chart Only
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="bar" onclick="setEmployeeChartView('bar')">
+                                                <i class="fas fa-chart-bar me-1"></i>Position Chart Only
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Charts Row -->
+                                <div class="row mb-4">
+                                    <!-- Status Distribution Chart -->
+                                    <div class="col-md-6 mb-4" id="employeePieChartContainer">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Employee Status Distribution</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (statusGroups.Any())
+                                                {
+                                                    <div style="position: relative; height: 400px;">
+                                                        <canvas id="employeeStatusChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted" style="height: 400px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                                        <i class="fas fa-chart-pie fa-3x mb-2"></i>
+                                                        <p>No status data available</p>
+                                                        <small>Try adjusting your filter criteria</small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Position Distribution Chart -->
+                                    <div class="col-md-6 mb-4" id="employeeBarChartContainer">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Position Distribution</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (positionGroups.Any())
+                                                {
+                                                    <div style="position: relative; height: 400px;">
+                                                        <canvas id="employeePositionChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted" style="height: 400px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                                        <i class="fas fa-chart-bar fa-3x mb-2"></i>
+                                                        <p>No position data available</p>
+                                                        <small>Try adjusting your filter criteria</small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Summary Cards -->
+                                <div class="row mb-4">
+                                    <div class="col-md-3">
+                                        <div class="card border-primary">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-primary">Total Employees</h6>
+                                                <h3 class="text-primary">@Model.Employees.Count()</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-success">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-success">Active Employees</h6>
+                                                <h3 class="text-success">@Model.Summary.ActiveEmployees</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-info">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-info">Average Age</h6>
+                                                <h3 class="text-info">@(Model.Employees.Any() ? Model.Employees.Average(e => DateTime.Now.Year - e.DateOfBirth.Year).ToString("F1") : "0") years</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-warning">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-warning">Average Tenure</h6>
+                                                <h3 class="text-warning">@(Model.Employees.Any() ? Model.Employees.Average(e => DateTime.Now.Year - e.JoinDate.Year).ToString("F1") : "0") years</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Detailed Analytics Tables -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-table me-2"></i>Status Summary</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Status</th>
+                                                                <th>Count</th>
+                                                                <th>Percentage</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var status in statusGroups)
+                                                            {
+                                                                <tr>
+                                                                    <td><span class="badge bg-@GetStatusColor(status.Status)">@status.Status</span></td>
+                                                                    <td>@status.Count</td>
+                                                                    <td>@status.Percentage.ToString("F1")%</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-table me-2"></i>Position Summary</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Position</th>
+                                                                <th>Count</th>
+                                                                <th>Percentage</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var position in positionGroups)
+                                                            {
+                                                                <tr>
+                                                                    <td><strong>@position.Position</strong></td>
+                                                                    <td>@position.Count</td>
+                                                                    <td>@position.Percentage.ToString("F1")%</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (ViewBag.ReportType == "demographics")
+                        {
+                            var ageGroups = Model.Employees
+                                .Select(e => DateTime.Now.Year - e.DateOfBirth.Year)
+                                .GroupBy(age => age < 25 ? "18-24" : age < 35 ? "25-34" : age < 45 ? "35-44" : age < 55 ? "45-54" : "55+")
+                                .Select(g => new { AgeRange = g.Key, Count = g.Count() })
+                                .OrderBy(x => x.AgeRange)
+                                .ToList();
+
+                            var nationalityGroups = Model.Employees
+                                .GroupBy(e => e.Nationality)
+                                .Select(g => new { Nationality = g.Key, Count = g.Count() })
+                                .OrderByDescending(x => x.Count)
+                                .Take(10)
+                                .ToList();
+
+                            <!-- Demographics Analysis -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-users-cog me-2"></i>Demographics Analysis</h5>
+
+                                <!-- Demographics Charts -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Age Distribution</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (ageGroups.Any())
+                                                {
+                                                    <div style="position: relative; height: 300px;">
+                                                        <canvas id="ageDistributionChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted py-4">
+                                                        <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                                                        <p>No age data available</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Top Nationalities</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (nationalityGroups.Any())
+                                                {
+                                                    <div style="position: relative; height: 300px;">
+                                                        <canvas id="nationalityChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted py-4">
+                                                        <i class="fas fa-globe fa-2x mb-2"></i>
+                                                        <p>No nationality data available</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Demographics Summary -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-table me-2"></i>Age Group Summary</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Age Range</th>
+                                                                <th>Count</th>
+                                                                <th>Percentage</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var ageGroup in ageGroups)
+                                                            {
+                                                                <tr>
+                                                                    <td><strong>@ageGroup.AgeRange</strong></td>
+                                                                    <td>@ageGroup.Count</td>
+                                                                    <td>@(((double)ageGroup.Count / Model.Employees.Count()) * 100).ToString("F1")%</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-table me-2"></i>Nationality Summary</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Nationality</th>
+                                                                <th>Count</th>
+                                                                <th>Percentage</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var nationality in nationalityGroups)
+                                                            {
+                                                                <tr>
+                                                                    <td><strong>@nationality.Nationality</strong></td>
+                                                                    <td>@nationality.Count</td>
+                                                                    <td>@(((double)nationality.Count / Model.Employees.Count()) * 100).ToString("F1")%</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (ViewBag.ReportType == "tenure")
+                        {
+                            var tenureGroups = Model.Employees
+                                .Select(e => DateTime.Now.Year - e.JoinDate.Year)
+                                .GroupBy(tenure => tenure < 1 ? "< 1 year" : tenure < 3 ? "1-2 years" : tenure < 5 ? "3-4 years" : tenure < 10 ? "5-9 years" : "10+ years")
+                                .Select(g => new { TenureRange = g.Key, Count = g.Count() })
+                                .OrderBy(x => x.TenureRange)
+                                .ToList();
+
+                            var joinYearGroups = Model.Employees
+                                .GroupBy(e => e.JoinDate.Year)
+                                .Select(g => new { Year = g.Key, Count = g.Count() })
+                                .OrderBy(x => x.Year)
+                                .ToList();
+
+                            <!-- Tenure Analysis -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-calendar-alt me-2"></i>Tenure Analysis</h5>
+
+                                <!-- Tenure Charts -->
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Tenure Distribution</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (tenureGroups.Any())
+                                                {
+                                                    <div style="position: relative; height: 300px;">
+                                                        <canvas id="tenureDistributionChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted py-4">
+                                                        <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                                                        <p>No tenure data available</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Hiring Trends by Year</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (joinYearGroups.Any())
+                                                {
+                                                    <div style="position: relative; height: 300px;">
+                                                        <canvas id="hiringTrendsChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted py-4">
+                                                        <i class="fas fa-chart-line fa-2x mb-2"></i>
+                                                        <p>No hiring data available</p>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tenure Summary -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-table me-2"></i>Tenure Summary</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Tenure Range</th>
+                                                                <th>Count</th>
+                                                                <th>Percentage</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var tenure in tenureGroups)
+                                                            {
+                                                                <tr>
+                                                                    <td><strong>@tenure.TenureRange</strong></td>
+                                                                    <td>@tenure.Count</td>
+                                                                    <td>@(((double)tenure.Count / Model.Employees.Count()) * 100).ToString("F1")%</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-table me-2"></i>Hiring by Year</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-striped">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th>Year</th>
+                                                                <th>New Hires</th>
+                                                                <th>Percentage</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var year in joinYearGroups)
+                                                            {
+                                                                <tr>
+                                                                    <td><strong>@year.Year</strong></td>
+                                                                    <td>@year.Count</td>
+                                                                    <td>@(((double)year.Count / Model.Employees.Count()) * 100).ToString("F1")%</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No employee data found for the selected criteria. Please adjust your filters and try again.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Confirmed" => "success",
+            "Pending" => "warning",
+            "Probation" => "info",
+            _ => "secondary"
+        };
+    }
+}
+
+<style>
+    .report-section {
+        margin-bottom: 2rem;
+    }
+
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+
+    .table th {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .table td {
+        font-size: 0.9rem;
+    }
+
+    .chart-toggle-btn.active {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+
+    .chart-toggle-btn:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+        color: white;
+    }
+</style>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+    <script>
+        // Global variables for employee charts
+        let employeePieChart = null;
+        let employeeBarChart = null;
+        let ageChart = null;
+        let nationalityChart = null;
+        let tenureChart = null;
+        let hiringTrendsChart = null;
+
+        // Chart view function for employee analytics
+        function setEmployeeChartView(viewType) {
+            const pieContainer = document.getElementById('employeePieChartContainer');
+            const barContainer = document.getElementById('employeeBarChartContainer');
+            const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+
+            // Check if containers exist (analytics view is loaded)
+            if (!pieContainer || !barContainer) {
+                console.log('Chart containers not found - analytics view may not be loaded');
+                return;
+            }
+
+            // Remove active class from all buttons and add to selected
+            toggleButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.chart === viewType) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Reset containers to original state first
+            pieContainer.className = 'col-md-6 mb-4';
+            barContainer.className = 'col-md-6 mb-4';
+            pieContainer.style.display = 'block';
+            barContainer.style.display = 'block';
+
+            // Apply view-specific changes
+            switch (viewType) {
+                case 'pie':
+                    barContainer.style.display = 'none';
+                    pieContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'bar':
+                    pieContainer.style.display = 'none';
+                    barContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'both':
+                default:
+                    // Both charts visible (default state)
+                    break;
+            }
+        }
+
+        // Initialize charts when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing employee charts...');
+            
+            // Ensure Chart.js is loaded
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js is not loaded');
+                return;
+            }
+
+            // Initialize analytics charts if analytics view is loaded
+            @if (ViewBag.ReportType == "analytics" && Model?.Employees != null && Model.Employees.Any())
+            {
+                var statusGroups = Model.Employees.GroupBy(e => e.ConfirmationStatus)
+                    .Select(g => new { Status = g.Key, Count = g.Count() })
+                    .OrderByDescending(x => x.Count)
+                    .ToList();
+
+                var positionGroups = Model.Employees.GroupBy(e => e.Position)
+                    .Select(g => new { Position = g.Key, Count = g.Count() })
+                    .OrderByDescending(x => x.Count)
+                    .ToList();
+
+                if (statusGroups.Any())
+                {
+                    <text>
+                    // Status Pie Chart
+                    const statusLabels = @Html.Raw(Json.Serialize(statusGroups.Select(s => s.Status).ToArray()));
+                    const statusData = @Html.Raw(Json.Serialize(statusGroups.Select(s => s.Count).ToArray()));
+                    
+                    const statusColors = statusLabels.map(status => {
+                        switch(status) {
+                            case 'Confirmed': return '#28a745';
+                            case 'Pending': return '#ffc107';
+                            case 'Probation': return '#17a2b8';
+                            default: return '#6c757d';
+                        }
+                    });
+
+                    const statusCtx = document.getElementById('employeeStatusChart');
+                    if (statusCtx) {
+                        employeePieChart = new Chart(statusCtx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: statusLabels,
+                                datasets: [{
+                                    label: 'Employees',
+                                    data: statusData,
+                                    backgroundColor: statusColors,
+                                    borderWidth: 2,
+                                    borderColor: '#fff'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: {
+                                            padding: 20,
+                                            usePointStyle: true,
+                                            font: { size: 12 }
+                                        }
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                const label = context.label || '';
+                                                const value = context.parsed;
+                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                                const percentage = ((value / total) * 100).toFixed(1);
+                                                return label + ': ' + value + ' (' + percentage + '%)';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+
+                if (positionGroups.Any())
+                {
+                    <text>
+                    // Position Bar Chart
+                    const positionLabels = @Html.Raw(Json.Serialize(positionGroups.Select(p => p.Position).ToArray()));
+                    const positionData = @Html.Raw(Json.Serialize(positionGroups.Select(p => p.Count).ToArray()));
+
+                    const positionCtx = document.getElementById('employeePositionChart');
+                    if (positionCtx) {
+                        employeeBarChart = new Chart(positionCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: positionLabels,
+                                datasets: [{
+                                    label: 'Employees',
+                                    data: positionData,
+                                    backgroundColor: '#007bff',
+                                    borderColor: '#0056b3',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            stepSize: 1
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+            }
+
+            // Initialize demographics charts if demographics view is loaded
+            @if (ViewBag.ReportType == "demographics" && Model?.Employees != null && Model.Employees.Any())
+            {
+                var ageGroups = Model.Employees
+                    .Select(e => DateTime.Now.Year - e.DateOfBirth.Year)
+                    .GroupBy(age => age < 25 ? "18-24" : age < 35 ? "25-34" : age < 45 ? "35-44" : age < 55 ? "45-54" : "55+")
+                    .Select(g => new { AgeRange = g.Key, Count = g.Count() })
+                    .OrderBy(x => x.AgeRange)
+                    .ToList();
+
+                var nationalityGroups = Model.Employees
+                    .GroupBy(e => e.Nationality)
+                    .Select(g => new { Nationality = g.Key, Count = g.Count() })
+                    .OrderByDescending(x => x.Count)
+                    .Take(10)
+                    .ToList();
+
+                if (ageGroups.Any())
+                {
+                    <text>
+                    // Age Distribution Chart
+                    const ageLabels = @Html.Raw(Json.Serialize(ageGroups.Select(a => a.AgeRange).ToArray()));
+                    const ageData = @Html.Raw(Json.Serialize(ageGroups.Select(a => a.Count).ToArray()));
+
+                    const ageCtx = document.getElementById('ageDistributionChart');
+                    if (ageCtx) {
+                        ageChart = new Chart(ageCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: ageLabels,
+                                datasets: [{
+                                    label: 'Employees',
+                                    data: ageData,
+                                    backgroundColor: '#28a745',
+                                    borderColor: '#1e7e34',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            stepSize: 1
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+
+                if (nationalityGroups.Any())
+                {
+                    <text>
+                    // Nationality Chart
+                    const nationalityLabels = @Html.Raw(Json.Serialize(nationalityGroups.Select(n => n.Nationality).ToArray()));
+                    const nationalityData = @Html.Raw(Json.Serialize(nationalityGroups.Select(n => n.Count).ToArray()));
+
+                    const nationalityCtx = document.getElementById('nationalityChart');
+                    if (nationalityCtx) {
+                        nationalityChart = new Chart(nationalityCtx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: nationalityLabels,
+                                datasets: [{
+                                    label: 'Employees',
+                                    data: nationalityData,
+                                    backgroundColor: [
+                                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d',
+                                        '#17a2b8', '#fd7e14', '#6f42c1', '#e83e8c', '#20c997'
+                                    ],
+                                    borderWidth: 2,
+                                    borderColor: '#fff'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: {
+                                            padding: 10,
+                                            usePointStyle: true,
+                                            font: { size: 10 }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+            }
+
+            // Initialize tenure charts if tenure view is loaded
+            @if (ViewBag.ReportType == "tenure" && Model?.Employees != null && Model.Employees.Any())
+            {
+                var tenureGroups = Model.Employees
+                    .Select(e => DateTime.Now.Year - e.JoinDate.Year)
+                    .GroupBy(tenure => tenure < 1 ? "< 1 year" : tenure < 3 ? "1-2 years" : tenure < 5 ? "3-4 years" : tenure < 10 ? "5-9 years" : "10+ years")
+                    .Select(g => new { TenureRange = g.Key, Count = g.Count() })
+                    .OrderBy(x => x.TenureRange)
+                    .ToList();
+
+                var joinYearGroups = Model.Employees
+                    .GroupBy(e => e.JoinDate.Year)
+                    .Select(g => new { Year = g.Key, Count = g.Count() })
+                    .OrderBy(x => x.Year)
+                    .ToList();
+
+                if (tenureGroups.Any())
+                {
+                    <text>
+                    // Tenure Distribution Chart
+                    const tenureLabels = @Html.Raw(Json.Serialize(tenureGroups.Select(t => t.TenureRange).ToArray()));
+                    const tenureData = @Html.Raw(Json.Serialize(tenureGroups.Select(t => t.Count).ToArray()));
+
+                    const tenureCtx = document.getElementById('tenureDistributionChart');
+                    if (tenureCtx) {
+                        tenureChart = new Chart(tenureCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: tenureLabels,
+                                datasets: [{
+                                    label: 'Employees',
+                                    data: tenureData,
+                                    backgroundColor: '#17a2b8',
+                                    borderColor: '#138496',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            stepSize: 1
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+
+                if (joinYearGroups.Any())
+                {
+                    <text>
+                    // Hiring Trends Chart
+                    const yearLabels = @Html.Raw(Json.Serialize(joinYearGroups.Select(y => y.Year.ToString()).ToArray()));
+                    const yearData = @Html.Raw(Json.Serialize(joinYearGroups.Select(y => y.Count).ToArray()));
+
+                    const hiringCtx = document.getElementById('hiringTrendsChart');
+                    if (hiringCtx) {
+                        hiringTrendsChart = new Chart(hiringCtx, {
+                            type: 'line',
+                            data: {
+                                labels: yearLabels,
+                                datasets: [{
+                                    label: 'New Hires',
+                                    data: yearData,
+                                    borderColor: '#ffc107',
+                                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                                    borderWidth: 3,
+                                    fill: true,
+                                    tension: 0.4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            stepSize: 1
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+            }
+        });
+
+        // Export to Excel
+        function exportToExcel() {
+            const tables = document.querySelectorAll('table');
+            if (tables.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            tables.forEach((table, index) => {
+                const ws = XLSX.utils.table_to_sheet(table);
+                const sheetName = `Sheet${index + 1}`;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+            const filename = `EmployeeReport_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+
+        // Export to PDF
+        function exportToPDF() {
+            const element = document.querySelector('.report-section') || document.querySelector('.card-body');
+            if (!element) {
+                alert('No content to export');
+                return;
+            }
+
+            const opt = {
+                margin: 1,
+                filename: `EmployeeReport_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+    </script>
+}

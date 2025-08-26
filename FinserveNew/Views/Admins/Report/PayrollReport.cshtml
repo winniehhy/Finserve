@@ -1,0 +1,987 @@
+﻿@model FinserveNew.Models.ViewModels.PayrollReportViewModel
+@{
+    ViewData["Title"] = "Payroll Reports";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-money-bill-wave me-2"></i>Payroll Reports & Analytics</h4>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-success" onclick="exportToExcel()">
+                                <i class="fas fa-file-excel me-1"></i>Export Excel
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="exportToPDF()">
+                                <i class="fas fa-file-pdf me-1"></i>Export PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Filter Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <form asp-action="PayrollReport" method="get" class="row g-3">
+                                <div class="col-md-auto">
+                                    <label class="form-label">Report Type</label>
+                                    <select name="reportType" class="form-select" id="reportType">
+                                        <option value="register" selected="@(ViewBag.ReportType == "register")">Payroll Register</option>
+                                        <option value="summary" selected="@(ViewBag.ReportType == "summary")">Summary Report</option>
+                                        <option value="analytics" selected="@(ViewBag.ReportType == "analytics")">Analytics Dashboard</option>
+                                        <option value="comparison" selected="@(ViewBag.ReportType == "comparison")">Period Comparison</option>
+                                        <option value="status" selected="@(ViewBag.ReportType == "status")">Status Report</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-auto">
+                                    <label class="form-label">Period Type</label>
+                                    <select name="periodType" class="form-select" id="periodType">
+                                        <option value="monthly" selected="@(ViewBag.PeriodType == "monthly")">Monthly</option>
+                                        <option value="yearly" selected="@(ViewBag.PeriodType == "yearly")">Yearly</option>
+                                        <option value="quarterly" selected="@(ViewBag.PeriodType == "quarterly")">Quarterly</option>
+                                        <option value="custom" selected="@(ViewBag.PeriodType == "custom")">Custom Range</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-auto" id="monthFilter">
+                                    <label class="form-label">Month</label>
+                                    <select name="month" class="form-select">
+                                        <option value="">All Months</option>
+                                        @for (int m = 1; m <= 12; m++)
+                                        {
+                                            <option value="@m" selected="@(ViewBag.Month == m)">
+                                                @System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-auto">
+                                    <label class="form-label">Year</label>
+                                    <select name="year" class="form-select">
+                                        @foreach (var year in Model.AvailableYears)
+                                        {
+                                            <option value="@year">@year</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-auto" id="customDateRange" style="display: none;">
+                                    <label class="form-label">Date From</label>
+                                    <input type="date" name="dateFrom" class="form-control" value="@ViewBag.DateFrom?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="col-md-auto" id="customDateRangeTo" style="display: none;">
+                                    <label class="form-label">Date To</label>
+                                    <input type="date" name="dateTo" class="form-control" value="@ViewBag.DateTo?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="col-md-auto">
+                                    <label class="form-label">Employee</label>
+                                    <select name="employeeId" class="form-select">
+                                        <option value="">All Employees</option>
+                                        @if (Model?.AllEmployees != null)
+                                        {
+                                            @foreach (var emp in Model.AllEmployees)
+                                            {
+                                                <option value="@emp.EmployeeID" selected="@(ViewBag.EmployeeId == emp.EmployeeID)">
+                                                    @emp.FirstName @emp.LastName (@emp.EmployeeID)
+                                                </option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-auto d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-search me-1"></i>Generate
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Report Content -->
+                    @if (Model?.Payrolls != null && Model.Payrolls.Any())
+                    {
+                        @if (ViewBag.ReportType == "register" || ViewBag.ReportType == null)
+                        {
+                            <!-- Payroll Register Report -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-list me-2"></i>Payroll Register</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="payrollRegisterTable">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Employee ID</th>
+                                                <th>Employee Name</th>
+                                                <th>Period</th>
+                                                <th>Basic Salary</th>
+                                                <th>Employer EPF</th>
+                                                <th>Employer SOCSO</th>
+                                                <th>Employer EIS</th>
+                                                <th>Employee EPF</th>
+                                                <th>Employee SOCSO</th>
+                                                <th>Employee EIS</th>
+                                                <th>Employee Tax</th>
+                                                <th>Net Wages</th>
+                                                <th>Total Cost</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var payroll in Model.Payrolls.OrderBy(p => p.Year).ThenBy(p => p.Month).ThenBy(p => p.Employee.FirstName))
+                                            {
+                                                <tr>
+                                                    <td>@payroll.EmployeeID</td>
+                                                    <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
+                                                    <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
+                                                    <td>RM @payroll.BasicSalary.ToString("N2")</td>
+                                                    <td>RM @payroll.EmployerEpf.ToString("N2")</td>
+                                                    <td>RM @payroll.EmployerSocso.ToString("N2")</td>
+                                                    <td>RM @payroll.EmployerEis.ToString("N2")</td>
+                                                    <td>RM @payroll.EmployeeEpf.ToString("N2")</td>
+                                                    <td>RM @payroll.EmployeeSocso.ToString("N2")</td>
+                                                    <td>RM @payroll.EmployeeEis.ToString("N2")</td>
+                                                    <td>RM @payroll.EmployeeTax.ToString("N2")</td>
+                                                    <td>RM @payroll.TotalWages.ToString("N2")</td>
+                                                    <td>RM @payroll.TotalEmployerCost.ToString("N2")</td>
+                                                    <td><span class="badge bg-@GetStatusColor(payroll.PaymentStatus)">@payroll.PaymentStatus</span></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                        <tfoot class="table-light">
+                                            <tr class="fw-bold">
+                                                <td colspan="3">TOTALS</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.BasicSalary).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.EmployerEpf).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.EmployerSocso).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.EmployerEis).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.EmployeeEpf).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.EmployeeSocso).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.EmployeeEis).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.EmployeeTax).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.TotalWages).ToString("N2")</td>
+                                                <td>RM @Model.Payrolls.Sum(p => p.TotalEmployerCost).ToString("N2")</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        }
+
+                        @if (ViewBag.ReportType == "summary")
+                        {
+                            <!-- Summary Report -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Payroll Summary Report</h5>
+                                
+                                <!-- Summary Cards -->
+                                <div class="row mb-4">
+                                    <div class="col-md-3">
+                                        <div class="card border-primary">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-primary">Total Payrolls</h6>
+                                                <h3 class="text-primary">@Model.Payrolls.Count()</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-success">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-success">Total Net Wages</h6>
+                                                <h3 class="text-success">RM @Model.Payrolls.Sum(p => p.TotalWages).ToString("N2")</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-info">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-info">Total Employer Cost</h6>
+                                                <h3 class="text-info">RM @Model.Payrolls.Sum(p => p.TotalEmployerCost).ToString("N2")</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-warning">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-warning">Average Salary</h6>
+                                                <h3 class="text-warning">RM @(Model.Payrolls.Any() ? Model.Payrolls.Average(p => p.BasicSalary).ToString("N2") : "0.00")</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Summary by Month/Year -->
+                                @if (ViewBag.PeriodType == "yearly")
+                                {
+                                    var monthlyData = Model.Payrolls.GroupBy(p => p.Month)
+                                        .Select(g => new { Month = g.Key, Count = g.Count(), TotalWages = g.Sum(p => p.TotalWages), TotalCost = g.Sum(p => p.TotalEmployerCost) })
+                                        .OrderBy(x => x.Month).ToList();
+
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Month</th>
+                                                    <th>Payroll Count</th>
+                                                    <th>Total Net Wages</th>
+                                                    <th>Total Employer Cost</th>
+                                                    <th>Average Salary</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var month in monthlyData)
+                                                {
+                                                    <tr>
+                                                        <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month.Month)</td>
+                                                        <td>@month.Count</td>
+                                                        <td>RM @month.TotalWages.ToString("N2")</td>
+                                                        <td>RM @month.TotalCost.ToString("N2")</td>
+                                                        <td>RM @(month.Count > 0 ? (month.TotalWages / month.Count).ToString("N2") : "0.00")</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (ViewBag.ReportType == "analytics")
+                        {
+                            var payPeriods = Model.Payrolls.GroupBy(p => new { p.Month, p.Year })
+                                .Select(g => new { 
+                                    Period = $"{System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(g.Key.Month)} {g.Key.Year}", 
+                                    TotalGrossPay = g.Sum(p => p.BasicSalary),
+                                    Count = g.Count(),
+                                    AvgGrossPay = g.Average(p => p.BasicSalary)
+                                })
+                                .OrderBy(x => x.Period)
+                                .ToList();
+
+                            var statusGroups = Model.Payrolls.GroupBy(p => p.PaymentStatus)
+                                .Select(g => new { 
+                                    Status = g.Key, 
+                                    Count = g.Count(), 
+                                    TotalGrossPay = g.Sum(p => p.BasicSalary),
+                                    AverageGrossPay = g.Average(p => p.BasicSalary),
+                                    Percentage = (double)g.Count() / Model.Payrolls.Count() * 100
+                                })
+                                .OrderByDescending(x => x.TotalGrossPay)
+                                .ToList();
+
+                            <!-- Analytics Dashboard with Charts -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Payroll Analytics Dashboard</h5>
+
+                                <!-- Chart Type Toggle Buttons -->
+                                <div class="row mb-3">
+                                    <div class="col-12 text-center">
+                                        <div class="btn-group" role="group" aria-label="Chart Type">
+                                            <button type="button" class="btn btn-outline-primary chart-toggle-btn active" data-chart="both" onclick="setPayrollChartView('both')">
+                                                <i class="fas fa-chart-area me-1"></i>Both Charts
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="pie" onclick="setPayrollChartView('pie')">
+                                                <i class="fas fa-chart-pie me-1"></i>Pie Chart Only
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="line" onclick="setPayrollChartView('line')">
+                                                <i class="fas fa-chart-line me-1"></i>Line Chart Only
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Charts Row -->
+                                <div class="row mb-4">
+                                    <!-- Payment Status Distribution Chart -->
+                                    <div class="col-md-6 mb-4" id="payrollPieChartContainer">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Payment Status Distribution</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (statusGroups.Any())
+                                                {
+                                                    <div style="position: relative; height: 400px;">
+                                                        <canvas id="payrollStatusChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted" style="height: 400px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                                        <i class="fas fa-chart-pie fa-3x mb-2"></i>
+                                                        <p>No status data available</p>
+                                                        <small>Try adjusting your filter criteria</small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Gross Pay by Pay Period Chart -->
+                                    <div class="col-md-6 mb-4" id="payrollLineChartContainer">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6 class="mb-0">Gross Pay Trend by Pay Period</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                @if (payPeriods.Any())
+                                                {
+                                                    <div style="position: relative; height: 400px;">
+                                                        <canvas id="payrollTrendChart"></canvas>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="text-center text-muted" style="height: 400px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                                        <i class="fas fa-chart-line fa-3x mb-2"></i>
+                                                        <p>No pay period data available</p>
+                                                        <small>Try adjusting your filter criteria</small>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Summary Cards -->
+                                <div class="row mb-4">
+                                    <div class="col-md-3">
+                                        <div class="card border-primary">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-primary">Total Payrolls</h6>
+                                                <h3 class="text-primary">@Model.Payrolls.Count()</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-success">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-success">Total Net Wages</h6>
+                                                <h3 class="text-success">RM @Model.Payrolls.Sum(p => p.TotalWages).ToString("N2")</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-info">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-info">Total Employer Cost</h6>
+                                                <h3 class="text-info">RM @Model.Payrolls.Sum(p => p.TotalEmployerCost).ToString("N2")</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card border-warning">
+                                            <div class="card-body text-center">
+                                                <h6 class="card-title text-warning">Average Salary</h6>
+                                                <h3 class="text-warning">RM @(Model.Payrolls.Any() ? Model.Payrolls.Average(p => p.BasicSalary).ToString("N2") : "0.00")</h3>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Top Earners -->
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header">
+                                                <h6><i class="fas fa-trophy me-2"></i>Top 10 Earners</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-striped table-sm">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Rank</th>
+                                                                <th>Employee</th>
+                                                                <th>Basic Salary</th>
+                                                                <th>Net Wages</th>
+                                                                <th>Total Cost</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @{
+                                                                var topEarners = Model.Payrolls
+                                                                    .GroupBy(p => new { p.EmployeeID, p.Employee.FirstName, p.Employee.LastName })
+                                                                    .Select(g => new {
+                                                                        EmployeeID = g.Key.EmployeeID,
+                                                                        Name = g.Key.FirstName + " " + g.Key.LastName,
+                                                                        AvgBasicSalary = g.Average(p => p.BasicSalary),
+                                                                        AvgNetWages = g.Average(p => p.TotalWages),
+                                                                        AvgTotalCost = g.Average(p => p.TotalEmployerCost)
+                                                                    })
+                                                                    .OrderByDescending(x => x.AvgBasicSalary)
+                                                                    .Take(10)
+                                                                    .ToList();
+                                                                int rank = 1;
+                                                            }
+                                                            @foreach (var earner in topEarners)
+                                                            {
+                                                                <tr>
+                                                                    <td>@rank</td>
+                                                                    <td>@earner.Name (@earner.EmployeeID)</td>
+                                                                    <td>RM @earner.AvgBasicSalary.ToString("N2")</td>
+                                                                    <td>RM @earner.AvgNetWages.ToString("N2")</td>
+                                                                    <td>RM @earner.AvgTotalCost.ToString("N2")</td>
+                                                                </tr>
+                                                                rank++;
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (ViewBag.ReportType == "comparison")
+                        {
+                            <!-- Period Comparison -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-balance-scale me-2"></i>Period Comparison</h5>
+                                
+                                @if (ViewBag.PeriodType == "yearly")
+                                {
+                                    var yearlyComparison = Model.Payrolls.GroupBy(p => p.Year)
+                                        .Select(g => new {
+                                            Year = g.Key,
+                                            Count = g.Count(),
+                                            TotalWages = g.Sum(p => p.TotalWages),
+                                            TotalCost = g.Sum(p => p.TotalEmployerCost),
+                                            AvgSalary = g.Average(p => p.BasicSalary)
+                                        })
+                                        .OrderBy(x => x.Year).ToList();
+
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead class="table-dark">
+                                                <tr>
+                                                    <th>Year</th>
+                                                    <th>Payroll Count</th>
+                                                    <th>Total Net Wages</th>
+                                                    <th>Total Employer Cost</th>
+                                                    <th>Average Salary</th>
+                                                    <th>YoY Growth</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (int i = 0; i < yearlyComparison.Count; i++)
+                                                {
+                                                    var current = yearlyComparison[i];
+                                                    var previous = i > 0 ? yearlyComparison[i - 1] : null;
+                                                    var growth = previous != null ? ((current.TotalWages - previous.TotalWages) / previous.TotalWages * 100) : 0;
+
+                                                    <tr>
+                                                        <td>@current.Year</td>
+                                                        <td>@current.Count</td>
+                                                        <td>RM @current.TotalWages.ToString("N2")</td>
+                                                        <td>RM @current.TotalCost.ToString("N2")</td>
+                                                        <td>RM @current.AvgSalary.ToString("N2")</td>
+                                                        <td>
+                                                            @if (previous != null)
+                                                            {
+                                                                <span class="badge bg-@(growth >= 0 ? "success" : "danger")">
+                                                                    @(growth >= 0 ? "+" : "")@growth.ToString("F1")%
+                                                                </span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted">-</span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (ViewBag.ReportType == "status")
+                        {
+                            <!-- Status Report -->
+                            <div class="report-section">
+                                <h5 class="mb-3"><i class="fas fa-clipboard-check me-2"></i>Payroll Status Report</h5>
+                                
+                                <div class="row mb-4">
+                                    @{
+                                        var statusStats = Model.Payrolls.GroupBy(p => p.PaymentStatus)
+                                            .Select(g => new { Status = g.Key, Count = g.Count(), TotalAmount = g.Sum(p => p.TotalWages) })
+                                            .ToList();
+                                    }
+                                    @foreach (var stat in statusStats)
+                                    {
+                                        <div class="col-md-3 mb-3">
+                                            <div class="card border-@GetStatusColor(stat.Status)">
+                                                <div class="card-body text-center">
+                                                    <h6 class="card-title text-@GetStatusColor(stat.Status)">@stat.Status</h6>
+                                                    <h4 class="text-@GetStatusColor(stat.Status)">@stat.Count</h4>
+                                                    <p class="text-muted mb-0">RM @stat.TotalAmount.ToString("N2")</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Employee</th>
+                                                <th>Period</th>
+                                                <th>Status</th>
+                                                <th>Net Wages</th>
+                                                <th>Last Updated</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var payroll in Model.Payrolls.OrderBy(p => p.PaymentStatus).ThenBy(p => p.Employee.FirstName))
+                                            {
+                                                <tr>
+                                                    <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
+                                                    <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
+                                                    <td><span class="badge bg-@GetStatusColor(payroll.PaymentStatus)">@payroll.PaymentStatus</span></td>
+                                                    <td>RM @payroll.TotalWages.ToString("N2")</td>
+                                                    <td>@payroll.CreatedDate.ToString("dd/MM/yyyy")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No payroll data found for the selected criteria. Please adjust your filters and try again.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "secondary",
+            "Pending Approval" => "warning",
+            "Approved" => "info",
+            "Rejected" => "danger",
+            "Completed" => "success",
+            _ => "secondary"
+        };
+    }
+}
+
+<style>
+    .report-section {
+        margin-bottom: 2rem;
+    }
+
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+
+    .table th {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .table td {
+        font-size: 0.9rem;
+    }
+
+    .progress {
+        border-radius: 10px;
+    }
+
+    .progress-bar {
+        border-radius: 10px;
+    }
+</style>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+    <script>
+        // Global variables for payroll charts
+        let payrollPieChart = null;
+        let payrollLineChart = null;
+        let currentPayrollChartView = 'both';
+
+        // Chart view function for payroll analytics
+        function setPayrollChartView(viewType) {
+            currentPayrollChartView = viewType;
+            const pieContainer = document.getElementById('payrollPieChartContainer');
+            const lineContainer = document.getElementById('payrollLineChartContainer');
+            const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+
+            // Check if containers exist (analytics view is loaded)
+            if (!pieContainer || !lineContainer) {
+                console.log('Chart containers not found - analytics view may not be loaded');
+                return;
+            }
+
+            // Remove active class from all buttons and add to selected
+            toggleButtons.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.chart === viewType) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Reset containers to original state first
+            pieContainer.className = 'col-md-6 mb-4';
+            lineContainer.className = 'col-md-6 mb-4';
+            pieContainer.style.display = 'block';
+            lineContainer.style.display = 'block';
+
+            // Apply view-specific changes
+            switch (viewType) {
+                case 'pie':
+                    lineContainer.style.display = 'none';
+                    pieContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'line':
+                    pieContainer.style.display = 'none';
+                    lineContainer.className = 'col-md-12 mb-4';
+                    break;
+                case 'both':
+                default:
+                    // Both charts visible (default state)
+                    break;
+            }
+        }
+
+        // Handle period type changes
+        document.getElementById('periodType').addEventListener('change', function() {
+            const periodType = this.value;
+            const monthFilter = document.getElementById('monthFilter');
+            const customDateRange = document.getElementById('customDateRange');
+            const customDateRangeTo = document.getElementById('customDateRangeTo');
+            
+            if (periodType === 'custom') {
+                monthFilter.style.display = 'none';
+                customDateRange.style.display = 'block';
+                customDateRangeTo.style.display = 'block';
+            } else if (periodType === 'yearly') {
+                monthFilter.style.display = 'none';
+                customDateRange.style.display = 'none';
+                customDateRangeTo.style.display = 'none';
+            } else {
+                monthFilter.style.display = 'block';
+                customDateRange.style.display = 'none';
+                customDateRangeTo.style.display = 'none';
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, checking for analytics view...');
+            console.log('ReportType:', '@ViewBag.ReportType');
+            console.log('Model Payrolls count:', @(Model?.Payrolls?.Count ?? 0));
+            
+            document.getElementById('periodType').dispatchEvent(new Event('change'));
+            
+            // Initialize charts if analytics view is loaded
+            @if (ViewBag.ReportType == "analytics")
+            {
+                <text>
+                console.log('Analytics view detected, initializing payroll charts...');
+                
+                // Ensure Chart.js is loaded
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js is not loaded');
+                    return;
+                }
+
+                // Check if chart containers exist
+                const statusCtx = document.getElementById('payrollStatusChart');
+                const trendCtx = document.getElementById('payrollTrendChart');
+                console.log('Status chart container:', statusCtx);
+                console.log('Trend chart container:', trendCtx);
+
+                // Destroy existing charts if they exist
+                if (window.payrollPieChart) {
+                    window.payrollPieChart.destroy();
+                    window.payrollPieChart = null;
+                }
+                if (window.payrollLineChart) {
+                    window.payrollLineChart.destroy();
+                    window.payrollLineChart = null;
+                }
+
+                // Prepare data for charts
+                @if (Model?.Payrolls != null && Model.Payrolls.Any())
+                {
+                    var statusGroups = Model.Payrolls.GroupBy(p => p.PaymentStatus)
+                        .Select(g => new { 
+                            Status = g.Key, 
+                            Count = g.Count(), 
+                            TotalGrossPay = g.Sum(p => p.BasicSalary),
+                            AverageGrossPay = g.Average(p => p.BasicSalary),
+                            Percentage = (double)g.Count() / Model.Payrolls.Count() * 100
+                        })
+                        .OrderByDescending(x => x.TotalGrossPay)
+                        .ToList();
+
+                    var payPeriods = Model.Payrolls.GroupBy(p => new { p.Month, p.Year })
+                        .Select(g => new { 
+                            Period = $"{System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(g.Key.Month)} {g.Key.Year}", 
+                            TotalGrossPay = g.Sum(p => p.BasicSalary),
+                            Count = g.Count(),
+                            AvgGrossPay = g.Average(p => p.BasicSalary)
+                        })
+                        .OrderBy(x => x.Period)
+                        .ToList();
+
+                    if (statusGroups.Any())
+                    {
+                        <text>
+                        // Status Pie Chart Data
+                        const statusLabels = @Html.Raw(Json.Serialize(statusGroups.Select(s => s.Status).ToArray()));
+                        const statusData = @Html.Raw(Json.Serialize(statusGroups.Select(s => s.TotalGrossPay).ToArray()));
+                        
+                        console.log('Status chart data:', statusLabels, statusData);
+                        
+                        const statusColors = statusLabels.map(status => {
+                            switch(status) {
+                                case 'Completed': return '#28a745';
+                                case 'Approved': return '#17a2b8';
+                                case 'Pending Approval': return '#ffc107';
+                                case 'Pending': return '#6c757d';
+                                case 'Rejected': return '#dc3545';
+                                default: return '#6c757d';
+                            }
+                        });
+
+                        // Create Status Pie Chart
+                        const statusCtx = document.getElementById('payrollStatusChart');
+                        if (statusCtx) {
+                            window.payrollPieChart = new Chart(statusCtx, {
+                                type: 'doughnut',
+                                data: {
+                                    labels: statusLabels,
+                                    datasets: [{
+                                        label: 'Total Gross Pay (RM)',
+                                        data: statusData,
+                                        backgroundColor: statusColors,
+                                        borderWidth: 2,
+                                        borderColor: '#fff'
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {
+                                        legend: {
+                                            position: 'bottom',
+                                            labels: {
+                                                padding: 20,
+                                                usePointStyle: true,
+                                                font: {
+                                                    size: 12
+                                                }
+                                            }
+                                        },
+                                        tooltip: {
+                                            callbacks: {
+                                                label: function(context) {
+                                                    const label = context.label || '';
+                                                    const value = context.parsed;
+                                                    return label + ': RM ' + value.toLocaleString();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                            console.log('Pie chart created successfully');
+                        } else {
+                            console.error('Status chart canvas not found');
+                        }
+                        </text>
+                    }
+                    else
+                    {
+                        <text>
+                        console.log('No status data available for pie chart');
+                        </text>
+                    }
+
+                    if (payPeriods.Any())
+                    {
+                        <text>
+                        // Trend Line Chart Data
+                        const trendLabels = @Html.Raw(Json.Serialize(payPeriods.Select(p => p.Period).ToArray()));
+                        const trendData = @Html.Raw(Json.Serialize(payPeriods.Select(p => p.TotalGrossPay).ToArray()));
+                        const trendCounts = @Html.Raw(Json.Serialize(payPeriods.Select(p => p.Count).ToArray()));
+                        
+                        console.log('Trend chart data:', trendLabels, trendData, trendCounts);
+
+                        // Create Trend Line Chart
+                        const trendCtx = document.getElementById('payrollTrendChart');
+                        if (trendCtx) {
+                            window.payrollLineChart = new Chart(trendCtx, {
+                                type: 'line',
+                                data: {
+                                    labels: trendLabels,
+                                    datasets: [{
+                                        label: 'Employee Count',
+                                        data: trendCounts,
+                                        borderColor: '#007bff',
+                                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                                        borderWidth: 3,
+                                        fill: true,
+                                        tension: 0.4,
+                                        yAxisID: 'y'
+                                    }, {
+                                        label: 'Gross Pay (RM)',
+                                        data: trendData,
+                                        borderColor: '#28a745',
+                                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                                        borderWidth: 3,
+                                        fill: false,
+                                        tension: 0.4,
+                                        yAxisID: 'y1'
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    interaction: {
+                                        mode: 'index',
+                                        intersect: false,
+                                    },
+                                    plugins: {
+                                        legend: {
+                                            position: 'bottom',
+                                            labels: {
+                                                padding: 20,
+                                                usePointStyle: true,
+                                                font: {
+                                                    size: 12
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        x: {
+                                            display: true,
+                                            title: {
+                                                display: true,
+                                                text: 'Pay Period'
+                                            }
+                                        },
+                                        y: {
+                                            type: 'linear',
+                                            display: true,
+                                            position: 'left',
+                                            title: {
+                                                display: true,
+                                                text: 'Employee Count'
+                                            }
+                                        },
+                                        y1: {
+                                            type: 'linear',
+                                            display: true,
+                                            position: 'right',
+                                            title: {
+                                                display: true,
+                                                text: 'Gross Pay (RM)'
+                                            },
+                                            grid: {
+                                                drawOnChartArea: false,
+                                            },
+                                            ticks: {
+                                                callback: function(value) {
+                                                    return 'RM ' + value.toLocaleString();
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+                            console.log('Line chart created successfully');
+                        } else {
+                            console.error('Trend chart canvas not found');
+                        }
+                        </text>
+                    }
+                    else
+                    {
+                        <text>
+                        console.log('No pay period data available for line chart');
+                        </text>
+                    }
+                }
+                else
+                {
+                    <text>
+                    console.log('No payroll data available for charts');
+                    </text>
+                }
+                </text>
+            }
+        });
+
+        // Export to Excel
+        function exportToExcel() {
+            const tables = document.querySelectorAll('table');
+            if (tables.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            tables.forEach((table, index) => {
+                const ws = XLSX.utils.table_to_sheet(table);
+                const sheetName = `Sheet${index + 1}`;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+            const filename = `PayrollReport_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, filename);
+        }
+
+        // Export to PDF
+        function exportToPDF() {
+            const element = document.querySelector('.report-section') || document.querySelector('.card-body');
+            if (!element) {
+                alert('No content to export');
+                return;
+            }
+
+            const opt = {
+                margin: 1,
+                filename: `PayrollReport_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(element).save();
+        }
+
+        // Auto-submit form when filters change (optional)
+        document.querySelectorAll('select[name="reportType"], select[name="periodType"]').forEach(select => {
+            select.addEventListener('change', function() {
+                // Uncomment the next line if you want auto-submit
+                // this.form.submit();
+            });
+        });
+    </script>
+}

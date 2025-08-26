@@ -239,6 +239,73 @@ namespace FinserveNew.Controllers
                     Count = x.Count
                 }).Cast<object>().ToList();
 
+                // Calculate current payroll status for the dashboard
+                var currentPayrollStatus = "Not Started";
+                
+                // Get all active employees who should have payroll records
+                var activeEmployeeIds = await _context.Employees
+                    .Where(e => e.ResignationDate == null || e.ResignationDate > DateOnly.FromDateTime(DateTime.Now))
+                    .Select(e => e.EmployeeID)
+                    .ToListAsync();
+
+                if (activeEmployeeIds.Any())
+                {
+                    // Get payroll records for current month/year for active employees
+                    var currentMonthPayrolls = await _context.Payrolls
+                        .Where(p => p.Month == currentMonth && p.Year == currentYear && activeEmployeeIds.Contains(p.EmployeeID))
+                        .ToListAsync();
+
+                    if (currentMonthPayrolls.Any())
+                    {
+                        // Check if all active employees have payroll records
+                        var employeesWithPayroll = currentMonthPayrolls.Select(p => p.EmployeeID).Distinct().ToList();
+                        var employeesWithoutPayroll = activeEmployeeIds.Except(employeesWithPayroll).ToList();
+
+                        if (employeesWithoutPayroll.Any())
+                        {
+                            // Not all employees have payroll records
+                            currentPayrollStatus = "Pending";
+                        }
+                        else
+                        {
+                            // All employees have payroll records, check if all are completed
+                            var completedPayrolls = currentMonthPayrolls.Where(p => p.PaymentStatus == "Completed").Count();
+                            var totalPayrolls = currentMonthPayrolls.Count;
+
+                            if (completedPayrolls == totalPayrolls)
+                            {
+                                currentPayrollStatus = "Completed";
+                            }
+                            else
+                            {
+                                // Check the status distribution
+                                var pendingCount = currentMonthPayrolls.Where(p => p.PaymentStatus == "Pending").Count();
+                                var pendingApprovalCount = currentMonthPayrolls.Where(p => p.PaymentStatus == "Pending Approval").Count();
+                                var approvedCount = currentMonthPayrolls.Where(p => p.PaymentStatus == "Approved").Count();
+                                var rejectedCount = currentMonthPayrolls.Where(p => p.PaymentStatus == "Rejected").Count();
+
+                                if (pendingCount > 0 || rejectedCount > 0)
+                                {
+                                    currentPayrollStatus = "Pending";
+                                }
+                                else if (pendingApprovalCount > 0)
+                                {
+                                    currentPayrollStatus = "Processing";
+                                }
+                                else if (approvedCount > 0)
+                                {
+                                    currentPayrollStatus = "Pending";
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // No payroll records exist for current month
+                        currentPayrollStatus = "Not Started";
+                    }
+                }
+
                 // Calendar data for HR - show all approved leaves
                 var allApprovedLeaves = await _context.Leaves
                     .Include(l => l.Employee)
@@ -289,8 +356,7 @@ namespace FinserveNew.Controllers
                 ViewBag.TotalClaimAmount = totalClaimAmount;
                 ViewBag.RecentLeaveApplications = recentLeaveApplications;
                 ViewBag.RecentClaimApplications = recentClaimApplications;
-                //ViewBag.CurrentPayrollStatus = currentPayrollBatch?.Status ?? "Not Started";
-                //ViewBag.CurrentPayrollBatch = currentPayrollBatch;
+                ViewBag.CurrentPayrollStatus = currentPayrollStatus;
                 ViewBag.EmployeesByStatus = employeeStatusList; // USE ONLY THIS ONE - REMOVE THE DUPLICATE
                 ViewBag.CalendarData = calendarData;
                 ViewBag.CurrentYear = currentYear;
@@ -315,7 +381,6 @@ namespace FinserveNew.Controllers
                 ViewBag.RecentLeaveApplications = new List<LeaveModel>();
                 ViewBag.RecentClaimApplications = new List<Claim>();
                 ViewBag.CurrentPayrollStatus = "Error";
-                ViewBag.CurrentPayrollBatch = null;
                 ViewBag.EmployeesByStatus = new List<object>();
                 ViewBag.CalendarData = new Dictionary<string, List<object>>();
                 ViewBag.CurrentYear = DateTime.Now.Year;

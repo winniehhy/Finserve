@@ -23,7 +23,6 @@ namespace FinserveNew.Models.ViewModels
         // Additional Properties for Dropdowns
         public List<Employee> AllEmployees { get; set; } = new List<Employee>();
         public List<int> AvailableYears { get; set; } = new List<int>();
-        // PayrollStatuses list removed since status filter is removed
     }
 
     public class ApprovalHistoryItem

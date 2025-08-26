@@ -1,0 +1,481 @@
+@model FinserveNew.Models.ViewModels.EmployeeReportViewModel
+@{
+    string reportType = ViewBag.ReportType as string ?? "summary";
+}
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Confirmed" => "success",
+            "Pending" => "warning",
+            "Probation" => "info",
+            _ => "secondary"
+        };
+    }
+}
+
+@if (Model?.Employees != null && Model.Employees.Any())
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0">Report Results (@Model.Employees.Count records)</h6>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="exportEmployeeToExcel()">
+                <i class="fas fa-file-excel me-1"></i>Export Excel
+            </button>
+        </div>
+    </div>
+
+    @if (reportType == "summary")
+    {
+        <!-- Summary Report -->
+        <div class="report-section">
+            <h6 class="mb-3"><i class="fas fa-chart-bar me-2"></i>Employee Summary Report</h6>
+            
+            <!-- Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h6 class="card-title text-primary">Total Employees</h6>
+                            <h3 class="text-primary">@Model.Summary.TotalEmployees</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h6 class="card-title text-success">Active Employees</h6>
+                            <h3 class="text-success">@Model.Summary.ActiveEmployees</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h6 class="card-title text-info">Confirmed</h6>
+                            <h3 class="text-info">@Model.Summary.ConfirmedEmployees</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h6 class="card-title text-warning">Pending Confirmation</h6>
+                            <h3 class="text-warning">@Model.Summary.PendingConfirmation</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Employee Data Table -->
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="employeeTable">
+                    <thead class="table-dark">
+                        <tr>
+                             <th>Employee ID</th>
+                             <th>Name</th>
+                             <th>Role</th>
+                             <th>Email</th>
+                             <th>Join Date</th>
+                             <th>Status</th>
+                             <th>Nationality</th>
+                             <th>Age</th>
+                             <th>Tenure</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var employee in Model.Employees)
+                        {
+                            <tr>
+                                 <td>@employee.EmployeeID</td>
+                                 <td>@employee.FirstName @employee.LastName</td>
+                                 <td>@(employee.Role?.RoleName ?? "N/A")</td>
+                                 <td>@employee.Email</td>
+                                 <td>@employee.JoinDate.ToString("dd MMM yyyy")</td>
+                                 <td><span class="badge bg-@GetStatusColor(employee.ConfirmationStatus)">@employee.ConfirmationStatus</span></td>
+                                 <td>@employee.Nationality</td>
+                                 <td>@(DateTime.Now.Year - employee.DateOfBirth.Year) years</td>
+                                 <td>@(DateTime.Now.Year - employee.JoinDate.Year) years</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (reportType == "analytics")
+    {
+        var statusGroups = Model.Employees.GroupBy(e => e.ConfirmationStatus)
+            .Select(g => new { 
+                Status = g.Key, 
+                Count = g.Count(), 
+                Percentage = (double)g.Count() / Model.Employees.Count() * 100
+            })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        var roleGroups = Model.Employees.GroupBy(e => e.Role?.RoleName ?? "Unknown")
+            .Select(g => new { 
+                Role = g.Key, 
+                Count = g.Count(), 
+                Percentage = (double)g.Count() / Model.Employees.Count() * 100
+            })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        <!-- Analytics Dashboard -->
+        <div class="report-section">
+            <h6 class="mb-3"><i class="fas fa-chart-line me-2"></i>Employee Analytics Dashboard</h6>
+
+            <!-- Chart Type Toggle Buttons -->
+            <div class="row mb-3">
+                <div class="col-12 text-center">
+                    <div class="btn-group" role="group" aria-label="Chart Type">
+                        <button type="button" class="btn btn-outline-primary chart-toggle-btn active" data-chart="both" onclick="setEmployeeChartView('both')">
+                            <i class="fas fa-chart-area me-1"></i>Both Charts
+                        </button>
+                        <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="pie" onclick="setEmployeeChartView('pie')">
+                            <i class="fas fa-chart-pie me-1"></i>Status Chart Only
+                        </button>
+                                                 <button type="button" class="btn btn-outline-primary chart-toggle-btn" data-chart="bar" onclick="setEmployeeChartView('bar')">
+                             <i class="fas fa-chart-bar me-1"></i>Role Chart Only
+                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row mb-4">
+                <!-- Status Distribution Chart -->
+                <div class="col-md-6 mb-4" id="employeePieChartContainer">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Employee Status Distribution</h6>
+                        </div>
+                        <div class="card-body">
+                            @if (statusGroups.Any())
+                            {
+                                <div style="position: relative; height: 400px;">
+                                    <canvas id="employeeStatusChart"></canvas>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center text-muted" style="height: 400px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                    <i class="fas fa-chart-pie fa-3x mb-2"></i>
+                                    <p>No status data available</p>
+                                    <small>Try adjusting your filter criteria</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                 <!-- Role Distribution Chart -->
+                 <div class="col-md-6 mb-4" id="employeeBarChartContainer">
+                     <div class="card">
+                         <div class="card-header">
+                             <h6 class="mb-0">Role Distribution</h6>
+                         </div>
+                         <div class="card-body">
+                             @if (roleGroups.Any())
+                             {
+                                 <div style="position: relative; height: 400px;">
+                                     <canvas id="employeeRoleChart"></canvas>
+                                 </div>
+                             }
+                             else
+                             {
+                                 <div class="text-center text-muted" style="height: 400px; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                                     <i class="fas fa-chart-bar fa-3x mb-2"></i>
+                                     <p>No role data available</p>
+                                     <small>Try adjusting your filter criteria</small>
+                                 </div>
+                             }
+                         </div>
+                     </div>
+                 </div>
+            </div>
+
+            <!-- Detailed Analytics Tables -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-table me-2"></i>Status Summary</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Status</th>
+                                            <th>Count</th>
+                                            <th>Percentage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var status in statusGroups)
+                                        {
+                                            <tr>
+                                                <td><strong>@status.Status</strong></td>
+                                                <td>@status.Count</td>
+                                                <td>@status.Percentage.ToString("F1")%</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                                 <div class="col-md-6">
+                     <div class="card">
+                         <div class="card-header">
+                             <h6><i class="fas fa-table me-2"></i>Role Summary</h6>
+                         </div>
+                         <div class="card-body">
+                             <div class="table-responsive">
+                                 <table class="table table-sm table-striped">
+                                     <thead class="table-light">
+                                         <tr>
+                                             <th>Role</th>
+                                             <th>Count</th>
+                                             <th>Percentage</th>
+                                         </tr>
+                                     </thead>
+                                     <tbody>
+                                         @foreach (var role in roleGroups)
+                                         {
+                                             <tr>
+                                                 <td><strong>@role.Role</strong></td>
+                                                 <td>@role.Count</td>
+                                                 <td>@role.Percentage.ToString("F1")%</td>
+                                             </tr>
+                                         }
+                                     </tbody>
+                                 </table>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+        <script type="text/javascript">
+            // Initialize employee analytics charts
+            function initializeEmployeeCharts() {
+                console.log('Initializing employee charts...');
+                
+                // Ensure Chart.js is loaded
+                if (typeof Chart === 'undefined') {
+                    console.error('Chart.js is not loaded');
+                    return;
+                }
+
+                // Destroy existing charts if they exist
+                if (window.employeePieChart) {
+                    window.employeePieChart.destroy();
+                    window.employeePieChart = null;
+                }
+                if (window.employeeBarChart) {
+                    window.employeeBarChart.destroy();
+                    window.employeeBarChart = null;
+                }
+
+                // Prepare data for charts
+                @if (statusGroups.Any())
+                {
+                    <text>
+                    // Status Pie Chart
+                    const statusLabels = @Html.Raw(Json.Serialize(statusGroups.Select(s => s.Status).ToArray()));
+                    const statusData = @Html.Raw(Json.Serialize(statusGroups.Select(s => s.Count).ToArray()));
+                    
+                    const statusColors = statusLabels.map(status => {
+                        switch(status) {
+                            case 'Confirmed': return '#28a745';
+                            case 'Pending': return '#ffc107';
+                            case 'Probation': return '#17a2b8';
+                            default: return '#6c757d';
+                        }
+                    });
+
+                    const statusCtx = document.getElementById('employeeStatusChart');
+                    if (statusCtx) {
+                        window.employeePieChart = new Chart(statusCtx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: statusLabels,
+                                datasets: [{
+                                    label: 'Employees',
+                                    data: statusData,
+                                    backgroundColor: statusColors,
+                                    borderWidth: 2,
+                                    borderColor: '#fff'
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'bottom',
+                                        labels: {
+                                            padding: 20,
+                                            usePointStyle: true,
+                                            font: { size: 12 }
+                                        }
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                const label = context.label || '';
+                                                const value = context.parsed;
+                                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                                const percentage = ((value / total) * 100).toFixed(1);
+                                                return label + ': ' + value + ' (' + percentage + '%)';
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+
+                @if (roleGroups.Any())
+                {
+                    <text>
+                    // Role Bar Chart
+                    const roleLabels = @Html.Raw(Json.Serialize(roleGroups.Select(r => r.Role).ToArray()));
+                    const roleData = @Html.Raw(Json.Serialize(roleGroups.Select(r => r.Count).ToArray()));
+
+                    const roleCtx = document.getElementById('employeeRoleChart');
+                    if (roleCtx) {
+                        window.employeeBarChart = new Chart(roleCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: roleLabels,
+                                datasets: [{
+                                    label: 'Employees',
+                                    data: roleData,
+                                    backgroundColor: '#007bff',
+                                    borderColor: '#0056b3',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: false
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        ticks: {
+                                            stepSize: 1
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    </text>
+                }
+            }
+
+            // Call initialization when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeEmployeeCharts);
+            } else {
+                initializeEmployeeCharts();
+            }
+        </script>
+    }
+}
+else
+{
+    <div class="alert alert-info text-center py-4">
+        <i class="fas fa-users fa-3x mb-3"></i>
+        <h5 class="mb-0">No employee data available for the selected criteria.</h5>
+        <p class="text-muted mt-2">Try adjusting your filter criteria or check if there are any employee records.</p>
+    </div>
+}
+
+<script>
+    // Chart view function for employee analytics
+    function setEmployeeChartView(viewType) {
+        const pieContainer = document.getElementById('employeePieChartContainer');
+        const barContainer = document.getElementById('employeeBarChartContainer');
+        const toggleButtons = document.querySelectorAll('.chart-toggle-btn');
+
+        // Check if containers exist (analytics view is loaded)
+        if (!pieContainer || !barContainer) {
+            console.log('Chart containers not found - analytics view may not be loaded');
+            return;
+        }
+
+        // Remove active class from all buttons and add to selected
+        toggleButtons.forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.chart === viewType) {
+                btn.classList.add('active');
+            }
+        });
+
+        // Reset containers to original state first
+        pieContainer.className = 'col-md-6 mb-4';
+        barContainer.className = 'col-md-6 mb-4';
+        pieContainer.style.display = 'block';
+        barContainer.style.display = 'block';
+
+        // Apply view-specific changes
+        switch (viewType) {
+            case 'pie':
+                barContainer.style.display = 'none';
+                pieContainer.className = 'col-md-12 mb-4';
+                break;
+            case 'bar':
+                pieContainer.style.display = 'none';
+                barContainer.className = 'col-md-12 mb-4';
+                break;
+            case 'both':
+            default:
+                // Both charts visible (default state)
+                break;
+        }
+    }
+
+    // Export functions for employee data
+    function exportEmployeeToExcel() {
+        const tables = document.querySelectorAll('#employeeReportContent table, table');
+        if (tables.length === 0) {
+            alert('No employee data to export');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+        
+        tables.forEach((table, index) => {
+            const ws = XLSX.utils.table_to_sheet(table);
+            const sheetName = `EmployeeSheet${index + 1}`;
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        });
+
+        const filename = `EmployeeReport_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, filename);
+    }
+
+    // Legacy function for backwards compatibility
+    function exportToExcel() {
+        exportEmployeeToExcel();
+    }
+</script>

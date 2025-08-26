@@ -10,21 +10,19 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h1 class="page-title">
+                    <i class="fas fa-user-tie me-2"></i>
                     Senior HR Dashboard
                 </h1>
                 <p class="page-subtitle">Welcome back, @User.Identity.Name | @ViewBag.CurrentMonth</p>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary" onclick="exportReport()">
-                    <i class="fas fa-download me-2"></i>Export Report
-                </button>
                 <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                         <i class="fas fa-plus me-2"></i>Quick Action
                     </button>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="@Url.Action("ApprovePayrolls", "Payroll")">Review Payroll Approvals</a></li>
-                        <li><a class="dropdown-item" href="@Url.Action("AllAccounts", "Accounts")">Manage Employees</a></li>
+                        @* <li><a class="dropdown-item" href="@Url.Action("AllAccounts", "Accounts")">Manage Employees</a></li> *@
                     </ul>
                 </div>
             </div>
@@ -33,7 +31,7 @@
 
     <!-- Quick Stats Cards -->
     <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-4 col-md-6 mb-3">
             <div class="stat-card">
                 <div class="stat-icon bg-danger">
                     <i class="fas fa-exclamation-circle"></i>
@@ -49,7 +47,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-4 col-md-6 mb-3">
             <div class="stat-card">
                 <div class="stat-icon bg-primary">
                     <i class="fas fa-users"></i>
@@ -64,7 +62,7 @@
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
+        <div class="col-lg-4 col-md-6 mb-3">
             <div class="stat-card">
                 <div class="stat-icon bg-success">
                     <i class="fas fa-money-check-alt"></i>
@@ -77,22 +75,7 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card">
-                <div class="stat-icon bg-info">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-number">RM @ViewBag.TotalPayrollAmount.ToString("N0")</div>
-                    <div class="stat-label">Total Payroll Value</div>
-                    <div class="stat-change neutral">
-                        <i class="fas fa-money-bill-wave"></i> Monthly total
-                    </div>
-                </div>
-            </div>
-        </div>
+        </div> 
     </div>
 
     <!-- Main Content Grid -->
@@ -108,22 +91,26 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="quick-action-btn">
-                                <div class="quick-action-icon bg-danger">
+                        <div class="col-md-4 mb-3">
+                            <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="quick-action-btn @(ViewBag.PendingPayrollCount > 5 ? "urgent" : "")">
+                                <div class="quick-action-icon bg-@(ViewBag.PendingPayrollCount > 5 ? "danger" : "success")">
                                     <i class="fas fa-check-circle"></i>
+                                    @if (ViewBag.PendingPayrollCount > 0)
+                                    {
+                                        <span class="badge bg-red text-white position-absolute top-0 start-100 translate-middle">@ViewBag.PendingPayrollCount</span>
+                                    }
                                 </div>
                                 <div class="quick-action-content">
                                     <h6>Approve Payrolls</h6>
                                     <p>Review pending payrolls</p>
-                                    @if (ViewBag.PendingPayrollCount > 0)
+                                    @if (ViewBag.PendingPayrollCount == 0)
                                     {
-                                        <span class="badge bg-danger">@ViewBag.PendingPayrollCount pending</span>
+                                        <span class="text-success">All up to date</span>
                                     }
                                 </div>
                             </a>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        @* <div class="col-md-6 mb-3">
                             <a href="@Url.Action("AllAccounts", "Accounts")" class="quick-action-btn">
                                 <div class="quick-action-icon bg-primary">
                                     <i class="fas fa-users"></i>
@@ -133,18 +120,20 @@
                                     <p>View and manage staff</p>
                                 </div>
                             </a>
-                        </div>
+                        </div> *@
                     </div>
                 </div>
             </div>
+
 
             <!-- Pending Payroll Approvals -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Pending Payroll Approvals
+                        <i class="fas fa-@(ViewBag.PendingPayrollCount > 0 ? "exclamation-triangle text-danger" : "check-circle text-success") me-2"></i>
+                        @(ViewBag.PendingPayrollCount > 0 ? "Pending Payroll Approvals" : "Payroll Approvals")
                     </h5>
-                    <a href="@Url.Action("ApprovePayrolls", "SeniorHR")" class="btn btn-sm btn-outline-primary">View All</a>
+                    <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
                 <div class="card-body">
                     @if (ViewBag.PendingPayrolls != null && ((List<FinserveNew.Models.Payroll>)ViewBag.PendingPayrolls).Any())
@@ -165,7 +154,7 @@
                                 <tbody>
                                     @foreach (var payroll in ((List<FinserveNew.Models.Payroll>)ViewBag.PendingPayrolls).Take(5))
                                     {
-                                        <tr>
+                                        <tr class="@(ViewBag.PendingPayrollCount > 10 ? "table-danger" : ViewBag.PendingPayrollCount > 5 ? "table-warning" : "")">
                                             <td>@payroll.EmployeeID</td>
                                             <td>@payroll.Employee.FirstName @payroll.Employee.LastName</td>
                                             <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month) @payroll.Year</td>
@@ -173,20 +162,33 @@
                                             <td>RM @payroll.TotalWages.ToString("N2")</td>
                                             <td>RM @payroll.TotalEmployerCost.ToString("N2")</td>
                                             <td>
-                                                <a href="@Url.Action("PayrollDetails", "SeniorHR", new { id = payroll.PayrollID })" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-eye me-1"></i> Review
-                                                </a>
+                                                <div class="btn-group" role="group">
+                                                    <a href="@Url.Action("PayrollDetails", "Payroll", new { id = payroll.PayrollID })" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye me-1"></i> Review
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm btn-success" onclick="quickApprove('@payroll.PayrollID', '@payroll.Employee.FirstName @payroll.Employee.LastName')">
+                                                        <i class="fas fa-check me-1"></i> Quick Approve
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
                         </div>
+                        @if (((List<FinserveNew.Models.Payroll>)ViewBag.PendingPayrolls).Count > 5)
+                        {
+                            <div class="text-center mt-3">
+                                <p class="text-muted">Showing 5 of @((List<FinserveNew.Models.Payroll>)ViewBag.PendingPayrolls).Count pending approvals</p>
+                                <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="btn btn-primary">View All @((List<FinserveNew.Models.Payroll>)ViewBag.PendingPayrolls).Count Pending</a>
+                            </div>
+                        }
                     }
                     else
                     {
                         <div class="text-center py-4">
                             <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h5 class="text-success">All Caught Up!</h5>
                             <p class="text-muted">No pending payroll approvals</p>
                             <p class="text-success">All payrolls are up to date!</p>
                         </div>
@@ -200,7 +202,7 @@
                     <h5 class="card-title mb-0">
                         <i class="fas fa-history me-2"></i>Recent Payroll Activities
                     </h5>
-                    <a href="@Url.Action("ApprovePayrolls", "SeniorHR")" class="btn btn-sm btn-outline-primary">View All</a>
+                    <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
                 <div class="card-body">
                     @if (ViewBag.RecentPayrollActivities != null && ((List<FinserveNew.Models.Payroll>)ViewBag.RecentPayrollActivities).Any())
@@ -224,11 +226,11 @@
                                             <td>@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(activity.Month) @activity.Year</td>
                                             <td>RM @activity.TotalWages.ToString("N2")</td>
                                             <td>
-                                                <span class="badge bg-@(activity.PaymentStatus == "Approved" ? "success" : activity.PaymentStatus == "Pending Approval" ? "warning" : "danger")">
+                                                <span class="badge bg-@(activity.PaymentStatus == "Approved" ? "success" : activity.PaymentStatus == "Pending Approval" ? "warning" : activity.PaymentStatus == "Rejected" ? "danger" : "secondary")">
                                                     @activity.PaymentStatus
                                                 </span>
                                             </td>
-                                            <td>@DateTime.Now.ToString("dd MMM, yyyy")</td>
+                                            <td>@activity.CreatedDate.ToString("dd MMM, yyyy")</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -265,7 +267,7 @@
                             var statusCount = statusData?.Count ?? 0;
                             var totalPayrolls = ViewBag.TotalPayrolls ?? 1;
                             var percentage = totalPayrolls > 0 ? (statusCount * 100.0 / totalPayrolls) : 0;
-                            var progressColor = statusName == "Approved" ? "success" : statusName == "Pending Approval" ? "warning" : "danger";
+                            var progressColor = statusName == "Approved" ? "success" : statusName == "Pending Approval" ? "warning" : statusName == "Completed" ? "info" : statusName == "Rejected" ? "danger" : "secondary";
 
                             <div class="status-item mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -275,12 +277,16 @@
                                 <div class="progress">
                                     <div class="progress-bar bg-@progressColor" style="width: @percentage%"></div>
                                 </div>
+                                <small class="text-muted">@percentage.ToString("F1")%</small>
                             </div>
                         }
                     }
                     else
                     {
-                        <p class="text-muted text-center">No payroll status data available</p>
+                        <div class="text-center py-3">
+                            <i class="fas fa-chart-pie fa-2x text-muted mb-2"></i>
+                            <p class="text-muted">No payroll data available for @ViewBag.CurrentMonth</p>
+                        </div>
                     }
                 </div>
             </div>
@@ -308,15 +314,16 @@
                     <div class="overview-item mb-3">
                         <div class="d-flex justify-content-between align-items-center">
                             <span><i class="fas fa-clock text-warning me-2"></i>Pending Approvals</span>
-                            <span class="fw-bold">@ViewBag.PendingPayrollCount</span>
+                            <span class="fw-bold text-@(ViewBag.PendingPayrollCount > 0 ? "danger" : "success")">@ViewBag.PendingPayrollCount</span>
                         </div>
                     </div>
-                    <div class="overview-item">
+                    <div class="overview-item mb-3">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="fas fa-money-bill-wave text-info me-2"></i>Total Value</span>
-                            <span class="fw-bold">RM @ViewBag.TotalPayrollAmount.ToString("N0")</span>
+                            <span><i class="fas fa-list text-info me-2"></i>Total Payrolls</span>
+                            <span class="fw-bold">@ViewBag.TotalPayrolls</span>
                         </div>
                     </div>
+
                 </div>
             </div>
 
@@ -335,18 +342,35 @@
                         var hasNotifications = false;
                     }
 
-                    @* Pending Payroll Notifications *@
-                    @if (ViewBag.PendingPayrollCount > 0)
+                    @* Urgent Pending Payroll Notifications *@
+                    @if (ViewBag.PendingPayrollCount > 10)
+                    {
+                        hasNotifications = true;
+                        <div class="notification-item urgent" data-type="payroll-urgent" data-id="payroll-urgent-@DateTime.Now.Month">
+                            <div class="notification-icon bg-danger">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h6 class="text-danger">Urgent: High Volume of Pending Approvals</h6>
+                                <p>You have @ViewBag.PendingPayrollCount payroll(s) waiting for approval. This is higher than normal.</p>
+                                <small class="text-muted">Immediate action recommended</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger notification-read-btn" onclick="markAsRead(this, 'payroll-urgent', 'payroll-urgent-@DateTime.Now.Month')">
+                                Mark as Read
+                            </button>
+                        </div>
+                    }
+                    else if (ViewBag.PendingPayrollCount > 0)
                     {
                         hasNotifications = true;
                         <div class="notification-item" data-type="payroll-pending" data-id="payroll-pending-@DateTime.Now.Month">
-                            <div class="notification-icon bg-danger">
-                                <i class="fas fa-exclamation-triangle"></i>
+                            <div class="notification-icon bg-warning">
+                                <i class="fas fa-clock"></i>
                             </div>
                             <div class="notification-content">
                                 <h6>Pending Payroll Approvals</h6>
                                 <p>You have @ViewBag.PendingPayrollCount payroll(s) waiting for your approval.</p>
-                                <small class="text-muted">Requires immediate attention</small>
+                                <small class="text-muted">Review when convenient</small>
                             </div>
                             <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'payroll-pending', 'payroll-pending-@DateTime.Now.Month')">
                                 Mark as Read
@@ -363,7 +387,7 @@
                                 <i class="fas fa-check-circle"></i>
                             </div>
                             <div class="notification-content">
-                                <h6>Payrolls Approved</h6>
+                                <h6>Payrolls Approved This Month</h6>
                                 <p>You have successfully approved @ViewBag.ApprovedPayrollCount payroll(s) this month.</p>
                                 <small class="text-muted">Great job keeping up!</small>
                             </div>
@@ -391,11 +415,38 @@
         // Senior HR Dashboard functionality
         document.addEventListener('DOMContentLoaded', function() {
             loadReadNotifications();
-        });
+            });
 
-        // Export report functionality
-        function exportReport() {
-            alert('Senior HR Report export functionality will be implemented soon!');
+        // Quick approve functionality
+        function quickApprove(payrollId, employeeName) {
+            if (confirm(`Are you sure you want to approve the payroll for ${employeeName}?`)) {
+                // Create a form and submit it
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '@Url.Action("ApprovePayroll", "Payroll")';
+                
+                const payrollIdInput = document.createElement('input');
+                payrollIdInput.type = 'hidden';
+                payrollIdInput.name = 'id';
+                payrollIdInput.value = payrollId;
+                
+                const commentsInput = document.createElement('input');
+                commentsInput.type = 'hidden';
+                commentsInput.name = 'comments';
+                commentsInput.value = 'Quick approved from dashboard';
+                
+                const tokenInput = document.createElement('input');
+                tokenInput.type = 'hidden';
+                tokenInput.name = '__RequestVerificationToken';
+                tokenInput.value = $('input[name="__RequestVerificationToken"]').val();
+                
+                form.appendChild(payrollIdInput);
+                form.appendChild(commentsInput);
+                form.appendChild(tokenInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
 
         // Notification functions
@@ -484,9 +535,116 @@
         .overview-item {
             padding: 8px 0;
             border-bottom: 1px solid #f1f3f4;
+            transition: background-color 0.3s ease;
         }
         .overview-item:last-child {
             border-bottom: none;
+        }
+        .overview-item:hover {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin: 0 -10px;
+        }
+
+        /* Enhanced urgent styling */
+        .stat-card.urgent {
+            animation: urgentPulse 2s infinite;
+            border: 2px solid #dc3545;
+        }
+
+        .notification-item.urgent {
+            border-left: 4px solid #dc3545;
+            background-color: #fff5f5;
+        }
+
+        .quick-action-btn.urgent {
+            animation: urgentPulse 2s infinite;
+        }
+
+        @@keyframes urgentPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+
+        /* Progress circle styling */
+        .progress-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            position: relative;
+            background: conic-gradient(#198754 0deg, #e9ecef 0deg);
+        }
+
+        .progress-circle::before {
+            content: '';
+            position: absolute;
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            background: white;
+        }
+
+        .progress-text {
+            position: relative;
+            z-index: 1;
+            font-weight: bold;
+            color: #198754;
+        }
+
+        /* Enhanced table styling */
+        .table-danger {
+            --bs-table-bg: #f8d7da;
+        }
+
+        .table-warning {
+            --bs-table-bg: #fff3cd;
+        }
+
+        /* Enhanced quick action buttons */
+        .quick-action-btn {
+            position: relative;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .quick-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            color: inherit;
+            text-decoration: none;
+        }
+
+        /* Better card styling */
+        .card {
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Status item enhancements */
+        .status-item {
+            transition: all 0.3s ease;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .status-item:hover {
+            background-color: #f8f9fa;
         }
     </style>
 }
