@@ -1,0 +1,228 @@
+@{
+    ViewData["Title"] = "Review Reports";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+
+    dynamic invoiceSummary = ViewBag.InvoiceSummary ?? new { TotalInvoices = 0, PaidAmount = 0m, PendingAmount = 0m, OverdueAmount = 0m, SentAmount = 0m };
+    dynamic payrollSummary = ViewBag.PayrollSummary ?? new { TotalEmployees = 0, MonthlyPayroll = 0m, PendingPayments = 0m, AverageSalary = 0m };
+    dynamic employeeSummary = ViewBag.EmployeeSummary ?? new { ActiveEmployees = 0, TotalDepartments = 0, NewHires = 0, PendingReviews = 0 };
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-line me-2"></i>Review Reports & Analytics</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Tab Navigation -->
+                    <ul class="nav nav-tabs" id="reportTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice-content" type="button" role="tab" aria-controls="invoice-content" aria-selected="true">
+                                <i class="fas fa-file-invoice me-2"></i>Invoice Reports
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="payroll-tab" data-bs-toggle="tab" data-bs-target="#payroll-content" type="button" role="tab" aria-controls="payroll-content" aria-selected="false">
+                                <i class="fas fa-money-bill-wave me-2"></i>Payroll Reports
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="employee-tab" data-bs-toggle="tab" data-bs-target="#employee-content" type="button" role="tab" aria-controls="employee-content" aria-selected="false">
+                                <i class="fas fa-users me-2"></i>Employee Reports
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="reportTabContent">
+
+                        <!-- Invoice Reports Tab -->
+                        <div class="tab-pane fade show active" id="invoice-content" role="tabpanel" aria-labelledby="invoice-tab">
+                            <div class="mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5><i class="fas fa-file-invoice me-2"></i>Invoice Reports & Analytics</h5>
+                                    <a href="@Url.Action("GenerateReport", "Invoice")" class="btn btn-primary">
+                                        <i class="fas fa-external-link-alt me-2"></i>View Full Report
+                                    </a>
+                                </div>
+
+                                <!-- Quick Stats -->
+                                <div class="row mb-4">
+                                    <div class="col-md-3">
+                                        <div class="card text-center border-primary">
+                                            <div class="card-body">
+                                                <h6 class="card-title text-primary">Total Invoices</h6>
+                                                <h4 class="text-primary">@invoiceSummary.TotalInvoices</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card text-center border-success">
+                                            <div class="card-body">
+                                                <h6 class="card-title text-success">Paid Amount</h6>
+                                                <h4 class="text-success">RM @invoiceSummary.PaidAmount.ToString("N2")</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card text-center border-warning">
+                                            <div class="card-body">
+                                                <h6 class="card-title text-warning">Pending Amount</h6>
+                                                <h4 class="text-warning">RM @invoiceSummary.PendingAmount.ToString("N2")</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card text-center border-danger">
+                                            <div class="card-body">
+                                                <h6 class="card-title text-danger">Overdue Amount</h6>
+                                                <h4 class="text-danger">RM @invoiceSummary.OverdueAmount.ToString("N2")</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Actions -->
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-chart-pie fa-2x text-info mb-3"></i>
+                                                <h6>Status Distribution</h6>
+                                                <p class="text-muted">View invoice status breakdown</p>
+                                                <a href="@Url.Action("GenerateReport", "Invoice")" class="btn btn-outline-info btn-sm">View Details</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-chart-line fa-2x text-success mb-3"></i>
+                                                <h6>Monthly Trends</h6>
+                                                <p class="text-muted">Analyze monthly invoice trends</p>
+                                                <a href="@Url.Action("GenerateReport", "Invoice")?period=monthly" class="btn btn-outline-success btn-sm">View Trends</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-file-export fa-2x text-primary mb-3"></i>
+                                                <h6>Export Reports</h6>
+                                                <p class="text-muted">Generate PDF reports</p>
+                                                <a href="@Url.Action("GenerateReport", "Invoice")" class="btn btn-outline-primary btn-sm">Export PDF</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payroll Reports Tab -->
+                        <div class="tab-pane fade" id="payroll-content" role="tabpanel" aria-labelledby="payroll-tab">
+                            <div class="mt-4">
+                                <div class="text-center py-5">
+                                    <i class="fas fa-money-bill-wave fa-4x text-muted mb-4"></i>
+                                    <h4 class="text-muted">Payroll Reports Coming Soon</h4>
+                                    <p class="text-muted">This section is currently under development.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employee Reports Tab -->
+                        <div class="tab-pane fade" id="employee-content" role="tabpanel" aria-labelledby="employee-tab">
+                            <div class="mt-4">
+                                <div class="text-center py-5">
+                                    <i class="fas fa-users fa-4x text-muted mb-4"></i>
+                                    <h4 class="text-muted">Employee Reports Coming Soon</h4>
+                                    <p class="text-muted">This section is currently under development.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs {
+        border-bottom: 2px solid #dee2e6;
+    }
+
+        .nav-tabs .nav-link {
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #6c757d;
+            font-weight: 500;
+            padding: 12px 20px;
+            transition: all 0.3s ease;
+        }
+
+            .nav-tabs .nav-link:hover {
+                border-color: transparent;
+                color: #007bff;
+                background-color: rgba(0, 123, 255, 0.1);
+            }
+
+            .nav-tabs .nav-link.active {
+                color: #007bff;
+                background-color: transparent;
+                border-color: #007bff;
+                font-weight: 600;
+            }
+
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+        transition: all 0.3s ease;
+    }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+    .tab-content {
+        min-height: 600px;
+    }
+
+    .btn-outline-info:hover,
+    .btn-outline-success:hover,
+    .btn-outline-primary:hover {
+        transform: translateY(-1px);
+    }
+</style>
+
+<script>
+    // Tab switching with URL hash support
+    const triggerTabList = document.querySelectorAll('#reportTabs button')
+    triggerTabList.forEach(triggerEl => {
+        const tabTrigger = new bootstrap.Tab(triggerEl)
+
+        triggerEl.addEventListener('click', event => {
+            event.preventDefault()
+            tabTrigger.show()
+            // Update URL hash
+            const target = event.target.getAttribute('data-bs-target');
+            if (target) {
+                window.location.hash = target.replace('#', '').replace('-content', '');
+            }
+        })
+    })
+
+    // Check URL hash on page load
+    window.addEventListener('DOMContentLoaded', function () {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const targetTab = document.querySelector(`#${hash}-tab`);
+            if (targetTab) {
+                const tabTrigger = new bootstrap.Tab(targetTab);
+                tabTrigger.show();
+            }
+        }
+    });
+</script>

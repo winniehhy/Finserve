@@ -19,227 +19,209 @@
     @if (User.Identity.IsAuthenticated)
     {
         <!-- Header -->
-        <header class="main-header">
-            <div class="header-content">
-                <div class="d-flex align-items-center">
-                    <button class="header-btn mobile-menu-btn me-2" onclick="toggleSidebar()">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    <a href="@Url.Action("Index", "Home")" class="logo">
-                        <div class="logo-icon">FS</div>
-                        Finserve
-                    </a>
-                </div>
+    <header class="main-header">
+        <div class="header-content">
+            <div class="d-flex align-items-center">
+                <button class="header-btn mobile-menu-btn me-2" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a href="@Url.Action("Index", "Home")" class="logo">
+                    <div class="logo-icon">FS</div>
+                    Finserve
+                </a>
+            </div>
 
-                <div class="header-right">
-                    <button class="header-btn">
+            <div class="header-right">
+                @*<button class="header-btn">
                         <i class="fas fa-search"></i>
                     </button>
                     <button class="header-btn">
                         <i class="fas fa-bell"></i>
                         <span class="notification-badge">3</span>
-                    </button>
-                    
-                    <div class="user-menu dropdown" data-bs-toggle="dropdown">
-                        <div class="user-avatar">
-                            @{
+                    </button>*@
+
+                <div class="user-menu dropdown" data-bs-toggle="dropdown">
+                    <div class="user-avatar">
+                        @{
                                 var userName = User.Identity.Name ?? "User";
                                 var nameParts = userName.Split('@')[0].Split('.');
-                                var userInitials = nameParts.Length > 1 ? 
+                                var userInitials = nameParts.Length > 1 ?
                                     (nameParts[0].FirstOrDefault().ToString().ToUpper() + nameParts[1].FirstOrDefault().ToString().ToUpper()) :
                                     userName.Substring(0, Math.Min(2, userName.Length)).ToUpper();
-                            }
-                            @userInitials
-                        </div>
-                        <span class="d-none d-md-inline">@userName</span>
-                        <i class="fas fa-chevron-down ms-1"></i>
+                        }
+                        @userInitials
                     </div>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="@Url.Action("Profile", "Account")"><i class="fas fa-user me-2"></i>Profile</a></li>
-                        <!-- <li><a class="dropdown-item" href="@Url.Action("Settings", "Account")"><i class="fas fa-cog me-2"></i>Settings</a></li> -->
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                <button type="submit" class="dropdown-item">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                </button>
-                            </form>
-                        </li>   
-                    </ul>
+                    <span class="d-none d-md-inline">@userName</span>
+                    <i class="fas fa-chevron-down ms-1"></i>
                 </div>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="@Url.Action("Profile", "Account")"><i class="fas fa-user me-2"></i>Profile</a></li>
+                    <!-- <li><a class="dropdown-item" href="@Url.Action("Settings", "Account")"><i class="fas fa-cog me-2"></i>Settings</a></li> -->
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                            <button type="submit" class="dropdown-item">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </button>
+                        </form>
+                    </li>
+                </ul>
             </div>
-        </header>
+        </div>
+    </header>
 
-        <!-- Sidebar -->
-        <nav class="sidebar" id="sidebar">
-            <ul class="sidebar-menu">
-                @{
+ <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <ul class="sidebar-menu">
+            @{
                     var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
                     var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
-                }
-                
-                <!-- Main Dashboard -->
-                <li class="menu-item">
-                    <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" && currentAction == "Index" ? "active" : "")">
-                        <i class="fas fa-tachometer-alt menu-icon"></i>
-                        Dashboard
-                    </a>
-                </li>
+            }
 
-                <!-- Admin Only Sections -->
-                @if (User.IsInRole("Admin"))
+            <!-- Main Dashboard -->
+            <li class="menu-item">
+                <a href="@Url.Action("Index", "Home")" class="menu-link @(currentController == "Home" && currentAction == "Index" ? "active" : "")">
+                    <i class="fas fa-tachometer-alt menu-icon"></i>
+                    Dashboard
+                </a>
+            </li>
+
+            <!-- Admin Only Sections -->
+            @if (User.IsInRole("Admin"))
                 {
-                    <li class="menu-section">
-                        <div class="menu-section-title">ADMINISTRATION</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("InvoiceRecord", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
-                            <i class="fas fa-file-invoice menu-icon"></i>
-                            Invoice Management
-                        </a>
-                    </li>
-                    
-                    
+            <li class="menu-section">
+                <div class="menu-section-title">ADMINISTRATION</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("InvoiceRecord", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
+                    <i class="fas fa-file-invoice menu-icon"></i>
+                    Invoice Management
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("ReviewReports", "Report")" class="menu-link @(currentController == "Report" ? "active" : "")">
+                    <i class="fas fa-chart-line menu-icon"></i>
+                    Review Reports
+                </a>
+            </li>
                 }
 
-                <!-- Senior HR Only Sections -->
-                @if (User.IsInRole("Senior HR"))
+            <!-- Senior HR Only Sections -->
+            @if (User.IsInRole("Senior HR"))
                 {
-                    <li class="menu-section">
-                        <div class="menu-section-title">MANAGEMENT</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
-                            <i class="fas fa-check-circle menu-icon"></i>
-                            <span>Approve Payrolls</span>
-                            <span class="badge bg-danger ms-4" id="pending-payroll-badge" style="display: none;">0</span>
-                        </a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
-                            <i class="fas fa-users menu-icon"></i>
-                            Employee Management
-                        </a>
-                    </li>
+            <li class="menu-section">
+                <div class="menu-section-title">MANAGEMENT</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("ApprovePayrolls", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                    <i class="fas fa-check-circle menu-icon"></i>
+                    <span>Approve Payrolls</span>
+                    <span class="badge bg-danger ms-4" id="pending-payroll-badge" style="display: none;">0</span>
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
+                    <i class="fas fa-users menu-icon"></i>
+                    Employee Management
+                </a>
+            </li>
                 }
 
-                <!-- HR Only Sections -->
-                @if (User.IsInRole("HR"))
+            <!-- HR Only Sections -->
+            @if (User.IsInRole("HR"))
                 {
-                    <li class="menu-section">
-                        <div class="menu-section-title">ACCOUNTS</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
-                            <i class="fas fa-users menu-icon"></i>
-                            Accounts Management
-                        </a>
-                    </li>
-                    <li class="menu-section">
-                        <div class="menu-section-title">PAYROLL</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("Process", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
-                            <i class="fas fa-money-bill-wave menu-icon"></i>
-                            Payroll Management
-                        </a>
-                    </li>
-                    <li class="menu-section">
-                        <div class="menu-section-title">CLAIMS</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("HRIndex", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
-                            <i class="fa-solid fa-file menu-icon"></i>
-                             Claim Management
-                        </a>
-                    </li>
-                    <li class="menu-section">
-                        <div class="menu-section-title">LEAVE</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("LeaveIndex", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
-                            <i class="fa-solid fa-calendar-xmark menu-icon"></i>
-                             Leave Management
-                        </a>
-                    </li>
+            <li class="menu-section">
+                <div class="menu-section-title">ACCOUNTS</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("AllAccounts", "Accounts")" class="menu-link @(currentController == "Accounts" ? "active" : "")">
+                    <i class="fas fa-users menu-icon"></i>
+                    Accounts Management
+                </a>
+            </li>
+            <li class="menu-section">
+                <div class="menu-section-title">PAYROLL</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("Process", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                    <i class="fas fa-money-bill-wave menu-icon"></i>
+                    Payroll Management
+                </a>
+            </li>
+            <li class="menu-section">
+                <div class="menu-section-title">CLAIMS</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("HRIndex", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
+                    <i class="fa-solid fa-file menu-icon"></i>
+                    Claim Management
+                </a>
+            </li>
+            <li class="menu-section">
+                <div class="menu-section-title">LEAVE</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("LeaveIndex", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
+                    <i class="fa-solid fa-calendar-xmark menu-icon"></i>
+                    Leave Management
+                </a>
+            </li>
                 }
 
-                <!-- Employee Only Sections -->
-                @if (User.IsInRole("Employee") && !User.IsInRole("Admin") && !User.IsInRole("HR"))
+            <!-- Employee Only Sections -->
+            @if (User.IsInRole("Employee") && !User.IsInRole("Admin") && !User.IsInRole("HR"))
                 {
                     <!-- Claims Section - Employee Only -->
-                    <li class="menu-section">
-                        <div class="menu-section-title">CLAIMS</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("Index", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
-                            <i class="fas fa-file-medical menu-icon"></i>
-                            My Claims
-                        </a>
-                    </li>
+            <li class="menu-section">
+                <div class="menu-section-title">CLAIMS</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("Index", "Claim")" class="menu-link @(currentController == "Claim" ? "active" : "")">
+                    <i class="fas fa-file-medical menu-icon"></i>
+                    My Claims
+                </a>
+            </li>
 
-                    <!-- Leaves Section - Employee Only -->
-                    <li class="menu-section">
-                        <div class="menu-section-title">LEAVES</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("LeaveRecords", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
-                            <i class="fas fa-calendar-alt menu-icon"></i>
-                            My Leaves
-                        </a>
-                    </li>
+ <!-- Leaves Section - Employee Only -->
+            <li class="menu-section">
+                <div class="menu-section-title">LEAVES</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("LeaveRecords", "Leaves")" class="menu-link @(currentController == "Leaves" ? "active" : "")">
+                    <i class="fas fa-calendar-alt menu-icon"></i>
+                    My Leaves
+                </a>
+            </li>
 
-                    <!-- Payroll Section - Employee Only -->
-                    <li class="menu-section">
-                        <div class="menu-section-title">SALARY</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("Payslips", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
-                            <i class="fas fa-receipt menu-icon"></i>
-                            My Payslips
-                        </a>
-                    </li>
-
-                    <!-- Invoice Section - Employee Only (for their own invoices) -->
-                    @* <li class="menu-section">
-                        <div class="menu-section-title">INVOICES</div>
-                    </li>
-                    <li class="menu-item">
-                        <a href="@Url.Action("Index", "Invoice")" class="menu-link @(currentController == "Invoice" ? "active" : "")">
-                            <i class="fas fa-file-invoice menu-icon"></i>
-                            My Invoices
-                        </a>
-                    </li> *@
+ <!-- Payroll Section - Employee Only -->
+            <li class="menu-section">
+                <div class="menu-section-title">SALARY</div>
+            </li>
+            <li class="menu-item">
+                <a href="@Url.Action("Payslips", "Payroll")" class="menu-link @(currentController == "Payroll" ? "active" : "")">
+                    <i class="fas fa-receipt menu-icon"></i>
+                    My Payslips
+                </a>
+            </li>
                 }
 
-                <!-- General Section - All authenticated users
-                <li class="menu-section">
-                    <div class="menu-section-title">GENERAL</div>
-                </li>
-                <li class="menu-item">
-                    <a href="@Url.Action("HelpCenter", "Others")" class="menu-link @(currentController == "Others" && currentAction == "HelpCenter" ? "active" : "")">
-                        <i class="fas fa-life-ring menu-icon"></i>
-                        Help Center
-                    </a>
-                </li> -->
-               
-            </ul>
-        </nav>
+        </ul>
+    </nav>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            @RenderBody()
-        </main>
+ <!-- Main Content -->
+    <main class="main-content">
+        @RenderBody()
+    </main>
 
-        <!-- Footer -->
-        <footer class="footer">
-            <p>Made with <i class="fas fa-heart text-danger"></i> by Finserve</p>
-        </footer>
+ <!-- Footer -->
+    <footer class="footer">
+        <p>Made with <i class="fas fa-heart text-danger"></i> by Finserve</p>
+    </footer>
     }
     else
     {
-        <!-- If user is not authenticated, just render the body (login page) -->
-        @RenderBody()
+ <!-- If user is not authenticated, just render the body (login page) -->
+    @RenderBody()
     }
 
     <!-- Scripts -->
@@ -252,10 +234,10 @@
     <!-- Pending Payroll Count Script -->
     @if (User.IsInRole("Senior HR"))
     {
-        <script>
+    <script>
             $(document).ready(function() {
                 loadPendingPayrollCount();
-                
+
                 // Refresh count every 30 seconds
                 setInterval(loadPendingPayrollCount, 30000);
             });
@@ -279,7 +261,7 @@
                     }
                 });
             }
-        </script>
+    </script>
     }
 
     @RenderSection("Scripts", required: false)
