@@ -142,6 +142,17 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Process(PayrollProcessViewModel model)
         {
+            // Additional server-side validation
+            if (!await ValidatePayrollBusinessRules(model))
+            {
+                model.Employees = await _context.Employees
+                    .OrderBy(e => e.FirstName)
+                    .ThenBy(e => e.LastName)
+                    .ToListAsync();
+
+                return View("~/Views/HR/Payroll/Process.cshtml", model);
+            }
+
             if (!ModelState.IsValid)
             {
                 model.Employees = await _context.Employees
@@ -152,6 +163,7 @@ namespace FinserveNew.Controllers
                 return View("~/Views/HR/Payroll/Process.cshtml", model);
             }
 
+            // Check for duplicate payroll entry
             var existingEntry = await _context.Payrolls
                 .FirstOrDefaultAsync(p => p.EmployeeID == model.EmployeeID &&
                                          p.Month == model.Month &&
@@ -180,6 +192,17 @@ namespace FinserveNew.Controllers
                 existingEntry.EmployeeTax = model.EmployeeTax;
                 existingEntry.TotalWages = model.TotalWages;
                 existingEntry.TotalEmployerCost = model.TotalEmployerCost;
+
+                // Validate the updated payroll data
+                if (!existingEntry.IsValidPayrollData())
+                {
+                    ModelState.AddModelError("", "Payroll data validation failed. Please check the contribution amounts and percentages.");
+                    model.Employees = await _context.Employees
+                        .OrderBy(e => e.FirstName)
+                        .ThenBy(e => e.LastName)
+                        .ToListAsync();
+                    return View("~/Views/HR/Payroll/Process.cshtml", model);
+                }
 
                 // If it was rejected, reset status to Pending when modified
                 if (existingEntry.PaymentStatus == "Rejected")
@@ -235,12 +258,114 @@ namespace FinserveNew.Controllers
                     TotalEmployerCost = model.TotalEmployerCost,
                     PaymentStatus = "Pending"
                 };
+
+                // Validate the new payroll data
+                if (!salary.IsValidPayrollData())
+                {
+                    ModelState.AddModelError("", "Payroll data validation failed. Please check the contribution amounts and percentages.");
+                    model.Employees = await _context.Employees
+                        .OrderBy(e => e.FirstName)
+                        .ThenBy(e => e.LastName)
+                        .ToListAsync();
+                    return View("~/Views/HR/Payroll/Process.cshtml", model);
+                }
+
                 _context.Payrolls.Add(salary);
                 TempData["Success"] = "New payroll entry created successfully!";
             }
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Process), new { month = model.Month, year = model.Year, employeeId = model.EmployeeID });
+        }
+
+        // Helper method for payroll business rules validation
+        private async Task<bool> ValidatePayrollBusinessRules(PayrollProcessViewModel model)
+        {
+            var isValid = true;
+
+            // Validate employee exists and is active
+            var employee = await _context.Employees.FindAsync(model.EmployeeID);
+            if (employee == null)
+            {
+                ModelState.AddModelError("EmployeeID", "Selected employee does not exist.");
+                isValid = false;
+            }
+            else if (employee.ConfirmationStatus == "Terminated")
+            {
+                ModelState.AddModelError("EmployeeID", "Cannot create payroll for terminated employee.");
+                isValid = false;
+            }
+
+            // Validate date ranges
+            if (model.Month < 1 || model.Month > 12)
+            {
+                ModelState.AddModelError("Month", "Month must be between 1 and 12.");
+                isValid = false;
+            }
+
+            if (model.Year < 2000 || model.Year > DateTime.Now.Year + 1)
+            {
+                ModelState.AddModelError("Year", "Year must be between 2000 and next year.");
+                isValid = false;
+            }
+
+            // Validate EPF contributions (should be within reasonable ranges)
+            if (model.BasicSalary > 0)
+            {
+                var employerEpfPercentage = (model.EmployerEpf / model.BasicSalary) * 100;
+                var employeeEpfPercentage = (model.EmployeeEpf / model.BasicSalary) * 100;
+
+                if (employerEpfPercentage > 20)
+                {
+                    ModelState.AddModelError("EmployerEpf", "Employer EPF contribution seems unusually high (>20% of basic salary).");
+                    isValid = false;
+                }
+
+                if (employeeEpfPercentage > 15)
+                {
+                    ModelState.AddModelError("EmployeeEpf", "Employee EPF contribution seems unusually high (>15% of basic salary).");
+                    isValid = false;
+                }
+
+                // Check if total deductions exceed basic salary
+                var totalDeductions = model.EmployeeEpf + model.EmployeeSocso + model.EmployeeEis + model.EmployeeTax;
+                if (totalDeductions >= model.BasicSalary)
+                {
+                    ModelState.AddModelError("", "Total employee deductions cannot equal or exceed basic salary.");
+                    isValid = false;
+                }
+
+                // Net salary should be reasonable (at least 50% of basic salary)
+                var netSalary = model.BasicSalary - totalDeductions;
+                if (netSalary < (model.BasicSalary * 0.5m))
+                {
+                    ModelState.AddModelError("", "Net salary after deductions is unusually low. Please verify the deduction amounts.");
+                    isValid = false;
+                }
+            }
+
+            // Validate SOCSO contribution limits (varies by salary level)
+            if (model.BasicSalary <= 4000)
+            {
+                if (model.EmployeeSocso > 19.75m || model.EmployerSocso > 33.25m)
+                {
+                    ModelState.AddModelError("", "SOCSO contribution amounts exceed maximum limits for this salary level.");
+                    isValid = false;
+                }
+            }
+
+            // Validate EIS contribution limits
+            if (model.BasicSalary > 0)
+            {
+                var maxEis = model.BasicSalary * 0.005m; // 0.5% max
+                if (model.EmployeeEis > maxEis || model.EmployerEis > maxEis)
+                {
+                    ModelState.AddModelError("", "EIS contribution cannot exceed 0.5% of basic salary.");
+                    isValid = false;
+                }
+            }
+
+            return isValid;
         }
 
         // GET: /Payroll/GetPreviousMonthData

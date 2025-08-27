@@ -50,7 +50,7 @@ namespace FinserveNew.Models.ViewModels
         [Display(Name = "Telephone Number")]
         public string TelephoneNumber { get; set; } = string.Empty;
 
-        // Employment Info
+        // Employment Info - DISPLAY ONLY (not editable from profile)
         [Required]
         [StringLength(100)]
         public string Position { get; set; } = string.Empty;
@@ -68,11 +68,8 @@ namespace FinserveNew.Models.ViewModels
         [Display(Name = "Confirmation Status")]
         public string ConfirmationStatus { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Role is required")]
-        [Display(Name = "Role")]
-        public int RoleID { get; set; }
+        // Role info for DISPLAY ONLY - NO EDITING from profile
         public string RoleName { get; set; } = string.Empty;
-
 
         // Bank Info
         [Required]
@@ -101,7 +98,6 @@ namespace FinserveNew.Models.ViewModels
         [Display(Name = "EPF Number")]
         public string EPFNumber { get; set; } = string.Empty;
 
-
         // Emergency Contact
         [Required]
         [StringLength(100)]
@@ -126,10 +122,36 @@ namespace FinserveNew.Models.ViewModels
         public string[] BankNames { get; set; } = Array.Empty<string>();
         public string[] BankTypes { get; set; } = Array.Empty<string>();
         public string[] ConfirmationStatuses { get; set; } = new[] { "Probation", "Confirmed", "Terminated" };
-        public string[] Relationships { get; set; } = new[] { "Spouse", "Parent", "Sibling", "Friend" };
+        
+        // Enhanced relationship options with comprehensive list
+        public string[] Relationships { get; set; } = new[] { 
+            "Spouse", 
+            "Parent", 
+            "Father",
+            "Mother", 
+            "Child",
+            "Son",
+            "Daughter",
+            "Sibling", 
+            "Brother",
+            "Sister",
+            "Grandparent",
+            "Grandfather",
+            "Grandmother",
+            "In-Law",
+            "Father-in-Law",
+            "Mother-in-Law",
+            "Partner",
+            "Friend", 
+            "Relative",
+            "Guardian",
+            "Colleague",
+            "Neighbor",
+            "Other"
+        };
 
         // Multiple new documents upload
         public List<IFormFile>? NewDocuments { get; set; }
         public List<string>? NewDocumentTypes { get; set; }
     }
-} 
+}

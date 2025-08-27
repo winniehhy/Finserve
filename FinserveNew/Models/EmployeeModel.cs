@@ -12,6 +12,7 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "Username is required")]
         [Display(Name = "Username")]
         [MaxLength(50)]
+        [RegularExpression(@"^[a-zA-Z0-9_]{3,50}$", ErrorMessage = "Username must be 3-50 characters long and contain only letters, numbers, and underscores")]
         public string Username { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Password is required")]
@@ -22,19 +23,23 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "First name is required")]
         [Display(Name = "First Name")]
         [MaxLength(100)]
+        [RegularExpression(@"^[a-zA-Z\s'/-]{1,100}$", ErrorMessage = "First name can only contain letters, spaces, hyphens, slash, and apostrophes")]
         public string FirstName { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Last name is required")]
         [Display(Name = "Last Name")]
         [MaxLength(100)]
+        [RegularExpression(@"^[a-zA-Z\s'/-]{1,100}$", ErrorMessage = "Last name can only contain letters, spaces, hyphens, slash, and apostrophes")]
         public string LastName { get; set; } = string.Empty;
 
         [Display(Name = "IC Number")]
         [MaxLength(12)]
+        [RegularExpression(@"^\d{12}$", ErrorMessage = "IC Number must be in 12 digits")]
         public string? IC { get; set; } 
 
         [Display(Name = "Passport Number")]
         [MaxLength(20)]
+        [RegularExpression(@"^[A-Z0-9]{6,20}$", ErrorMessage = "Passport number must be 6-20 characters with letters and numbers only")]
         public string? PassportNumber { get; set; }
 
         [Required(ErrorMessage = "Nationality is required")]
@@ -70,6 +75,8 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "Confirmation status is required")]
         [Display(Name = "Confirmation Status")]
         [MaxLength(20)]
+        [RegularExpression("^(Pending|Probation|Confirmed|Terminated)$", 
+            ErrorMessage = "Confirmation status must be: Pending, Probation, Confirmed, or Terminated")]
         public string ConfirmationStatus { get; set; } = "Pending";
 
         [Required(ErrorMessage = "Position is required")]
@@ -93,11 +100,13 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "Income Tax Number is required")]
         [Display(Name = "Income Tax Number")]
         [MaxLength(15)]
+        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "Income Tax Number must be 8-15 characters with letters and numbers only")]
         public string IncomeTaxNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "EPF Number is required")]
         [Display(Name = "EPF Number")]
         [MaxLength(15)]
+        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "EPF Number must be 8-15 characters with letters and numbers only")]
         public string EPFNumber { get; set; } = string.Empty;
 
         // Navigation Properties for Foreign Keys
@@ -116,17 +125,86 @@ namespace FinserveNew.Models
         // One Employee can have many Salary records
         public virtual ICollection<Payroll> Payrolls { get; set; } = new List<Payroll>();
 
-        // One Employee can have many Approvals
-        //public virtual ICollection<Approval> Approvals { get; set; } = new List<Approval>();
-
         // One Employee can have many Documents
         public virtual ICollection<EmployeeDocument> EmployeeDocuments { get; set; } = new List<EmployeeDocument>();
 
-        // Link to ApplicationUser (Identity)
-        //[Required(ErrorMessage = "Application User is required")]
-        //[ForeignKey("ApplicationUserId")]
-        //public string? ApplicationUserId { get; set; } // FK to AspNetUsers table
+        // Business rule validation methods
+        public bool IsValidAge()
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var age = today.Year - DateOfBirth.Year;
+            
+            // Adjust if birthday hasn't occurred this year
+            if (DateOfBirth > today.AddYears(-age))
+                age--;
+                
+            // Valid working age range (18-80)
+            return age >= 18 && age <= 80;
+        }
 
-        //public virtual ApplicationUser ApplicationUser { get; set; }  // Navigation property
+        public bool IsValidJoinDate()
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            
+            // Join date shouldn't be in the future (more than 7 days ahead)
+            if (JoinDate > today.AddDays(7))
+                return false;
+                
+            // Join date shouldn't be too far in the past (more than 50 years)
+            if (JoinDate < today.AddYears(-50))
+                return false;
+                
+            return true;
+        }
+
+        public bool IsValidResignationDate()
+        {
+            if (!ResignationDate.HasValue)
+                return true; // Null is valid (employee hasn't resigned)
+                
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            
+            // Resignation date must be after join date
+            if (ResignationDate.Value <= JoinDate)
+                return false;
+                
+            // Resignation date shouldn't be too far in the future
+            if (ResignationDate.Value > today.AddYears(1))
+                return false;
+                
+            return true;
+        }
+
+        public bool IsValidIdentification()
+        {
+            if (Nationality == "Malaysia" || Nationality == "Malaysian")
+            {
+                // Malaysian citizens must have IC
+                return !string.IsNullOrEmpty(IC) && string.IsNullOrEmpty(PassportNumber);
+            }
+            else
+            {
+                // Non-Malaysian must have passport
+                return !string.IsNullOrEmpty(PassportNumber) && string.IsNullOrEmpty(IC);
+            }
+        }
+
+        // Full name property for display
+        [NotMapped]
+        public string FullName => $"{FirstName} {LastName}";
+
+        // Age calculation property
+        [NotMapped]
+        public int Age
+        {
+            get
+            {
+                var today = DateOnly.FromDateTime(DateTime.Today);
+                var age = today.Year - DateOfBirth.Year;
+                if (DateOfBirth > today.AddYears(-age))
+                    age--;
+                return age;
+            }
+        }
     }
 }

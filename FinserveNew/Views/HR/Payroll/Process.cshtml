@@ -498,6 +498,171 @@
             calculateTotals();
         }
 
+        // Enhanced validation functions
+        function validateFormData() {
+            let isValid = true;
+            let errors = [];
+
+            // Basic validation
+            const basicSalary = parseFloat($('#BasicSalary').val()) || 0;
+            const employeeEpf = parseFloat($('#EmployeeEpf').val()) || 0;
+            const employeeSocso = parseFloat($('#EmployeeSocso').val()) || 0;
+            const employeeEis = parseFloat($('#EmployeeEis').val()) || 0;
+            const employeeTax = parseFloat($('#EmployeeTax').val()) || 0;
+
+            // Minimum wage validation (RM 1,500)
+            if (basicSalary < 1000) {
+                errors.push("Basic salary cannot be below RM 1,000");
+                isValid = false;
+            }
+
+            // Maximum salary validation
+            if (basicSalary > 999999.99) {
+                errors.push("Basic salary cannot exceed RM 999,999.99");
+                isValid = false;
+            }
+
+            // Total deductions validation
+            const totalDeductions = employeeEpf + employeeSocso + employeeEis + employeeTax;
+            if (totalDeductions >= basicSalary) {
+                errors.push("Total employee deductions cannot equal or exceed basic salary");
+                isValid = false;
+            }
+
+            // Net salary validation (minimum 50% of basic salary)
+            const netSalary = basicSalary - totalDeductions;
+            if (netSalary < (basicSalary * 0.5)) {
+                errors.push("Net salary after deductions is unusually low (less than 50% of basic salary)");
+                isValid = false;
+            }
+
+            // EPF percentage validation
+            if (basicSalary > 0) {
+                const employerEpf = parseFloat($('#EmployerEpf').val()) || 0;
+                const employerEpfPercentage = (employerEpf / basicSalary) * 100;
+                const employeeEpfPercentage = (employeeEpf / basicSalary) * 100;
+
+                if (employerEpfPercentage > 20) {
+                    errors.push("Employer EPF contribution exceeds 20% of basic salary");
+                    isValid = false;
+                }
+
+                if (employeeEpfPercentage > 15) {
+                    errors.push("Employee EPF contribution exceeds 15% of basic salary");
+                    isValid = false;
+                }
+            }
+
+            // SOCSO validation for salary levels
+            const employeeSocsoAmount = parseFloat($('#EmployeeSocso').val()) || 0;
+            const employerSocsoAmount = parseFloat($('#EmployerSocso').val()) || 0;
+
+            if (basicSalary <= 4000) {
+                if (employeeSocsoAmount > 19.75) {
+                    errors.push("Employee SOCSO contribution exceeds maximum limit (RM 19.75) for this salary level");
+                    isValid = false;
+                }
+                if (employerSocsoAmount > 33.25) {
+                    errors.push("Employer SOCSO contribution exceeds maximum limit (RM 33.25) for this salary level");
+                    isValid = false;
+                }
+            }
+
+            // EIS validation (0.5% max)
+            const employeeEisAmount = parseFloat($('#EmployeeEis').val()) || 0;
+            const employerEisAmount = parseFloat($('#EmployerEis').val()) || 0;
+            const maxEis = basicSalary * 0.005;
+
+            if (employeeEisAmount > maxEis || employerEisAmount > maxEis) {
+                errors.push("EIS contribution cannot exceed 0.5% of basic salary");
+                isValid = false;
+            }
+
+            // Display errors if any
+            if (!isValid) {
+                showValidationErrors(errors);
+            }
+
+            return isValid;
+        }
+
+        function showValidationErrors(errors) {
+            // Remove existing error alerts
+            $('.validation-alert').remove();
+
+            // Create error alert
+            const errorHtml = `
+                <div class="alert alert-danger alert-dismissible fade show validation-alert" role="alert">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Validation Errors:</h6>
+                    <ul class="mb-0">
+                        ${errors.map(error => `<li>${error}</li>`).join('')}
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+
+            // Insert error alert at the top of the form
+            $('.card-body form').prepend(errorHtml);
+            
+            // Scroll to top to show errors
+            $('html, body').animate({
+                scrollTop: $('.validation-alert').offset().top - 100
+            }, 500);
+        }
+
+        // Enhanced form submission with validation
+        $('#payrollForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            if (validateFormData()) {
+                // If validation passes, submit the form
+                this.submit();
+            }
+        });
+
+        // Real-time validation as user types
+        $('.calculation-input').on('input blur', function() {
+            // Clear previous individual field errors
+            $(this).removeClass('is-invalid');
+            $(this).next('.invalid-feedback').remove();
+
+            // Validate specific field
+            const fieldName = $(this).attr('name') || $(this).attr('id');
+            const value = parseFloat($(this).val()) || 0;
+            let error = null;
+
+            switch(fieldName) {
+                case 'BasicSalary':
+                    if (value < 1000) {
+                        error = "Basic salary cannot be below RM 1,000";
+                    } else if (value > 999999.99) {
+                        error = "Basic salary cannot exceed RM 999,999.99";
+                    }
+                    break;
+                case 'EmployerEpf':
+                case 'EmployeeEpf':
+                    const basicSalary = parseFloat($('#BasicSalary').val()) || 0;
+                    if (basicSalary > 0) {
+                        const percentage = (value / basicSalary) * 100;
+                        const maxPercentage = fieldName === 'EmployerEpf' ? 20 : 15;
+                        if (percentage > maxPercentage) {
+                            error = `EPF contribution exceeds ${maxPercentage}% of basic salary`;
+                        }
+                    }
+                    break;
+            }
+
+            // Show field-specific error
+            if (error) {
+                $(this).addClass('is-invalid');
+                $(this).after(`<div class="invalid-feedback">${error}</div>`);
+            }
+
+            // Always recalculate totals
+            calculateTotals();
+        });
+
+        // Enhanced calculation with validation indicators
         function calculateTotals() {
             // Parse all values
             let basicSalary = parseFloat($('#BasicSalary').val()) || 0;
@@ -516,9 +681,27 @@
             let totalWages = basicSalary - employeeEpf - employeeSocso - employeeEis - employeeTax;
             let totalEmployerCost = basicSalary + employerEpf + employerSocso + employerEis + employerTax + employerOther;
 
-            // Display totals
-            $('#totalWages').text('RM ' + totalWages.toFixed(2));
-            $('#totalEmployerCost').text('RM ' + totalEmployerCost.toFixed(2));
+            // Update display with color coding
+            const totalWagesElement = $('#totalWages');
+            const totalCostElement = $('#totalEmployerCost');
+            
+            totalWagesElement.text('RM ' + totalWages.toFixed(2));
+            totalCostElement.text('RM ' + totalEmployerCost.toFixed(2));
+
+            // Color coding based on validation
+            if (totalWages < 0) {
+                totalWagesElement.addClass('text-danger').removeClass('text-success text-warning');
+                totalWagesElement.attr('title', 'Net wages cannot be negative');
+            } else if (basicSalary > 0 && totalWages < (basicSalary * 0.5)) {
+                totalWagesElement.addClass('text-warning').removeClass('text-success text-danger');
+                totalWagesElement.attr('title', 'Net wages seem unusually low');
+            } else {
+                totalWagesElement.addClass('text-success').removeClass('text-danger text-warning');
+                totalWagesElement.removeAttr('title');
+            }
+
+            // Add tooltip initialization
+            $('[title]').tooltip();
         }
     </script>
 }

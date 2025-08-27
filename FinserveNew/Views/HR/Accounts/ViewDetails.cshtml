@@ -172,8 +172,11 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label class="form-label">Role</label>
-                            <input class="form-control" value="@Model.RoleName" readonly />
-                            <input type="hidden" asp-for="RoleID" />
+                            <input class="form-control locked-field" value="@Model.RoleName" readonly disabled />
+                            <small class="text-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>Role changes require administrator approval.</strong> Contact system administrator for role modifications.
+                            </small>
                         </div>
                     </div>
                 </div>
@@ -225,7 +228,9 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label asp-for="EmergencyContactRelationship" class="form-label"></label>
-                            <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships))" class="form-control" disabled></select>
+                            <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships, Model.EmergencyContactRelationship))" class="form-control select2-dropdown" disabled>
+                                <option value="">-- Select Relationship --</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -345,6 +350,32 @@
         opacity: 1;
         background-image: none !important;
         cursor: context-menu;
+    }
+
+    /* Locked field styling for better usability */
+    .locked-field {
+        background-color: #f8f9fa !important;
+        color: #6c757d !important;
+        border-color: #dee2e6 !important;
+        cursor: not-allowed !important;
+    }
+
+    .locked-field:focus {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6 !important;
+        box-shadow: none !important;
+    }
+
+    /* Additional styling for locked fields */
+    .locked-field::placeholder {
+        color: #6c757d !important;
+        opacity: 0.8;
+    }
+
+    /* Warning text styling */
+    .text-warning {
+        font-size: 0.875rem;
+        font-weight: 500;
     }
 </style>
 

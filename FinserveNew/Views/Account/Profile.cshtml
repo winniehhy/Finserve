@@ -132,28 +132,44 @@
 
             <!-- Employment Tab -->
             <div class="tab-pane fade" id="employment" role="tabpanel">
+                <div class="alert alert-info mb-4">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> Employment information can only be changed by HR administrators. Contact HR if any information needs to be updated.
+                </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="Position" class="form-label"></label>
-                        <input asp-for="Position" class="form-control" readonly />
+                        <input asp-for="Position" class="form-control locked-field" readonly disabled />
+                        <small class="text-muted">This field is managed by HR</small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label asp-for="ConfirmationStatus" class="form-label"></label>
-                        <input asp-for="ConfirmationStatus" class="form-control" readonly />
+                        <input asp-for="ConfirmationStatus" class="form-control locked-field" readonly disabled />
+                        <small class="text-muted">This field is managed by HR</small>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="JoinDate" class="form-label"></label>
-                        <input asp-for="JoinDate" class="form-control" type="date" readonly />
+                        <input asp-for="JoinDate" class="form-control locked-field" type="date" readonly disabled />
+                        <small class="text-muted">This field is managed by HR</small>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Role</label>
-                        <input class="form-control" value="@Model.RoleName" readonly />
-                        <input type="hidden" asp-for="RoleID" />
+                        <input class="form-control locked-field" value="@Model.RoleName" readonly disabled />
+                        <small class="text-muted"><strong>Role changes are restricted.</strong> Contact system administrator for role modifications.</small>
                     </div>
-
                 </div>
+                @if (Model.ResignationDate.HasValue)
+                {
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="ResignationDate" class="form-label"></label>
+                            <input asp-for="ResignationDate" class="form-control locked-field" type="date" readonly disabled />
+                            <small class="text-muted">This field is managed by HR</small>
+                        </div>
+                    </div>
+                }
             </div>
 
             <!-- Bank Info Tab -->
@@ -191,7 +207,10 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="EmergencyContactRelationship" class="form-label"></label>
-                        <input asp-for="EmergencyContactRelationship" class="form-control" readonly />
+                        <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships, Model.EmergencyContactRelationship))" class="form-control select2-dropdown" disabled>
+                            <option value="">-- Select Relationship --</option>
+                        </select>
+                        <span asp-validation-for="EmergencyContactRelationship" class="text-danger"></span>
                     </div>
                 </div>
             </div>
@@ -338,6 +357,31 @@
         background-color: #f8f9fa !important;
         color: #6c757d !important;
         border-color: #dee2e6 !important;
+        cursor: not-allowed !important;
+    }
+
+    .locked-field:focus {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6 !important;
+        box-shadow: none !important;
+    }
+
+    /* Additional styling for locked fields */
+    .locked-field::placeholder {
+        color: #6c757d !important;
+        opacity: 0.8;
+    }
+
+    /* Style for small help text under locked fields */
+    .text-muted {
+        font-size: 0.875rem;
+    }
+
+    /* Alert styling for employment tab */
+    .alert-info {
+        border-left: 4px solid #0dcaf0;
+        background-color: #e7f3ff;
+        border-color: #b8daff;
     }
 </style>
 
@@ -394,10 +438,13 @@
 
                 // Keep restricted fields locked
                 $('#Email').prop('readonly', true).prop('disabled', false).addClass('locked-field');
-                $('#Position').prop('readonly', true).prop('disabled', false).addClass('locked-field');
-                $('#ConfirmationStatus').prop('readonly', true).prop('disabled', false).addClass('locked-field');
-                $('#JoinDate').prop('readonly', true).prop('disabled', false).addClass('locked-field');
-                $('#ResignationDate').prop('readonly', true).prop('disabled', false).addClass('locked-field');
+                $('#Position').prop('readonly', true).prop('disabled', true).addClass('locked-field');
+                $('#ConfirmationStatus').prop('readonly', true).prop('disabled', true).addClass('locked-field');
+                $('#JoinDate').prop('readonly', true).prop('disabled', true).addClass('locked-field');
+                $('#ResignationDate').prop('readonly', true).prop('disabled', true).addClass('locked-field');
+                
+                // Keep role field permanently locked
+                $('input[value="@Model.RoleName"]').prop('readonly', true).prop('disabled', true).addClass('locked-field');
 
                 // Re-init Select2 after enabling
                 $('.select2-dropdown').select2('destroy').select2({

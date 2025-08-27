@@ -162,8 +162,8 @@ namespace FinserveNew.Controllers
                 EmergencyContactName = employee.EmergencyContact?.Name ?? string.Empty,
                 EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber ?? string.Empty,
                 EmergencyContactRelationship = employee.EmergencyContact?.Relationship ?? string.Empty,
-                RoleID = employee.RoleID,
-                RoleName = employee.Role?.RoleName ?? "Unknown",
+                // Security check for ViewDetails (HR view) - populate RoleName only for display
+                RoleName = employee.Role?.RoleName ?? "Unknown", // Only for display
 
                 Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>(),
                 Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
@@ -214,6 +214,13 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Add(AddEmployeeViewModel vm)
         {
+            // Additional business rules validation
+            if (!ValidateEmployeeBusinessRules(vm))
+            {
+                await PopulateViewModelDropdowns(vm);
+                return View("~/Views/HR/Accounts/Add.cshtml", vm);
+            }
+
             // Uniqueness checks
             // Validate based on nationality
             if (vm.Nationality == "Malaysia")
@@ -238,29 +245,31 @@ namespace FinserveNew.Controllers
                     ModelState.AddModelError("PassportNumber", "Passport Number already exists.");
                 }
             }
+
+            // Check for duplicate email
             if (await _context.Employees.AnyAsync(e => e.Email == vm.Email))
                 ModelState.AddModelError("Email", "Email already exists.");
 
+            // Check for duplicate phone number
+            if (await _context.Employees.AnyAsync(e => e.TelephoneNumber == vm.TelephoneNumber))
+                ModelState.AddModelError("TelephoneNumber", "Phone number already exists.");
+
+            // Check for duplicate EPF number
+            if (await _context.Employees.AnyAsync(e => e.EPFNumber == vm.EPFNumber))
+                ModelState.AddModelError("EPFNumber", "EPF number already exists.");
+
+            // Check for duplicate Income Tax number
+            if (await _context.Employees.AnyAsync(e => e.IncomeTaxNumber == vm.IncomeTaxNumber))
+                ModelState.AddModelError("IncomeTaxNumber", "Income Tax number already exists.");
+
+            // Check for duplicate bank account number (within same bank)
+            if (await _context.BankInformations.AnyAsync(b => b.BankName == vm.BankName && b.BankAccountNumber == vm.BankAccountNumber))
+                ModelState.AddModelError("BankAccountNumber", "Bank account number already exists for this bank.");
+
             if (!ModelState.IsValid)
             {
-                var roles = await _context.Roles.ToListAsync();
-                vm.AvailableRoles = roles.Select(r => new SelectListItem
-                {
-                    Value = r.RoleID.ToString(),
-                    Text = r.RoleName
-                }).ToList();
-
-                vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
-                vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
-                vm.BankTypes = new[] { "Savings", "Current" };
-                
-                // Preserve default values if not set
-                if (string.IsNullOrEmpty(vm.Nationality))
-                    vm.Nationality = "Malaysia";
-                if (vm.JoinDate == DateOnly.MinValue)
-                    vm.JoinDate = DateOnly.FromDateTime(DateTime.Today);
-                
-                return View("~/Views/HR/Accounts/Add.cshtml",vm);
+                await PopulateViewModelDropdowns(vm);
+                return View("~/Views/HR/Accounts/Add.cshtml", vm);
             }
 
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -749,5 +758,105 @@ namespace FinserveNew.Controllers
             }
         }
 
+        // Helper method for employee business rules validation
+        private bool ValidateEmployeeBusinessRules(AddEmployeeViewModel vm)
+        {
+            var isValid = true;
+
+            // Age validation
+            if (!vm.IsValidAge())
+            {
+                ModelState.AddModelError("DateOfBirth", "Employee must be between 18 and 80 years old.");
+                isValid = false;
+            }
+
+            // Join date validation
+            if (!vm.IsValidJoinDate())
+            {
+                ModelState.AddModelError("JoinDate", "Join date cannot be more than 7 days in the future or more than 50 years in the past.");
+                isValid = false;
+            }
+
+            // Identification validation
+            if (!vm.IsValidIdentification())
+            {
+                if (vm.Nationality == "Malaysia" || vm.Nationality == "Malaysian")
+                {
+                    ModelState.AddModelError("IC", "Malaysian citizens must provide IC number only.");
+                    ModelState.AddModelError("PassportNumber", "Please leave passport number empty for Malaysian citizens.");
+                }
+                else
+                {
+                    ModelState.AddModelError("PassportNumber", "Non-Malaysian citizens must provide passport number only.");
+                    ModelState.AddModelError("IC", "Please leave IC number empty for non-Malaysian citizens.");
+                }
+                isValid = false;
+            }
+
+            // Emergency contact validation - ensure it's not the same as employee
+            if (vm.EmergencyContactPhone == vm.TelephoneNumber)
+            {
+                ModelState.AddModelError("EmergencyContactPhone", "Emergency contact phone number cannot be the same as employee's phone number.");
+                isValid = false;
+            }
+
+            // Document validation
+            if (vm.NewDocuments != null && vm.NewDocumentTypes != null)
+            {
+                if (vm.NewDocuments.Count != vm.NewDocumentTypes.Count)
+                {
+                    ModelState.AddModelError("NewDocuments", "Please select document type for each document.");
+                    isValid = false;
+                }
+
+                for (int i = 0; i < vm.NewDocuments.Count; i++)
+                {
+                    var file = vm.NewDocuments[i];
+                    if (file != null)
+                    {
+                        // File size validation (5MB max)
+                        if (file.Length > 5 * 1024 * 1024)
+                        {
+                            ModelState.AddModelError($"NewDocuments[{i}]", "File size cannot exceed 5MB.");
+                            isValid = false;
+                        }
+
+                        // File type validation
+                        var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                        var ext = Path.GetExtension(file.FileName).ToLower();
+                        if (!allowedExtensions.Contains(ext))
+                        {
+                            ModelState.AddModelError($"NewDocuments[{i}]", "Only PDF, JPG, PNG, DOC, and DOCX files are allowed.");
+                            isValid = false;
+                        }
+                    }
+                }
+            }
+
+            return isValid;
+        }
+
+        // Helper method to populate dropdown data
+        private async Task PopulateViewModelDropdowns(AddEmployeeViewModel vm)
+        {
+            var roles = await _context.Roles.ToListAsync();
+            vm.AvailableRoles = roles.Select(r => new SelectListItem
+            {
+                Value = r.RoleID.ToString(),
+                Text = r.RoleName
+            }).ToList();
+
+            vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
+            
+            var banks = GetBanksFromJson();
+            vm.BankNames = banks.Select(b => b["name"]).ToArray();
+            vm.BankTypes = new[] { "Savings", "Current" };
+            
+            // Preserve default values if not set
+            if (string.IsNullOrEmpty(vm.Nationality))
+                vm.Nationality = "Malaysia";
+            if (vm.JoinDate == DateOnly.MinValue)
+                vm.JoinDate = DateOnly.FromDateTime(DateTime.Today);
+        }
     }
 }

@@ -8,6 +8,7 @@ using System.Text.Encodings.Web;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using FinserveNew.Data;
+using FinserveNew.Security;
 
 namespace FinserveNew.Controllers
 {
@@ -303,8 +304,7 @@ namespace FinserveNew.Controllers
                 EmergencyContactName = employee.EmergencyContact?.Name ?? string.Empty,
                 EmergencyContactPhone = employee.EmergencyContact?.TelephoneNumber ?? string.Empty,
                 EmergencyContactRelationship = employee.EmergencyContact?.Relationship ?? string.Empty,
-                RoleID = employee.RoleID,
-                RoleName = employee.Role?.RoleName ?? "Unknown",
+                RoleName = employee.Role?.RoleName ?? "Unknown", // Only for display
                 Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>(),
                 Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
                 BankNames = bankNames,
@@ -317,6 +317,8 @@ namespace FinserveNew.Controllers
         // POST: Account/Profile
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [PreventRoleTampering] // Add security attribute
+        [ProfileSecurity] // Add additional security measures
         public async Task<IActionResult> Profile(EmployeeDetailsViewModel vm)
         {
             var user = await _userManager.GetUserAsync(User);
@@ -324,6 +326,12 @@ namespace FinserveNew.Controllers
                 return Unauthorized();
 
             var banks = GetBanksFromJson();
+
+            // Additional security check: Ensure current user can only update their own profile
+            if (User.Identity?.Name != user.UserName)
+            {
+                return Forbid();
+            }
 
             if (!ModelState.IsValid)
             {
@@ -337,10 +345,22 @@ namespace FinserveNew.Controllers
             var employee = await _context.Employees
                 .Include(e => e.BankInformation)
                 .Include(e => e.EmergencyContact)
+                .Include(e => e.Role) // Include role for validation
                 .FirstOrDefaultAsync(e => e.EmployeeID == vm.EmployeeID);
 
             if (employee == null)
                 return NotFound();
+
+            // SECURITY: Store original administrative fields to prevent unauthorized changes
+            var originalEmploymentData = new
+            {
+                Position = employee.Position,
+                JoinDate = employee.JoinDate,
+                ResignationDate = employee.ResignationDate,
+                ConfirmationStatus = employee.ConfirmationStatus,
+                RoleID = employee.RoleID,
+                Email = employee.Email // Email should also be locked from profile
+            };
 
             // Enforce nationality-specific ID rules and required passport for non-Malaysian
             if (vm.Nationality == "Malaysia")
@@ -363,7 +383,7 @@ namespace FinserveNew.Controllers
                 employee.PassportNumber = vm.PassportNumber;
             }
 
-            // Update allowed fields
+            // Update ONLY allowed profile fields (personal and contact information)
             employee.FirstName = vm.FirstName;
             employee.LastName = vm.LastName;
             employee.Nationality = vm.Nationality;
@@ -371,8 +391,16 @@ namespace FinserveNew.Controllers
             employee.DateOfBirth = vm.DateOfBirth;
             employee.IncomeTaxNumber = vm.IncomeTaxNumber;
             employee.EPFNumber = vm.EPFNumber;
-            //employee.Email = vm.Email;
 
+            // SECURITY: Restore original employment/administrative data to prevent unauthorized changes
+            employee.Position = originalEmploymentData.Position;
+            employee.JoinDate = originalEmploymentData.JoinDate;
+            employee.ResignationDate = originalEmploymentData.ResignationDate;
+            employee.ConfirmationStatus = originalEmploymentData.ConfirmationStatus;
+            employee.RoleID = originalEmploymentData.RoleID;
+            employee.Email = originalEmploymentData.Email;
+
+            // Update bank information
             if (employee.BankInformation != null)
             {
                 employee.BankInformation.BankName = vm.BankName;
@@ -380,6 +408,7 @@ namespace FinserveNew.Controllers
                 employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
             }
 
+            // Update emergency contact
             if (employee.EmergencyContact != null)
             {
                 employee.EmergencyContact.Name = vm.EmergencyContactName;
@@ -411,6 +440,11 @@ namespace FinserveNew.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                
+                // Log profile update for audit trail
+                _logger.LogInformation("User {EmployeeID} updated their profile at {Time}", 
+                    vm.EmployeeID, DateTime.Now);
+
                 TempData["Success"] = "Profile updated successfully!";
                 return RedirectToAction(nameof(Profile));
             }

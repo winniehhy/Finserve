@@ -199,7 +199,13 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label asp-for="EmergencyContactRelationship" class="control-label">Relationship</label>
-                        <input asp-for="EmergencyContactRelationship" class="form-control" required />
+                        <select asp-for="EmergencyContactRelationship" class="form-select select2-dropdown" required>
+                            <option value="">-- Select Relationship --</option>
+                            @foreach (var relationship in Model.Relationships)
+                            {
+                                <option value="@relationship">@relationship</option>
+                            }
+                        </select>
                         <small><span asp-validation-for="EmergencyContactRelationship" class="text-danger"></span></small>
                     </div>
                 </div>
