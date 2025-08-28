@@ -80,8 +80,8 @@ namespace FinserveNew.Models
             "Pending" => "bg-warning",
             "Sent" => "bg-info",
             "Paid" => "bg-success",
-            "Overdue" => "bg-danger",
-            "Cancelled" => "bg-dark",
+            "Overdue" => "bg-dark",
+            "Cancelled" => "bg-danger",
             _ => "bg-secondary"
         };
 

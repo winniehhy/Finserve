@@ -138,7 +138,7 @@
                                         <tr>
                                             <!-- Request ID -->
                                             <td>
-                                                <span class="badge bg-secondary">#@request.UnpaidLeaveRequestID</span>
+                                                <span class="badge bg-secondary">#LVE-@request.UnpaidLeaveRequestID</span>
                                             </td>
 
                                             <!-- Leave Type -->
@@ -266,6 +266,71 @@
                                                             </ul>
                                                         </div>
                                                     </div>
+
+                                                    <!-- Leave Days Breakdown -->
+                                                    @{
+                                                        // Calculate the breakdown
+                                                        var startDate = request.StartDate;
+                                                        var endDate = request.EndDate;
+                                                        var requestedDays = (int)request.RequestedDays;
+                                                        var excessDays = (int)request.ExcessDays;
+                                                        var totalDays = requestedDays + excessDays;
+                                                        
+                                                        // Calculate paid leave end date (requested days from start)
+                                                        var paidLeaveEndDate = startDate.AddDays(requestedDays - 1);
+                                                        
+                                                        // Calculate unpaid leave start date (day after paid leave ends)
+                                                        var unpaidLeaveStartDate = paidLeaveEndDate.AddDays(1);
+                                                    }
+
+                                                    <hr />
+                                                    <div class="row">
+                                                        <div class="col-12">
+                                                            <h6 class="text-primary">
+                                                                <i class="fas fa-calendar-check me-1"></i>
+                                                                Leave Days Breakdown
+                                                            </h6>
+                                                            <div class="row">
+                                                                @if (requestedDays > 0)
+                                                                {
+                                                                    <div class="col-md-6">
+                                                                        <div class="card border-success">
+                                                                            <div class="card-body text-center">
+                                                                                <h6 class="card-title text-success">
+                                                                                    <i class="fas fa-check-circle me-2"></i>@request.LeaveType?.TypeName (Paid)
+                                                                                </h6>
+                                                                                <p class="card-text">
+                                                                                    <strong>@startDate.ToString("dd MMM") - @paidLeaveEndDate.ToString("dd MMM yyyy")</strong><br>
+                                                                                    <span class="badge bg-success">@requestedDays day@(requestedDays != 1 ? "s" : "")</span>
+                                                                                </p>
+                                                                                <small class="text-muted">Covered by your leave balance</small>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                                
+                                                                @if (excessDays > 0)
+                                                                {
+                                                                    <div class="col-md-6">
+                                                                        <div class="card border-warning">
+                                                                            <div class="card-body text-center">
+                                                                                <h6 class="card-title text-warning">
+                                                                                    <i class="fas fa-money-bill-alt me-2"></i>Unpaid Leave
+                                                                                </h6>
+                                                                                <p class="card-text">
+                                                                                    <strong>@unpaidLeaveStartDate.ToString("dd MMM") - @endDate.ToString("dd MMM yyyy")</strong><br>
+                                                                                    <span class="badge bg-warning text-dark">@excessDays day@(excessDays != 1 ? "s" : "")</span>
+                                                                                </p>
+                                                                                <small class="text-muted">Exceeds available balance</small>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                            
+                               
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -291,52 +356,6 @@
         </div>
     </div>
 </div>
-
-@* <!-- Custom Styles -->
-<style>
-    .table th {
-        border-top: none;
-        font-weight: 600;
-        font-size: 0.875rem;
-        background-color: #f8f9fa;
-    }
-    
-    .table td {
-        vertical-align: middle;
-        border-top: 1px solid #e9ecef;
-    }
-    
-    .table-hover tbody tr:hover {
-        background-color: #f5f5f5;
-    }
-    
-    .text-truncate {
-        max-width: 200px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    
-    .card {
-        transition: all 0.2s ease-in-out;
-    }
-    
-    .card:hover {
-        box-shadow: 0 4px 8px rgba(0,0,0,.1);
-    }
-    
-    .badge {
-        font-size: 0.775rem;
-    }
-    
-    .alert {
-        border-radius: 8px;
-    }
-    
-    .btn {
-        border-radius: 6px;
-    }
-</style> *@
 
 <!-- Custom JavaScript -->
 <script>

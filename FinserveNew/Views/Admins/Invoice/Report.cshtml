@@ -111,7 +111,27 @@
                             <div class="card text-center border-info">
                                 <div class="card-body">
                                     <h5 class="card-title text-info">Total Amount</h5>
-                                    <h3 class="text-info">RM @((reportData?.TotalAmount ?? 0m).ToString("N2"))</h3>
+                                    @if (reportData?.TotalMYRAmount > 0 && reportData?.TotalUSDAmount > 0)
+                                    {
+                                        <h4 class="text-info">RM @(reportData.TotalMYRAmount.ToString("N2"))</h4>
+                                        <h4 class="text-info">$@(reportData.TotalUSDAmount.ToString("N2"))</h4>
+                                        <small class="text-muted">Mixed currencies</small>
+                                    }
+                                    else if (reportData?.TotalMYRAmount > 0)
+                                    {
+                                        <h3 class="text-info">RM @(reportData.TotalMYRAmount.ToString("N2"))</h3>
+                                        <small class="text-muted">@(reportData.TotalMYRInvoices) invoices</small>
+                                    }
+                                    else if (reportData?.TotalUSDAmount > 0)
+                                    {
+                                        <h3 class="text-info">$@(reportData.TotalUSDAmount.ToString("N2"))</h3>
+                                        <small class="text-muted">@(reportData.TotalUSDInvoices) invoices</small>
+                                    }
+                                    else
+                                    {
+                                        <h3 class="text-info">No Amount</h3>
+                                        <small class="text-muted">0 invoices</small>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -119,7 +139,31 @@
                             <div class="card text-center border-success">
                                 <div class="card-body">
                                     <h5 class="card-title text-success">Paid</h5>
-                                    <h3 class="text-success">RM @((reportData?.PaidAmount ?? 0m).ToString("N2"))</h3>
+                                    @{
+                                        var paidMYR = Model.Where(i => i.Status == "Paid" && i.Currency == "MYR").Sum(i => i.TotalAmount);
+                                        var paidUSD = Model.Where(i => i.Status == "Paid" && i.Currency == "USD").Sum(i => i.TotalAmount);
+                                    }
+                                    @if (paidMYR > 0 && paidUSD > 0)
+                                    {
+                                        <h4 class="text-success">RM @(paidMYR.ToString("N2"))</h4>
+                                        <h4 class="text-success">$@(paidUSD.ToString("N2"))</h4>
+                                        <small class="text-muted">Mixed currencies</small>
+                                    }
+                                    else if (paidMYR > 0)
+                                    {
+                                        <h3 class="text-success">RM @(paidMYR.ToString("N2"))</h3>
+                                        <small class="text-muted">Malaysian Ringgit</small>
+                                    }
+                                    else if (paidUSD > 0)
+                                    {
+                                        <h3 class="text-success">$@(paidUSD.ToString("N2"))</h3>
+                                        <small class="text-muted">US Dollar</small>
+                                    }
+                                    else
+                                    {
+                                        <h3 class="text-success">RM 0.00</h3>
+                                        <small class="text-muted">No paid invoices</small>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -127,7 +171,31 @@
                             <div class="card text-center border-warning">
                                 <div class="card-body">
                                     <h5 class="card-title text-warning">Pending</h5>
-                                    <h3 class="text-warning">RM @((reportData?.PendingAmount ?? 0m).ToString("N2"))</h3>
+                                    @{
+                                        var pendingMYR = Model.Where(i => i.Status == "Pending" && i.Currency == "MYR").Sum(i => i.TotalAmount);
+                                        var pendingUSD = Model.Where(i => i.Status == "Pending" && i.Currency == "USD").Sum(i => i.TotalAmount);
+                                    }
+                                    @if (pendingMYR > 0 && pendingUSD > 0)
+                                    {
+                                        <h4 class="text-warning">RM @(pendingMYR.ToString("N2"))</h4>
+                                        <h4 class="text-warning">$@(pendingUSD.ToString("N2"))</h4>
+                                        <small class="text-muted">Mixed currencies</small>
+                                    }
+                                    else if (pendingMYR > 0)
+                                    {
+                                        <h3 class="text-warning">RM @(pendingMYR.ToString("N2"))</h3>
+                                        <small class="text-muted">Malaysian Ringgit</small>
+                                    }
+                                    else if (pendingUSD > 0)
+                                    {
+                                        <h3 class="text-warning">$@(pendingUSD.ToString("N2"))</h3>
+                                        <small class="text-muted">US Dollar</small>
+                                    }
+                                    else
+                                    {
+                                        <h3 class="text-warning">RM 0.00</h3>
+                                        <small class="text-muted">No pending invoices</small>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -135,7 +203,31 @@
                             <div class="card text-center border-info">
                                 <div class="card-body">
                                     <h5 class="card-title text-info">Sent</h5>
-                                    <h3 class="text-info">RM @((reportData?.SentAmount ?? 0m).ToString("N2"))</h3>
+                                    @{
+                                        var sentMYR = Model.Where(i => i.Status == "Sent" && i.Currency == "MYR").Sum(i => i.TotalAmount);
+                                        var sentUSD = Model.Where(i => i.Status == "Sent" && i.Currency == "USD").Sum(i => i.TotalAmount);
+                                    }
+                                    @if (sentMYR > 0 && sentUSD > 0)
+                                    {
+                                        <h4 class="text-info">RM @(sentMYR.ToString("N2"))</h4>
+                                        <h4 class="text-info">$@(sentUSD.ToString("N2"))</h4>
+                                        <small class="text-muted">Mixed currencies</small>
+                                    }
+                                    else if (sentMYR > 0)
+                                    {
+                                        <h3 class="text-info">RM @(sentMYR.ToString("N2"))</h3>
+                                        <small class="text-muted">Malaysian Ringgit</small>
+                                    }
+                                    else if (sentUSD > 0)
+                                    {
+                                        <h3 class="text-info">$@(sentUSD.ToString("N2"))</h3>
+                                        <small class="text-muted">US Dollar</small>
+                                    }
+                                    else
+                                    {
+                                        <h3 class="text-info">RM 0.00</h3>
+                                        <small class="text-muted">No sent invoices</small>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -143,7 +235,31 @@
                             <div class="card text-center border-danger">
                                 <div class="card-body">
                                     <h5 class="card-title text-danger">Overdue</h5>
-                                    <h3 class="text-danger">RM @((reportData?.OverdueAmount ?? 0m).ToString("N2"))</h3>
+                                    @{
+                                        var overdueMYR = Model.Where(i => i.Status == "Overdue" && i.Currency == "MYR").Sum(i => i.TotalAmount);
+                                        var overdueUSD = Model.Where(i => i.Status == "Overdue" && i.Currency == "USD").Sum(i => i.TotalAmount);
+                                    }
+                                    @if (overdueMYR > 0 && overdueUSD > 0)
+                                    {
+                                        <h4 class="text-danger">RM @(overdueMYR.ToString("N2"))</h4>
+                                        <h4 class="text-danger">$@(overdueUSD.ToString("N2"))</h4>
+                                        <small class="text-muted">Mixed currencies</small>
+                                    }
+                                    else if (overdueMYR > 0)
+                                    {
+                                        <h3 class="text-danger">RM @(overdueMYR.ToString("N2"))</h3>
+                                        <small class="text-muted">Malaysian Ringgit</small>
+                                    }
+                                    else if (overdueUSD > 0)
+                                    {
+                                        <h3 class="text-danger">$@(overdueUSD.ToString("N2"))</h3>
+                                        <small class="text-muted">US Dollar</small>
+                                    }
+                                    else
+                                    {
+                                        <h3 class="text-danger">RM 0.00</h3>
+                                        <small class="text-muted">No overdue invoices</small>
+                                    }
                                 </div>
                             </div>
                         </div>
@@ -232,7 +348,7 @@
                                                     </td>
                                                     <td>@invoice.IssueDate.ToString("dd/MM/yyyy")</td>
                                                     <td>@invoice.DueDate.ToString("dd/MM/yyyy")</td>
-                                                    <td>RM @invoice.TotalAmount.ToString("N2")</td>
+                                                    <td>@invoice.FormattedAmount</td>
                                                     <td>
                                                         @{
                                                             string badgeClass = invoice.Status switch
@@ -240,8 +356,8 @@
                                                                 "Pending" => "bg-warning text-dark",
                                                                 "Sent" => "bg-info",
                                                                 "Paid" => "bg-success",
-                                                                "Overdue" => "bg-danger",
-                                                                "Cancelled" => "bg-secondary",
+                                                                "Overdue" => "bg-dark",
+                                                                "Cancelled" => "bg-danger",
                                                                 _ => "bg-secondary"
                                                             };
                                                         }
@@ -329,6 +445,12 @@
         background-color: #0056b3;
         border-color: #0056b3;
         color: white;
+    }
+
+    /* Custom badge colors */
+    .bg-dark {
+        background-color: #000000 !important;
+        color: white !important;
     }
 
     /* PDF Preview Styles */
@@ -531,7 +653,35 @@
                         <div class="card text-center border-info">
                             <div class="card-body">
                                 <h6 class="text-info">Total Amount</h6>
-                                <h4 class="text-info">RM @((reportData?.TotalAmount ?? 0m).ToString("N2"))</h4>
+                                @if (reportData?.TotalMYRAmount > 0 && reportData?.TotalUSDAmount > 0)
+                                {
+                                        <text>
+                                        <h4 class="text-info">RM @(reportData.TotalMYRAmount.ToString("N2"))</h4>
+                                        <h4 class="text-info">$@(reportData.TotalUSDAmount.ToString("N2"))</h4>
+                                        <small class="text-muted">Mixed currencies</small>
+                                        </text>
+                                }
+                                else if (reportData?.TotalMYRAmount > 0)
+                                {
+                                        <text>
+                                        <h4 class="text-info">RM @(reportData.TotalMYRAmount.ToString("N2"))</h4>
+                                        <small class="text-muted">Malaysian Ringgit</small>
+                                        </text>
+                                }
+                                else if (reportData?.TotalUSDAmount > 0)
+                                {
+                                        <text>
+                                        <h4 class="text-info">$@(reportData.TotalUSDAmount.ToString("N2"))</h4>
+                                        <small class="text-muted">US Dollar</small>
+                                        </text>
+                                }
+                                else
+                                {
+                                        <text>
+                                        <h4 class="text-info">No Amount</h4>
+                                        <small class="text-muted">0 invoices</small>
+                                        </text>
+                                }
                             </div>
                         </div>
                     </div>
@@ -539,7 +689,8 @@
                         <div class="card text-center border-success">
                             <div class="card-body">
                                 <h6 class="text-success">Paid</h6>
-                                <h4 class="text-success">RM @((reportData?.PaidAmount ?? 0m).ToString("N2"))</h4>
+                                <h4 class="text-success">Mixed Currency</h4>
+                                <small class="text-muted">Multiple currencies</small>
                             </div>
                         </div>
                     </div>
@@ -547,7 +698,8 @@
                         <div class="card text-center border-warning">
                             <div class="card-body">
                                 <h6 class="text-warning">Pending</h6>
-                                <h4 class="text-warning">RM @((reportData?.PendingAmount ?? 0m).ToString("N2"))</h4>
+                                <h4 class="text-warning">Mixed Currency</h4>
+                                <small class="text-muted">Multiple currencies</small>
                             </div>
                         </div>
                     </div>
@@ -555,7 +707,8 @@
                         <div class="card text-center border-info">
                             <div class="card-body">
                                 <h6 class="text-info">Sent</h6>
-                                <h4 class="text-info">RM @((reportData?.SentAmount ?? 0m).ToString("N2"))</h4>
+                                <h4 class="text-info">Mixed Currency</h4>
+                                <small class="text-muted">Multiple currencies</small>
                             </div>
                         </div>
                     </div>
@@ -563,7 +716,8 @@
                         <div class="card text-center border-danger">
                             <div class="card-body">
                                 <h6 class="text-danger">Overdue</h6>
-                                <h4 class="text-danger">RM @((reportData?.OverdueAmount ?? 0m).ToString("N2"))</h4>
+                                <h4 class="text-danger">Mixed Currency</h4>
+                                <small class="text-muted">Multiple currencies</small>
                             </div>
                         </div>
                     </div>
@@ -608,7 +762,7 @@
                                                 </td>
                                                 <td>@invoice.IssueDate.ToString("dd/MM/yyyy")</td>
                                                 <td>@invoice.DueDate.ToString("dd/MM/yyyy")</td>
-                                                <td>RM @invoice.TotalAmount.ToString("N2")</td>
+                                                <td>@invoice.FormattedAmount</td>
                                                 <td>
                                                     @{
                                                             string badgeClass = invoice.Status switch
@@ -647,12 +801,13 @@
                 const statusData = @Html.Raw(Json.Serialize(reportData.StatusCounts));
                 const pdfPieCtx = document.getElementById('pdfPieChart').getContext('2d');
 
+                // In the PDF chart creation function
                 const statusColors = {
                     'Pending': '#ffc107',
                     'Sent': '#17a2b8',
                     'Paid': '#28a745',
-                    'Overdue': '#dc3545',
-                    'Cancelled': '#6c757d'
+                    'Overdue': '#000000',
+                    'Cancelled': '#dc3545'
                 };
 
                 new Chart(pdfPieCtx, {
@@ -764,13 +919,14 @@
             const statusData = @Html.Raw(Json.Serialize(reportData.StatusCounts));
             const pieCtx = document.getElementById('statusPieChart').getContext('2d');
 
-            const statusColors = {
-                'Pending': '#ffc107',
-                'Sent': '#17a2b8',
-                'Paid': '#28a745',
-                'Overdue': '#dc3545',
-                'Cancelled': '#6c757d'
-            };
+           
+                const statusColors = {
+                    'Pending': '#ffc107',
+                    'Sent': '#17a2b8',
+                    'Paid': '#28a745',
+                    'Overdue': '#000000',
+                    'Cancelled': '#dc3545'
+                };
 
             pieChart = new Chart(pieCtx, {
                 type: 'doughnut',
@@ -845,7 +1001,7 @@
                         tension: 0.4,
                         yAxisID: 'y'
                     }, {
-                        label: 'Amount (RM)',
+                        label: 'Amount (Multiple Currencies)',
                         data: trendData.map(item => item.amount),
                         borderColor: '#28a745',
                         backgroundColor: 'rgba(40, 167, 69, 0.1)',
@@ -897,14 +1053,14 @@
                             position: 'right',
                             title: {
                                 display: true,
-                                text: 'Amount (RM)'
+                                text: 'Amount (Mixed Currency)'
                             },
                             grid: {
                                 drawOnChartArea: false,
                             },
                             ticks: {
                                 callback: function(value) {
-                                    return 'RM ' + value.toLocaleString();
+                                    return 'Mixed ' + value.toLocaleString();
                                 }
                             }
                         }

@@ -795,7 +795,6 @@ namespace FinserveNew.Controllers
 
 
         // GET: Invoice/GenerateReport
-        // GET: Invoice/GenerateReport
         public async Task<IActionResult> GenerateReport(string period = "yearly", int? year = null,
             int? month = null, string? status = null, string chartType = "pie")
         {
@@ -842,13 +841,28 @@ namespace FinserveNew.Controllers
                     .OrderByDescending(i => i.CreatedDate)
                     .ToListAsync();
 
-                // Get available years for filter dropdown - MOVED HERE BEFORE USAGE
+                // Get available years for filter dropdown
                 var availableYears = await _context.Invoices
                     .Where(i => !i.IsDeleted)
                     .Select(i => i.IssueDate.Year)
                     .Distinct()
                     .OrderByDescending(y => y)
                     .ToListAsync();
+
+                // Calculate currency-specific totals
+                var myrInvoices = invoices.Where(i => i.Currency == "MYR").ToList();
+                var usdInvoices = invoices.Where(i => i.Currency == "USD").ToList();
+
+                // Create currency data for pie chart
+                var currencyData = new List<object>();
+                if (myrInvoices.Any())
+                {
+                    currencyData.Add(new { currency = "MYR", amount = myrInvoices.Sum(i => i.TotalAmount), count = myrInvoices.Count });
+                }
+                if (usdInvoices.Any())
+                {
+                    currencyData.Add(new { currency = "USD", amount = usdInvoices.Sum(i => i.TotalAmount), count = usdInvoices.Count });
+                }
 
                 // Calculate status distribution for pie chart
                 var statusDistribution = new Dictionary<string, object>
@@ -875,55 +889,14 @@ namespace FinserveNew.Controllers
                     }
                 };
 
-                // Generate time series data for line chart
-                List<object> timeSeriesData = new List<object>();
-
-                if (period == "yearly")
-                {
-                    // Monthly data for the selected year
-                    for (int m = 1; m <= 12; m++)
-                    {
-                        var monthlyInvoices = invoices.Where(i => i.IssueDate.Month == m).ToList();
-                        timeSeriesData.Add(new
-                        {
-                            period = new DateTime(year.Value, m, 1).ToString("MMM yyyy"),
-                            month = m,
-                            pending = monthlyInvoices.Count(i => i.Status == "Pending"),
-                            sent = monthlyInvoices.Count(i => i.Status == "Sent"),
-                            paid = monthlyInvoices.Count(i => i.Status == "Paid"),
-                            overdue = monthlyInvoices.Count(i => i.Status == "Overdue"),
-                            totalAmount = monthlyInvoices.Sum(i => i.TotalAmount)
-                        });
-                    }
-                }
-                else if (period == "monthly")
-                {
-                    // Daily data for the selected month
-                    var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
-                    for (int d = 1; d <= daysInMonth; d++)
-                    {
-                        var dailyInvoices = invoices.Where(i => i.IssueDate.Day == d).ToList();
-                        timeSeriesData.Add(new
-                        {
-                            period = $"{d:D2}",
-                            day = d,
-                            pending = dailyInvoices.Count(i => i.Status == "Pending"),
-                            sent = dailyInvoices.Count(i => i.Status == "Sent"),
-                            paid = dailyInvoices.Count(i => i.Status == "Paid"),
-                            overdue = dailyInvoices.Count(i => i.Status == "Overdue"),
-                            totalAmount = dailyInvoices.Sum(i => i.TotalAmount)
-                        });
-                    }
-                }
-
                 // Create status counts for pie chart
                 var statusCounts = new[]
                 {
-    new { status = "Pending", count = invoices.Count(i => i.Status == "Pending") },
-    new { status = "Sent", count = invoices.Count(i => i.Status == "Sent") },
-    new { status = "Paid", count = invoices.Count(i => i.Status == "Paid") },
-    new { status = "Overdue", count = invoices.Count(i => i.Status == "Overdue") }
-}.Where(x => x.count > 0).ToArray();
+            new { status = "Pending", count = invoices.Count(i => i.Status == "Pending") },
+            new { status = "Sent", count = invoices.Count(i => i.Status == "Sent") },
+            new { status = "Paid", count = invoices.Count(i => i.Status == "Paid") },
+            new { status = "Overdue", count = invoices.Count(i => i.Status == "Overdue") }
+        }.Where(x => x.count > 0).ToArray();
 
                 // Create trend data for line chart
                 List<object> trendData = new List<object>();
@@ -961,6 +934,7 @@ namespace FinserveNew.Controllers
                     }
                 }
 
+                // Create the complete report data object with ALL required properties
                 var reportData = new
                 {
                     Period = period,
@@ -970,12 +944,22 @@ namespace FinserveNew.Controllers
                     ChartType = chartType,
                     TotalInvoices = invoices.Count,
                     TotalAmount = invoices.Sum(i => i.TotalAmount),
+
+                    // ADD MISSING CURRENCY-SPECIFIC PROPERTIES
+                    TotalMYRAmount = myrInvoices.Sum(i => i.TotalAmount),
+                    TotalMYRInvoices = myrInvoices.Count,
+                    TotalUSDAmount = usdInvoices.Sum(i => i.TotalAmount),
+                    TotalUSDInvoices = usdInvoices.Count,
+                    CurrencyData = currencyData,
+
+                    // Status-specific amounts
                     PaidAmount = invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount),
                     PendingAmount = invoices.Where(i => i.Status == "Pending").Sum(i => i.TotalAmount),
                     SentAmount = invoices.Where(i => i.Status == "Sent").Sum(i => i.TotalAmount),
                     OverdueAmount = invoices.Where(i => i.Status == "Overdue").Sum(i => i.TotalAmount),
+
+                    // Chart data
                     StatusDistribution = statusDistribution,
-                    TimeSeriesData = timeSeriesData,
                     StatusCounts = statusCounts,
                     TrendData = trendData,
                     AvailableYears = availableYears,
@@ -988,8 +972,6 @@ namespace FinserveNew.Controllers
                 ViewBag.SelectedMonth = month;
                 ViewBag.SelectedStatus = status;
                 ViewBag.SelectedChartType = chartType;
-
-                // REMOVED DUPLICATE availableYears QUERY - Now using the one defined above
                 ViewBag.AvailableYears = availableYears;
 
                 return View("~/Views/Admins/Invoice/Report.cshtml", invoices);
@@ -1001,7 +983,6 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(InvoiceRecord));
             }
         }
-
         // API endpoint to get chart data for AJAX requests
         [HttpGet]
         public async Task<IActionResult> GetChartData(string period = "yearly", int? year = null,

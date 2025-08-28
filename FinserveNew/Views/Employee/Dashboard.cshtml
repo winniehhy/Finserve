@@ -241,9 +241,9 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Leave ID</th>
-                                    <th>Leave Type</th>
-                                    <th>From</th>
-                                    <th>To</th>
+                                        <th>Leave Type</th>
+                                        <th>From</th>
+                                        <th>To</th>
                                         <th>Days</th>
                                         <th>Status</th>
                                         <th>Action</th>
@@ -255,32 +255,22 @@
                                         var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                                         var isUpcoming = leave.StartDate > DateOnly.FromDateTime(DateTime.Now);
                                         var isOngoing = leave.StartDate <= DateOnly.FromDateTime(DateTime.Now) && leave.EndDate >= DateOnly.FromDateTime(DateTime.Now);
-                                        
+
                                         <tr class="@(leave.Status == "Pending" && (DateTime.Now - leave.CreatedDate).Days > 3 ? "table-warning" : isOngoing && leave.Status == "Approved" ? "table-success" : "")">
-                                            <td><strong>#LVE-@leave.LeaveID</strong></td>
+                                            <td>
+                                                #LVE-@leave.LeaveID
+                               
+                                            </td>
                                             <td>
                                                 <span class="badge bg-info">@(leave.LeaveType?.TypeName ?? "N/A")</span>
                                             </td>
                                             <td>
-                                                @if (isOngoing && leave.Status == "Approved")
-                                                {
-                                                    <span class="badge bg-success">On Leave</span>
-                                                }
-                                                else if (isUpcoming && leave.Status == "Approved")
-                                                {
-                                                    <span class="badge bg-primary">Upcoming</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="text-muted">@(leave.StartDate < DateOnly.FromDateTime(DateTime.Now) ? "Past" : "Future")</span>
-                                                }
+                                                @leave.StartDate.ToString("dd MMM yyyy")
                                             </td>
                                             <td>
-                                                <div>
-                                                    <strong>@leave.StartDate.ToString("dd MMM")</strong> - <strong>@leave.EndDate.ToString("dd MMM, yyyy")</strong>
-                                                </div>
+                                                @leave.EndDate.ToString("dd MMM yyyy")
                                             </td>
-                                            <td><strong>@duration days</strong></td>
+                                            <td>@duration days</td>
                                             <td>
                                                 <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
                                                     @leave.Status

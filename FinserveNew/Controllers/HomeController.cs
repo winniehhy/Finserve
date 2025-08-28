@@ -173,6 +173,7 @@ namespace FinserveNew.Controllers
         }
 
         // HR Dashboard - Only accessible by HR
+
         [Authorize(Roles = "HR")]
         public async Task<IActionResult> HRDashboard()
         {
@@ -206,33 +207,32 @@ namespace FinserveNew.Controllers
                     .Take(5)
                     .ToListAsync();
 
-                // Get claims statistics
+                // FIXED: Get claims statistics - match the filtering used in HRIndex
                 var totalPendingClaims = await _context.Claims
-                    .Where(c => c.Status == "Pending")
+                    .Where(c => c.Status == "Pending" && !c.IsDeleted) // Added IsDeleted filter
                     .CountAsync();
 
                 var totalApprovedClaims = await _context.Claims
-                    .Where(c => c.Status == "Approved" && c.CreatedDate.Year == currentYear)
+                    .Where(c => c.Status == "Approved" && c.CreatedDate.Year == currentYear && !c.IsDeleted) // Added IsDeleted filter
                     .CountAsync();
 
                 var totalClaimAmount = await _context.Claims
-                    .Where(c => c.Status == "Approved" && c.CreatedDate.Year == currentYear)
+                    .Where(c => c.Status == "Approved" && c.CreatedDate.Year == currentYear && !c.IsDeleted) // Added IsDeleted filter
                     .SumAsync(c => c.ClaimAmount);
 
                 var recentClaimApplications = await _context.Claims
                     .Include(c => c.Employee)
-                    .Where(c => !c.IsDeleted) // Add this line to match HR Index filtering
+                    .Where(c => !c.IsDeleted) // This line already exists and is correct
                     .OrderByDescending(c => c.CreatedDate)
                     .Take(5)
                     .ToListAsync();
 
-                // Get employees by department/status - FIX THE ISSUE HERE
+                // Get employees by department/status
                 var employeesByStatus = await _context.Employees
                     .GroupBy(e => e.ConfirmationStatus)
                     .Select(g => new { Status = g.Key, Count = g.Count() })
                     .ToListAsync();
 
-                // Convert to a list of objects that can be safely cast - KEEP ONLY THIS ONE
                 var employeeStatusList = employeesByStatus.Select(x => new
                 {
                     Status = x.Status,
@@ -241,7 +241,7 @@ namespace FinserveNew.Controllers
 
                 // Calculate current payroll status for the dashboard
                 var currentPayrollStatus = "Not Started";
-                
+
                 // Get all active employees who should have payroll records
                 var activeEmployeeIds = await _context.Employees
                     .Where(e => e.ResignationDate == null || e.ResignationDate > DateOnly.FromDateTime(DateTime.Now))
@@ -263,7 +263,6 @@ namespace FinserveNew.Controllers
 
                         if (employeesWithoutPayroll.Any())
                         {
-                            // Not all employees have payroll records
                             currentPayrollStatus = "Pending";
                         }
                         else
@@ -278,7 +277,6 @@ namespace FinserveNew.Controllers
                             }
                             else
                             {
-                                // Check the status distribution
                                 var pendingCount = currentMonthPayrolls.Where(p => p.PaymentStatus == "Pending").Count();
                                 var pendingApprovalCount = currentMonthPayrolls.Where(p => p.PaymentStatus == "Pending Approval").Count();
                                 var approvedCount = currentMonthPayrolls.Where(p => p.PaymentStatus == "Approved").Count();
@@ -301,7 +299,6 @@ namespace FinserveNew.Controllers
                     }
                     else
                     {
-                        // No payroll records exist for current month
                         currentPayrollStatus = "Not Started";
                     }
                 }
@@ -346,7 +343,7 @@ namespace FinserveNew.Controllers
                     }
                 }
 
-                // Set ViewBag properties - USE ONLY THE CONVERTED LIST
+                // Set ViewBag properties
                 ViewBag.TotalEmployees = totalEmployees;
                 ViewBag.ActiveEmployees = activeEmployees;
                 ViewBag.TotalPendingLeaves = totalPendingLeaves;
@@ -357,7 +354,7 @@ namespace FinserveNew.Controllers
                 ViewBag.RecentLeaveApplications = recentLeaveApplications;
                 ViewBag.RecentClaimApplications = recentClaimApplications;
                 ViewBag.CurrentPayrollStatus = currentPayrollStatus;
-                ViewBag.EmployeesByStatus = employeeStatusList; // USE ONLY THIS ONE - REMOVE THE DUPLICATE
+                ViewBag.EmployeesByStatus = employeeStatusList;
                 ViewBag.CalendarData = calendarData;
                 ViewBag.CurrentYear = currentYear;
                 ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
