@@ -90,18 +90,18 @@ namespace FinserveNew.Models.ViewModels
 
         [Required(ErrorMessage = "Bank account number is required.")]
         [StringLength(50, MinimumLength = 8, ErrorMessage = "Bank account number must be between 8 and 50 characters.")]
-        [RegularExpression(@"^[0-9\-]{8,50}$", ErrorMessage = "Bank account number can only contain numbers and hyphens")]
+        [RegularExpression(@"^[0-9\-]{8,50}$", ErrorMessage = "Bank account number must be 8-50 characters and contain only numbers and hyphens")]
         [Display(Name = "Bank Account Number")]
         public string BankAccountNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Income tax number is required.")]
         [StringLength(15, MinimumLength = 8, ErrorMessage = "Income tax number must be between 8 and 15 characters.")]
-        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "Income tax number must contain only uppercase letters and numbers")]
+        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "Income tax number must be 8-15 characters and contain only uppercase letters and numbers")]
         public string IncomeTaxNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "EPF number is required.")]
         [StringLength(15, MinimumLength = 8, ErrorMessage = "EPF number must be between 8 and 15 characters.")]
-        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "EPF number must contain only uppercase letters and numbers")]
+        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "EPF number must be 8-15 characters and contain only uppercase letters and numbers")]
         public string EPFNumber { get; set; } = string.Empty;
 
         // 4. Emergency Contact

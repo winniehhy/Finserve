@@ -100,13 +100,13 @@ namespace FinserveNew.Models
         [Required(ErrorMessage = "Income Tax Number is required")]
         [Display(Name = "Income Tax Number")]
         [MaxLength(15)]
-        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "Income Tax Number must be 8-15 characters with letters and numbers only")]
+        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "Income Tax Number must be 8-15 characters and contain only uppercase letters and numbers")]
         public string IncomeTaxNumber { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "EPF Number is required")]
         [Display(Name = "EPF Number")]
         [MaxLength(15)]
-        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "EPF Number must be 8-15 characters with letters and numbers only")]
+        [RegularExpression(@"^[A-Z0-9]{8,15}$", ErrorMessage = "EPF Number must be 8-15 characters and contain only uppercase letters and numbers")]
         public string EPFNumber { get; set; } = string.Empty;
 
         // Navigation Properties for Foreign Keys

@@ -165,12 +165,11 @@ namespace FinserveNew.Controllers
                 // Security check for ViewDetails (HR view) - populate RoleName only for display
                 RoleName = employee.Role?.RoleName ?? "Unknown", // Only for display
 
-                Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>(),
-                Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
-                BankNames = bankNames,
-                BankTypes = new[] { "Savings", "Current" },
-                                
+                Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>()
             };
+
+            // Use consistent method for populating dropdown data
+            PopulateEmployeeDetailsDropdowns(viewModel);
 
             return View("~/Views/HR/Accounts/ViewDetails.cshtml", viewModel); 
         }
@@ -351,7 +350,7 @@ namespace FinserveNew.Controllers
                 string rawPassword = $"{basePasswordPart}#1234";
                 rawPassword = char.ToUpper(rawPassword[0]) + rawPassword.Substring(1);
 
-                // Create Bank Information
+                // Create Bank Information (Don't save yet - keep in transaction)
                 var bankInfo = new BankInformation
                 {
                     BankName = vm.BankName,
@@ -359,9 +358,8 @@ namespace FinserveNew.Controllers
                     BankAccountNumber = vm.BankAccountNumber
                 };
                 _context.BankInformations.Add(bankInfo);
-                await _context.SaveChangesAsync();
 
-                // Create Emergency Contact
+                // Create Emergency Contact (Don't save yet - keep in transaction)
                 var emergencyContact = new EmergencyContact
                 {
                     Name = vm.EmergencyContactName,
@@ -369,9 +367,8 @@ namespace FinserveNew.Controllers
                     Relationship = vm.EmergencyContactRelationship
                 };
                 _context.EmergencyContacts.Add(emergencyContact);
-                await _context.SaveChangesAsync();
 
-                // Create Employee
+                // Create Employee (Don't save yet - keep in transaction)
                 var employee = new Employee
                 {
                     EmployeeID = newEmployeeId,
@@ -390,12 +387,14 @@ namespace FinserveNew.Controllers
                     Position = vm.Position,
                     IncomeTaxNumber = vm.IncomeTaxNumber,
                     EPFNumber = vm.EPFNumber,
-                    BankID = bankInfo.BankID,
-                    EmergencyID = emergencyContact.EmergencyID,
+                    BankInformation = bankInfo, // Use navigation property instead of ID
+                    EmergencyContact = emergencyContact, // Use navigation property instead of ID
                     RoleID = vm.RoleID
                 };
                 _context.Employees.Add(employee);
-                await _context.SaveChangesAsync();
+
+                // Store uploaded files info for later processing (Don't save files yet)
+                var documentsToAdd = new List<(IFormFile file, string docType, string employeeId)>();
 
                 if (vm.NewDocuments != null && vm.NewDocumentTypes != null && vm.NewDocuments.Count == vm.NewDocumentTypes.Count)
                 {
@@ -408,11 +407,10 @@ namespace FinserveNew.Controllers
                         {
                             var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
                             var ext = Path.GetExtension(file.FileName).ToLower();
-                            if (!allowedExtensions.Contains(ext) || file.Length > 5 * 1024 * 1024)
-                                continue;
-
-                            var filePath = await SaveFile(file, "documents", docType);
-                            await AddEmployeeDocument(employee.EmployeeID, docType, filePath, file.FileName);
+                            if (allowedExtensions.Contains(ext) && file.Length <= 5 * 1024 * 1024)
+                            {
+                                documentsToAdd.Add((file, docType, employee.EmployeeID));
+                            }
                         }
                     }
                 }
@@ -432,11 +430,15 @@ namespace FinserveNew.Controllers
 
                 if (result.Succeeded)
                 {
-                    // Determine system role based on selected role
+                    // Determine system role based on selected role name
                     string systemRole = "Employee"; // Default
 
                     // Logic to determine which system role to assign based on the employee role
-                    if (idPrefix == "HR")
+                    if (roleName.Contains("senior hr") || roleName.Contains("senior human resource"))
+                    {
+                        systemRole = "Senior HR";
+                    }
+                    else if (roleName.Contains("hr") || roleName.Contains("human resource"))
                     {
                         systemRole = "HR";
                     }
@@ -446,14 +448,81 @@ namespace FinserveNew.Controllers
                     }
 
                     // Add user to the appropriate system role
-                    await _userManager.AddToRoleAsync(user, systemRole);
+                    var roleResult = await _userManager.AddToRoleAsync(user, systemRole);
+                    if (!roleResult.Succeeded)
+                    {
+                        await transaction.RollbackAsync();
+                        var roleErrorMessage = string.Join(", ", roleResult.Errors.Select(e => e.Description));
+                        _logger.LogError($"Failed to assign role {systemRole} to user: {roleErrorMessage}");
+                        ModelState.AddModelError(string.Empty, $"User account created but role assignment failed: {roleErrorMessage}");
+                        await PopulateViewModelDropdowns(vm);
+                        return View("~/Views/HR/Accounts/Add.cshtml", vm);
+                    }
 
+                    // Save all database changes together
                     await _context.SaveChangesAsync();
 
-                    await transaction.CommitAsync();
+                    // Check if we just created an HR user and handle default account deactivation
+                    if (systemRole == "HR" || systemRole == "Senior HR")
+                    {
+                        await DbInitializer.CheckAndDeactivateDefaultAccountAsync(HttpContext.RequestServices);
+                    }
 
-                    TempData["Success"] = $"Employee {vm.FirstName} {vm.LastName} added successfully with {systemRole} system access and ID {newEmployeeId}!";
-                    _logger.LogInformation($"Employee {newEmployeeId} created with {systemRole} role and user account {vm.Email}");
+                    // Process and save documents only after all database operations succeed
+                    var savedDocuments = new List<string>(); // Track saved files for cleanup if needed
+                    try
+                    {
+                        foreach (var (file, docType, employeeId) in documentsToAdd)
+                        {
+                            var filePath = await SaveFile(file, "documents", docType);
+                            savedDocuments.Add(filePath);
+                            
+                            var document = new EmployeeDocument
+                            {
+                                EmployeeID = employeeId,
+                                DocumentType = docType,
+                                FilePath = filePath,
+                                FileName = file.FileName
+                            };
+                            _context.EmployeeDocuments.Add(document);
+                        }
+
+                        // Save document records
+                        if (documentsToAdd.Any())
+                        {
+                            await _context.SaveChangesAsync();
+                        }
+
+                        await transaction.CommitAsync();
+
+                        TempData["Success"] = $"Employee {vm.FirstName} {vm.LastName} added successfully with {systemRole} system access and ID {newEmployeeId}!";
+                        _logger.LogInformation($"Employee {newEmployeeId} created with {systemRole} role and user account {vm.Email}");
+                    }
+                    catch (Exception docEx)
+                    {
+                        // Clean up any files that were saved before the error
+                        foreach (var filePath in savedDocuments)
+                        {
+                            try
+                            {
+                                var fullPath = Path.Combine(_webHostEnvironment.WebRootPath, filePath.TrimStart('/'));
+                                if (System.IO.File.Exists(fullPath))
+                                {
+                                    System.IO.File.Delete(fullPath);
+                                }
+                            }
+                            catch (Exception cleanupEx)
+                            {
+                                _logger.LogError(cleanupEx, "Failed to cleanup file {FilePath}", filePath);
+                            }
+                        }
+
+                        await transaction.RollbackAsync();
+                        _logger.LogError(docEx, "Error saving documents for employee {EmployeeID}", newEmployeeId);
+                        ModelState.AddModelError(string.Empty, "Employee and user account created but document upload failed. Please try uploading documents later.");
+                        await PopulateViewModelDropdowns(vm);
+                        return View("~/Views/HR/Accounts/Add.cshtml", vm);
+                    }
                 }
                 else
                 {
@@ -465,9 +534,7 @@ namespace FinserveNew.Controllers
 
                     ModelState.AddModelError(string.Empty, $"Employee record was created but user account creation failed: {errorMessage}");
 
-                    vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
-                    vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
-                    vm.BankTypes = new[] { "Savings", "Current" };
+                    await PopulateViewModelDropdowns(vm);
                     return View("~/Views/HR/Accounts/Add.cshtml", vm);
                 }
                 return RedirectToAction(nameof(AllAccounts));
@@ -480,9 +547,7 @@ namespace FinserveNew.Controllers
                 _logger.LogError(ex, "Error creating employee and user account");
                 ModelState.AddModelError(string.Empty, "An error occurred while creating the employee. Please try again.");
 
-                vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
-                vm.BankNames = new[] { "Maybank", "CIMB", "RHB", "Public Bank" };
-                vm.BankTypes = new[] { "Savings", "Current" };
+                await PopulateViewModelDropdowns(vm);
                 return View("~/Views/HR/Accounts/Add.cshtml", vm);
             }
         }
@@ -491,17 +556,11 @@ namespace FinserveNew.Controllers
         [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateEmployee(EmployeeDetailsViewModel vm)
+        public async Task<IActionResult> UpdateEmployee(EmployeeDetailsViewModel vm, bool confirmTermination = false)
         {
-            // Get all countries using ISO3166 library
-            var countries = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
-
             if (!ModelState.IsValid)
             {
-                vm.Nationalities = countries;
-                var banksInvalid = GetBanksFromJson();
-                vm.BankNames = banksInvalid.Select(b => b["name"]).ToArray();
-                vm.BankTypes = new[] { "Savings", "Current" };
+                PopulateEmployeeDetailsDropdowns(vm);
                                 
                 // Log the errors to the console
                 foreach (var modelStateEntry in ModelState.Values)
@@ -524,74 +583,127 @@ namespace FinserveNew.Controllers
             if (employee == null)
                 return NotFound();
 
-            // Store original email to check if it changed
+            // Store original values to check for changes
             string originalEmail = employee.Email;
+            string originalConfirmationStatus = employee.ConfirmationStatus;
 
-            // Update employee details
-            employee.FirstName = vm.FirstName;
-            employee.LastName = vm.LastName;
-            if (vm.Nationality == "Malaysia")
+            // Check if confirmation status is being changed to "Terminated"
+            bool isBeingTerminated = originalConfirmationStatus != "Terminated" && vm.ConfirmationStatus == "Terminated";
+            
+            if (isBeingTerminated && !confirmTermination)
             {
-                employee.IC = vm.IC;
-                employee.PassportNumber = null;
-            }
-            else
-            {
-                employee.IC = null;
-                employee.PassportNumber = vm.PassportNumber;
-            }
-            employee.Nationality = vm.Nationality;
-            employee.Email = vm.Email;
-            employee.TelephoneNumber = vm.TelephoneNumber;
-            employee.DateOfBirth = vm.DateOfBirth;
-            employee.JoinDate = vm.JoinDate;
-            employee.ResignationDate = vm.ResignationDate;
-            employee.ConfirmationStatus = vm.ConfirmationStatus;
-            employee.Position = vm.Position;
-            employee.IncomeTaxNumber = vm.IncomeTaxNumber;
-            employee.EPFNumber = vm.EPFNumber;
-
-            // Update bank information
-            if (employee.BankInformation != null)
-            {
-                employee.BankInformation.BankName = vm.BankName;
-                employee.BankInformation.BankType = vm.BankType;
-                employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
+                // Store the form data in TempData for resubmission after confirmation
+                TempData["PendingEmployeeUpdate"] = System.Text.Json.JsonSerializer.Serialize(vm);
+                TempData["TerminationWarning"] = $"You are about to terminate employee {vm.FirstName} {vm.LastName} (ID: {vm.EmployeeID}). This will deactivate their system account and they will no longer be able to access the system.";
+                TempData["RequireConfirmation"] = true;
+                
+                PopulateEmployeeDetailsDropdowns(vm);
+                return View("~/Views/HR/Accounts/ViewDetails.cshtml", vm);
             }
 
-            // Update emergency contact
-            if (employee.EmergencyContact != null)
-            {
-                employee.EmergencyContact.Name = vm.EmergencyContactName;
-                employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
-                employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
-            }
-
-            // Handle multiple file uploads
-            if (vm.NewDocuments != null && vm.NewDocumentTypes != null && vm.NewDocuments.Count == vm.NewDocumentTypes.Count)
-            {
-                for (int i = 0; i < vm.NewDocuments.Count; i++)
-                {
-                    var file = vm.NewDocuments[i];
-                    var docType = vm.NewDocumentTypes[i];
-
-                    if (file != null && !string.IsNullOrEmpty(docType))
-                    {
-                        var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
-                        var ext = Path.GetExtension(file.FileName).ToLower();
-                        if (!allowedExtensions.Contains(ext) || file.Length > 5 * 1024 * 1024)
-                            continue;
-
-                        var filePath = await SaveFile(file, "documents", docType);
-                        await AddEmployeeDocument(vm.EmployeeID, docType, filePath, file.FileName);
-                    }
-                }
-            }
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
+                // Update employee details
+                employee.FirstName = vm.FirstName;
+                employee.LastName = vm.LastName;
+                if (vm.Nationality == "Malaysia")
+                {
+                    employee.IC = vm.IC;
+                    employee.PassportNumber = null;
+                }
+                else
+                {
+                    employee.IC = null;
+                    employee.PassportNumber = vm.PassportNumber;
+                }
+                employee.Nationality = vm.Nationality;
+                employee.Email = vm.Email;
+                employee.TelephoneNumber = vm.TelephoneNumber;
+                employee.DateOfBirth = vm.DateOfBirth;
+                employee.JoinDate = vm.JoinDate;
+                employee.ResignationDate = vm.ResignationDate;
+                employee.ConfirmationStatus = vm.ConfirmationStatus;
+                employee.Position = vm.Position;
+                employee.IncomeTaxNumber = vm.IncomeTaxNumber;
+                employee.EPFNumber = vm.EPFNumber;
+
+                // Update bank information
+                if (employee.BankInformation != null)
+                {
+                    employee.BankInformation.BankName = vm.BankName;
+                    employee.BankInformation.BankType = vm.BankType;
+                    employee.BankInformation.BankAccountNumber = vm.BankAccountNumber;
+                }
+
+                // Update emergency contact
+                if (employee.EmergencyContact != null)
+                {
+                    employee.EmergencyContact.Name = vm.EmergencyContactName;
+                    employee.EmergencyContact.TelephoneNumber = vm.EmergencyContactPhone;
+                    employee.EmergencyContact.Relationship = vm.EmergencyContactRelationship;
+                }
+
+                // Prepare document uploads (Don't save files yet)
+                var documentsToAdd = new List<(IFormFile file, string docType, string employeeId)>();
+
+                if (vm.NewDocuments != null && vm.NewDocumentTypes != null && vm.NewDocuments.Count == vm.NewDocumentTypes.Count)
+                {
+                    for (int i = 0; i < vm.NewDocuments.Count; i++)
+                    {
+                        var file = vm.NewDocuments[i];
+                        var docType = vm.NewDocumentTypes[i];
+
+                        if (file != null && !string.IsNullOrEmpty(docType))
+                        {
+                            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                            var ext = Path.GetExtension(file.FileName).ToLower();
+                            if (allowedExtensions.Contains(ext) && file.Length <= 5 * 1024 * 1024)
+                            {
+                                documentsToAdd.Add((file, docType, vm.EmployeeID));
+                            }
+                        }
+                    }
+                }
+
                 // Save employee changes first
                 await _context.SaveChangesAsync();
+
+                // Handle account deactivation if employee is being terminated
+                if (isBeingTerminated)
+                {
+                    var user = await _userManager.Users.FirstOrDefaultAsync(u => u.EmployeeID == vm.EmployeeID);
+                    if (user != null)
+                    {
+                        // Deactivate the user account
+                        user.IsDeactivated = true;
+                        user.DeactivatedAt = DateTime.UtcNow;
+                        user.DeactivationReason = $"Account deactivated due to employee termination by HR user {User.Identity.Name}";
+                        
+                        var deactivationResult = await _userManager.UpdateAsync(user);
+                        if (!deactivationResult.Succeeded)
+                        {
+                            await transaction.RollbackAsync();
+                            _logger.LogError("Failed to deactivate user account for terminated employee {EmployeeID}: {Errors}", 
+                                vm.EmployeeID, string.Join(", ", deactivationResult.Errors.Select(e => e.Description)));
+                            
+                            ModelState.AddModelError(string.Empty, "Employee was updated but failed to deactivate user account. Please contact system administrator.");
+                            PopulateEmployeeDetailsDropdowns(vm);
+                            return View("~/Views/HR/Accounts/ViewDetails.cshtml", vm);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Successfully deactivated user account for terminated employee {EmployeeID} by {HRUser}", 
+                                vm.EmployeeID, User.Identity.Name);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not find ASP.NET Identity user account for terminated employee {EmployeeID}", vm.EmployeeID);
+                        // Continue without failing - the employee record is still terminated
+                    }
+                }
 
                 // Update ASP.NET Identity user email if it changed
                 if (originalEmail != vm.Email)
@@ -600,17 +712,20 @@ namespace FinserveNew.Controllers
                     if (user != null)
                     {
                         user.Email = vm.Email;
-                        user.UserName = vm.Email; // Often email is used as username
+                        user.UserName = vm.Email;
                         user.NormalizedEmail = vm.Email.ToUpper();
                         user.NormalizedUserName = vm.Email.ToUpper();
 
                         var updateResult = await _userManager.UpdateAsync(user);
                         if (!updateResult.Succeeded)
                         {
+                            await transaction.RollbackAsync();
                             _logger.LogError("Failed to update user email: {Errors}", 
                                 string.Join(", ", updateResult.Errors.Select(e => e.Description)));
                             
-                            TempData["Warning"] = "Employee updated successfully, but there was an issue updating the login email. Please contact IT support.";
+                            ModelState.AddModelError(string.Empty, "Failed to update user email. Please try again.");
+                            PopulateEmployeeDetailsDropdowns(vm);
+                            return View("~/Views/HR/Accounts/ViewDetails.cshtml", vm);
                         }
                         else
                         {
@@ -621,104 +736,134 @@ namespace FinserveNew.Controllers
                     else
                     {
                         _logger.LogWarning("Could not find ASP.NET Identity user for employee {EmployeeID}", vm.EmployeeID);
-                        TempData["Warning"] = "Employee updated successfully, but could not find associated user account. Please contact IT support.";
+                        // Continue without failing - this is not critical
                     }
                 }
 
-                if (TempData["Warning"] == null)
+                // Process and save documents only after all database operations succeed
+                var savedDocuments = new List<string>(); // Track saved files for cleanup if needed
+                try
                 {
-                    TempData["Success"] = "Employee updated successfully!";
-                }
+                    foreach (var (file, docType, employeeId) in documentsToAdd)
+                    {
+                        var filePath = await SaveFile(file, "documents", docType);
+                        savedDocuments.Add(filePath);
+                        
+                        var document = new EmployeeDocument
+                        {
+                            EmployeeID = employeeId,
+                            DocumentType = docType,
+                            FilePath = filePath,
+                            FileName = file.FileName
+                        };
+                        _context.EmployeeDocuments.Add(document);
+                    }
 
-                return RedirectToAction(nameof(ViewDetails), new { id = vm.EmployeeID });
+                    // Save document records
+                    if (documentsToAdd.Any())
+                    {
+                        await _context.SaveChangesAsync();
+                    }
+
+                    await transaction.CommitAsync();
+
+                    // Clear any pending update data from TempData
+                    TempData.Remove("PendingEmployeeUpdate");
+                    TempData.Remove("TerminationWarning");
+                    TempData.Remove("RequireConfirmation");
+
+                    // Set appropriate success message
+                    if (isBeingTerminated)
+                    {
+                        TempData["Success"] = $"Employee {vm.FirstName} {vm.LastName} has been terminated and their account has been deactivated successfully.";
+                    }
+                    else
+                    {
+                        TempData["Success"] = "Employee updated successfully!";
+                    }
+
+                    return RedirectToAction(nameof(ViewDetails), new { id = vm.EmployeeID });
+                }
+                catch (Exception docEx)
+                {
+                    // Clean up any files that were saved before the error
+                    foreach (var filePath in savedDocuments)
+                    {
+                        try
+                        {
+                            var fullPath = Path.Combine(_webHostEnvironment.WebRootPath, filePath.TrimStart('/'));
+                            if (System.IO.File.Exists(fullPath))
+                            {
+                                System.IO.File.Delete(fullPath);
+                            }
+                        }
+                        catch (Exception cleanupEx)
+                        {
+                            _logger.LogError(cleanupEx, "Failed to cleanup file {FilePath}", filePath);
+                        }
+                    }
+
+                    await transaction.RollbackAsync();
+                    _logger.LogError(docEx, "Error saving documents for employee {EmployeeID}", vm.EmployeeID);
+                    ModelState.AddModelError(string.Empty, "Employee updated but document upload failed. Please try uploading documents later.");
+                    PopulateEmployeeDetailsDropdowns(vm);
+                    return View("~/Views/HR/Accounts/ViewDetails.cshtml", vm);
+                }
             }
             catch (DbUpdateConcurrencyException)
             {
+                await transaction.RollbackAsync();
                 if (!EmployeeExists(vm.EmployeeID))
                     return NotFound();
                 else
                     throw;
             }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error updating employee {EmployeeID}", vm.EmployeeID);
+                ModelState.AddModelError(string.Empty, "An error occurred while updating the employee. Please try again.");
+                PopulateEmployeeDetailsDropdowns(vm);
+                return View("~/Views/HR/Accounts/ViewDetails.cshtml", vm);
+            }
         }
 
-        // POST: Accounts/DeleteDocument
+        // POST: Accounts/ConfirmTermination - Handle the confirmation of employee termination
+        [Authorize(Roles = "HR")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteDocument(int documentId)
+        public async Task<IActionResult> ConfirmTermination()
         {
-            var document = await _context.EmployeeDocuments.FindAsync(documentId);
-            if (document == null)
-                return NotFound();
-
-            // Delete the physical file
-            var filePath = Path.Combine(_webHostEnvironment.WebRootPath, document.FilePath.TrimStart('/'));
-            if (System.IO.File.Exists(filePath))
+            // Retrieve the pending employee update data from TempData
+            var pendingUpdateJson = TempData["PendingEmployeeUpdate"] as string;
+            if (string.IsNullOrEmpty(pendingUpdateJson))
             {
-                System.IO.File.Delete(filePath);
+                TempData["Error"] = "No pending termination found. Please try again.";
+                return RedirectToAction(nameof(AllAccounts));
             }
 
-            _context.EmployeeDocuments.Remove(document);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Document deleted successfully!";
-            return RedirectToAction(nameof(ViewDetails), new { id = document.EmployeeID });
-        }
-
-        private async Task<string> SaveFile(IFormFile file, string baseFolder, string documentType)
-        {
-            if (file == null || file.Length == 0)
-                return null;
-
-            // Convert document type to a valid folder name (lowercase, replace spaces with hyphens)
-            string folderName = documentType.ToLower().Replace(" ", "-").Replace("/", "-");
-
-            // Create path structure: baseFolder/documentType/
-            string folderPath = Path.Combine(baseFolder, folderName);
-            string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, folderPath);
-
-            // Create directory if it doesn't exist
-            if (!Directory.Exists(uploadsFolder))
-                Directory.CreateDirectory(uploadsFolder);
-
-            // Create unique filename
-            string uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
-            string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            try
             {
-                await file.CopyToAsync(fileStream);
+                var vm = System.Text.Json.JsonSerializer.Deserialize<EmployeeDetailsViewModel>(pendingUpdateJson);
+                if (vm == null)
+                {
+                    TempData["Error"] = "Invalid termination data. Please try again.";
+                    return RedirectToAction(nameof(AllAccounts));
+                }
+
+                // Clear TempData flags
+                TempData.Remove("TerminationWarning");
+                TempData.Remove("RequireConfirmation");
+
+                // Resubmit with confirmation
+                return await UpdateEmployee(vm, confirmTermination: true);
             }
-
-            // Return the web-accessible path
-            return $"/{folderPath}/{uniqueFileName}";
-        }
-
-        private async Task AddEmployeeDocument(string employeeId, string documentType, string filePath, string fileName)
-        {
-            var document = new EmployeeDocument
+            catch (System.Text.Json.JsonException ex)
             {
-                EmployeeID = employeeId,
-                DocumentType = documentType,
-                FilePath = filePath,
-                FileName = fileName
-            };
-
-            _context.EmployeeDocuments.Add(document);
-            await _context.SaveChangesAsync();
-        }
-
-        private string HashPassword(string password)
-        {
-            using (var sha256 = SHA256.Create())
-            {
-                var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                return Convert.ToBase64String(hashedBytes);
+                _logger.LogError(ex, "Failed to deserialize pending employee termination data");
+                TempData["Error"] = "Failed to process termination confirmation. Please try again.";
+                return RedirectToAction(nameof(AllAccounts));
             }
-        }
-
-        private bool EmployeeExists(string id)
-        {
-            return _context.Employees.Any(e => e.EmployeeID == id);
         }
               
 
@@ -733,7 +878,10 @@ namespace FinserveNew.Controllers
                 string filePath = Path.Combine(_webHostEnvironment.WebRootPath, "json", "banks.json");
 
                 if (!System.IO.File.Exists(filePath))
+                {
+                    _logger.LogWarning("Banks JSON file not found at {FilePath}", filePath);
                     return new List<Dictionary<string, string>>();
+                }
 
                 // Read file content
                 string jsonString = System.IO.File.ReadAllText(filePath);
@@ -746,10 +894,8 @@ namespace FinserveNew.Controllers
 
                 var banks = System.Text.Json.JsonSerializer.Deserialize<List<Dictionary<string, string>>>(jsonString, options);
 
-                // Sort alphabetically by name
-                banks = banks?.OrderBy(b => b["name"]).ToList() ?? new List<Dictionary<string, string>>();
-
-                return banks;
+                // Sort alphabetically by name and return
+                return banks?.OrderBy(b => b.ContainsKey("name") ? b["name"] : "").ToList() ?? new List<Dictionary<string, string>>();
             }
             catch (Exception ex)
             {
@@ -758,7 +904,8 @@ namespace FinserveNew.Controllers
             }
         }
 
-        // Helper method for employee business rules validation
+        // ------------- BUSINESS LOGIC ----------------- //
+        // Business rules validation for employee addition
         private bool ValidateEmployeeBusinessRules(AddEmployeeViewModel vm)
         {
             var isValid = true;
@@ -836,7 +983,7 @@ namespace FinserveNew.Controllers
             return isValid;
         }
 
-        // Helper method to populate dropdown data
+        // Populate dropdowns and other necessary data for the view model
         private async Task PopulateViewModelDropdowns(AddEmployeeViewModel vm)
         {
             var roles = await _context.Roles.ToListAsync();
@@ -849,7 +996,7 @@ namespace FinserveNew.Controllers
             vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
             
             var banks = GetBanksFromJson();
-            vm.BankNames = banks.Select(b => b["name"]).ToArray();
+            vm.BankNames = banks.Select(b => b.ContainsKey("name") ? b["name"] : "").Where(name => !string.IsNullOrEmpty(name)).ToArray();
             vm.BankTypes = new[] { "Savings", "Current" };
             
             // Preserve default values if not set
@@ -857,6 +1004,162 @@ namespace FinserveNew.Controllers
                 vm.Nationality = "Malaysia";
             if (vm.JoinDate == DateOnly.MinValue)
                 vm.JoinDate = DateOnly.FromDateTime(DateTime.Today);
+        }
+
+        // Helper method to populate dropdown data for EmployeeDetailsViewModel
+        private void PopulateEmployeeDetailsDropdowns(EmployeeDetailsViewModel vm)
+        {
+            vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
+            
+            var banks = GetBanksFromJson();
+            vm.BankNames = banks.Select(b => b.ContainsKey("name") ? b["name"] : "").Where(name => !string.IsNullOrEmpty(name)).ToArray();
+            vm.BankTypes = new[] { "Savings", "Current" };
+        }
+
+        // Helper method to handle rollback scenarios and ensure all dropdown data is properly restored
+        private async Task HandleAddEmployeeRollback(AddEmployeeViewModel vm, string errorMessage, string logMessage = null)
+        {
+            if (!string.IsNullOrEmpty(logMessage))
+            {
+                _logger.LogError(logMessage);
+            }
+
+            ModelState.AddModelError(string.Empty, errorMessage);
+            await PopulateViewModelDropdowns(vm);
+        }
+
+        // Helper method to clean up uploaded files in case of transaction rollback
+        private void CleanupUploadedFiles(List<string> filePaths)
+        {
+            foreach (var filePath in filePaths)
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(filePath))
+                    {
+                        var fullPath = Path.Combine(_webHostEnvironment.WebRootPath, filePath.TrimStart('/'));
+                        if (System.IO.File.Exists(fullPath))
+                        {
+                            System.IO.File.Delete(fullPath);
+                            _logger.LogInformation("Cleaned up file: {FilePath}", fullPath);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to cleanup file {FilePath}", filePath);
+                }
+            }
+        }
+
+        // Helper method to validate file before processing
+        private bool IsValidFile(IFormFile file, out string errorMessage)
+        {
+            errorMessage = string.Empty;
+
+            if (file == null || file.Length == 0)
+            {
+                errorMessage = "File is empty or null";
+                return false;
+            }
+
+            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+            var ext = Path.GetExtension(file.FileName).ToLower();
+            
+            if (!allowedExtensions.Contains(ext))
+            {
+                errorMessage = $"File type {ext} is not allowed";
+                return false;
+            }
+
+            if (file.Length > 5 * 1024 * 1024) // 5MB
+            {
+                errorMessage = "File size exceeds 5MB limit";
+                return false;
+            }
+
+            return true;
+        }
+
+        // POST: Accounts/DeleteDocument
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteDocument(int documentId)
+        {
+            var document = await _context.EmployeeDocuments.FindAsync(documentId);
+            if (document == null)
+                return NotFound();
+
+            // Delete the physical file
+            var filePath = Path.Combine(_webHostEnvironment.WebRootPath, document.FilePath.TrimStart('/'));
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+
+            _context.EmployeeDocuments.Remove(document);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Document deleted successfully!";
+            return RedirectToAction(nameof(ViewDetails), new { id = document.EmployeeID });
+        }
+
+        // Helper method to save uploaded files
+        private async Task<string> SaveFile(IFormFile file, string baseFolder, string documentType)
+        {
+            if (file == null || file.Length == 0)
+                return null;
+
+            // Convert document type to a valid folder name (lowercase, replace spaces with hyphens)
+            string folderName = documentType.ToLower().Replace(" ", "-").Replace("/", "-");
+
+            // Create path structure: baseFolder/documentType/
+            string folderPath = Path.Combine(baseFolder, folderName);
+            string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, folderPath);
+
+            // Create directory if it doesn't exist
+            if (!Directory.Exists(uploadsFolder))
+                Directory.CreateDirectory(uploadsFolder);
+
+            // Create unique filename
+            string uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+            string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fileStream);
+            }
+
+            // Return the web-accessible path
+            return $"/{folderPath}/{uniqueFileName}";
+        }
+
+        private void AddEmployeeDocumentToContext(string employeeId, string documentType, string filePath, string fileName)
+        {
+            var document = new EmployeeDocument
+            {
+                EmployeeID = employeeId,
+                DocumentType = documentType,
+                FilePath = filePath,
+                FileName = fileName
+            };
+
+            _context.EmployeeDocuments.Add(document);
+            // Note: Does not call SaveChangesAsync - must be saved within transaction context
+        }
+
+        private string HashPassword(string password)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                return Convert.ToBase64String(hashedBytes);
+            }
+        }
+
+        private bool EmployeeExists(string id)
+        {
+            return _context.Employees.Any(e => e.EmployeeID == id);
         }
     }
 }

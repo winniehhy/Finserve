@@ -267,7 +267,7 @@
                             var statusCount = statusData?.Count ?? 0;
                             var totalPayrolls = ViewBag.TotalPayrolls ?? 1;
                             var percentage = totalPayrolls > 0 ? (statusCount * 100.0 / totalPayrolls) : 0;
-                            var progressColor = statusName == "Approved" ? "success" : statusName == "Pending Approval" ? "warning" : statusName == "Completed" ? "info" : statusName == "Rejected" ? "danger" : "secondary";
+                            var progressColor = statusName == "Approved" ? "success" : statusName == "Pending Approval" ? "warning" : statusName == "Paid" ? "info" : statusName == "Rejected" ? "danger" : "secondary";
 
                             <div class="status-item mb-3">
                                 <div class="d-flex justify-content-between align-items-center mb-2">

@@ -57,13 +57,28 @@ namespace FinserveNew.Controllers
                 var user = await _userManager.FindByEmailAsync(model.Email);
                 if (user != null)
                 {
+                    // Check if the account is deactivated
+                    if (user.IsDeactivated)
+                    {
+                        ModelState.AddModelError(string.Empty, "This account has been deactivated. Please contact your administrator or use an alternative account.");
+                        return View(model);
+                    }
+
                     var result = await _signInManager.PasswordSignInAsync(user, model.Password, model.RememberMe, lockoutOnFailure: false);
 
                     if (result.Succeeded)
                     {
                         _logger.LogInformation("User {Email} logged in.", model.Email);
 
-                        //await _signInManager.RefreshSignInAsync(user);
+                        // Check if this is a default account and display warning message
+                        if (user.IsDefaultAccount)
+                        {
+                            var message = await DbInitializer.GetDefaultAccountMessageAsync(HttpContext.RequestServices, user.Id);
+                            if (!string.IsNullOrEmpty(message))
+                            {
+                                TempData["Warning"] = message;
+                            }
+                        }
 
                         // Redirect based on user role
                         if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
@@ -95,6 +110,21 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Logout()
         {
+            var currentUser = await _userManager.GetUserAsync(User);
+            
+            // Check if this is the default account and handle deactivation
+            if (currentUser?.IsDefaultAccount == true && !currentUser.IsDeactivated)
+            {
+                await DbInitializer.CheckAndDeactivateDefaultAccountAsync(HttpContext.RequestServices);
+                
+                // If the account was deactivated, the user will not be able to log back in
+                var updatedUser = await _userManager.FindByIdAsync(currentUser.Id);
+                if (updatedUser?.IsDeactivated == true)
+                {
+                    TempData["Info"] = "The default HR account has been deactivated as other HR accounts are now available. Please use your regular HR account for future access.";
+                }
+            }
+            
             await _signInManager.SignOutAsync();
             _logger.LogInformation("User logged out.");
             return RedirectToAction("Login", "Account");

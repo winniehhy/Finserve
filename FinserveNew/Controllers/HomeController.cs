@@ -182,6 +182,17 @@ namespace FinserveNew.Controllers
                 ViewData["Title"] = "HR Dashboard";
                 ViewData["UserRole"] = "HR";
 
+                // Check for default account message
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser != null)
+                {
+                    var defaultAccountMessage = await DbInitializer.GetDefaultAccountMessageAsync(HttpContext.RequestServices, currentUser.Id);
+                    if (!string.IsNullOrEmpty(defaultAccountMessage))
+                    {
+                        TempData["Warning"] = defaultAccountMessage;
+                    }
+                }
+
                 var currentYear = DateTime.Now.Year;
                 var currentMonth = DateTime.Now.Month;
 
@@ -267,13 +278,13 @@ namespace FinserveNew.Controllers
                         }
                         else
                         {
-                            // All employees have payroll records, check if all are completed
-                            var completedPayrolls = currentMonthPayrolls.Where(p => p.PaymentStatus == "Completed").Count();
+                            // All employees have payroll records, check if all are paid
+                            var paidPayrolls = currentMonthPayrolls.Where(p => p.PaymentStatus == "Paid").Count();
                             var totalPayrolls = currentMonthPayrolls.Count;
 
-                            if (completedPayrolls == totalPayrolls)
+                            if (paidPayrolls == totalPayrolls)
                             {
-                                currentPayrollStatus = "Completed";
+                                currentPayrollStatus = "Paid";
                             }
                             else
                             {

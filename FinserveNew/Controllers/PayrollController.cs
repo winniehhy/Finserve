@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using FinserveNew.Controllers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace FinserveNew.Controllers
 {
@@ -21,17 +22,20 @@ namespace FinserveNew.Controllers
         private readonly IEmailSender _emailSender;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IIdGenerationService _idGenerationService;
+        private readonly ILogger<PayrollController> _logger;
 
         public PayrollController(
             AppDbContext context,
             IEmailSender emailSender,
             UserManager<ApplicationUser> userManager,
-            IIdGenerationService idGenerationService)
+            IIdGenerationService idGenerationService,
+            ILogger<PayrollController> logger)
         {
             _context = context;
             _emailSender = emailSender;
             _userManager = userManager;
             _idGenerationService = idGenerationService;
+            _logger = logger;
         }
 
         // ========================== HR Actions ========================== //
@@ -209,22 +213,31 @@ namespace FinserveNew.Controllers
                 {
                     existingEntry.PaymentStatus = "Pending";
                     
-                    var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
-                    var modifiedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
-
-                    _context.Approvals.Add(new Approval
+                    try
                     {
-                        ApprovalID = approvalId,
-                        ApprovalDate = DateTime.Now,
-                        Action = "Modify Rejected Payroll",
-                        ActionBy = modifiedByEmployeeId, // Store Employee ID instead of name
-                        Status = "Pending",
-                        Remarks = "Payroll modified and status reset to Pending",
-                        EmployeeID = existingEntry.EmployeeID,
-                        PayrollID = existingEntry.PayrollID
-                    });
+                        var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
+                        var modifiedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
 
-                    TempData["Success"] = "Rejected payroll has been modified and reset to Pending status.";
+                        _context.Approvals.Add(new Approval
+                        {
+                            ApprovalID = approvalId,
+                            ApprovalDate = DateTime.Now,
+                            Action = "Modify Rejected Payroll",
+                            ActionBy = modifiedByEmployeeId, // Store Employee ID instead of name
+                            Status = "Pending",
+                            Remarks = "Payroll modified and status reset to Pending",
+                            EmployeeID = existingEntry.EmployeeID,
+                            PayrollID = existingEntry.PayrollID
+                        });
+
+                        TempData["Success"] = "Rejected payroll has been modified and reset to Pending status.";
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        // Log the error but don't create approval record
+                        _logger.LogError(ex, "Could not create approval record for payroll modification");
+                        TempData["Success"] = "Rejected payroll has been modified and reset to Pending status. (Note: Approval audit record could not be created)";
+                    }
                 }
                 else
                 {
@@ -408,10 +421,10 @@ namespace FinserveNew.Controllers
             if (month == 0) month = DateTime.Now.Month;
             if (year == 0) year = DateTime.Now.Year;
 
-            // Only show completed payrolls in history
+            // Only show paid payrolls in history
             var entries = await _context.Payrolls
                 .Include(p => p.Employee)
-                .Where(p => p.Month == month && p.Year == year && p.PaymentStatus == "Completed")
+                .Where(p => p.Month == month && p.Year == year && p.PaymentStatus == "Paid")
                 .OrderBy(p => p.EmployeeID)
                 .ToListAsync();
 
@@ -447,56 +460,69 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
             }
 
-            // Update status to pending approval
-            payroll.PaymentStatus = "Pending Approval";
-
-            // Generate new ApprovalID
-            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
-
-            // Record approval audit entry
-            var requestedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
-            var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
-
-            _context.Approvals.Add(new Approval
+            try
             {
-                ApprovalID = approvalId,
-                ApprovalDate = DateTime.Now,
-                Action = "Send for Approval",
-                ActionBy = requestedByEmployeeId, // Store Employee ID instead of name
-                Status = "Pending Approval",
-                Remarks = "Sent for approval",
-                EmployeeID = payroll.EmployeeID,
-                PayrollID = payroll.PayrollID
-            });
+                // Update status to pending approval
+                payroll.PaymentStatus = "Pending Approval";
 
-            await _context.SaveChangesAsync();
+                // Generate new ApprovalID
+                var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
 
-            // Notify Senior HR of the approval request
-            var seniorHRUsers = await _userManager.GetUsersInRoleAsync("Senior HR");
-            foreach (var seniorHRUser in seniorHRUsers)
-            {
-                if (!string.IsNullOrEmpty(seniorHRUser.Email))
+                // Record approval audit entry
+                var requestedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
+                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
+
+                _context.Approvals.Add(new Approval
                 {
-                    var subject = $"Payroll Approval Request for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
-                    var body = $@"
-                <h2>Payroll Approval Request</h2>
-                <p>A new payroll entry requires your approval:</p>
-                <ul>
-                    <li><strong>Employee:</strong> {payroll.Employee.FirstName} {payroll.Employee.LastName}</li>
-                    <li><strong>Period:</strong> {monthName} {payroll.Year}</li>
-                    <li><strong>Basic Salary:</strong> RM {payroll.BasicSalary:N2}</li>
-                    <li><strong>Net Salary:</strong> RM {payroll.TotalWages:N2}</li>
-                    <li><strong>Total Cost:</strong> RM {payroll.TotalEmployerCost:N2}</li>
-                </ul>
-                <p><a href='{Url.Action("PayrollDetails", "Payroll", new { id = payroll.PayrollID }, Request.Scheme)}'>Click here to review this payroll</a></p>";
+                    ApprovalID = approvalId,
+                    ApprovalDate = DateTime.Now,
+                    Action = "Send for Approval",
+                    ActionBy = requestedByEmployeeId, // Store Employee ID instead of name
+                    Status = "Pending Approval",
+                    Remarks = "Sent for approval",
+                    EmployeeID = payroll.EmployeeID,
+                    PayrollID = payroll.PayrollID
+                });
 
-                    await _emailSender.SendEmailAsync(seniorHRUser.Email, subject, body);
-                    //await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
+                await _context.SaveChangesAsync();
+
+                // Notify Senior HR of the approval request
+                var seniorHRUsers = await _userManager.GetUsersInRoleAsync("Senior HR");
+                foreach (var seniorHRUser in seniorHRUsers)
+                {
+                    if (!string.IsNullOrEmpty(seniorHRUser.Email))
+                    {
+                        var subject = $"Payroll Approval Request for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+                        var body = $@"
+                    <h2>Payroll Approval Request</h2>
+                    <p>A new payroll entry requires your approval:</p>
+                    <ul>
+                        <li><strong>Employee:</strong> {payroll.Employee.FirstName} {payroll.Employee.LastName}</li>
+                        <li><strong>Period:</strong> {monthName} {payroll.Year}</li>
+                        <li><strong>Basic Salary:</strong> RM {payroll.BasicSalary:N2}</li>
+                        <li><strong>Net Salary:</strong> RM {payroll.TotalWages:N2}</li>
+                        <li><strong>Total Cost:</strong> RM {payroll.TotalEmployerCost:N2}</li>
+                    </ul>
+                    <p><a href='{Url.Action("PayrollDetails", "Payroll", new { id = payroll.PayrollID }, Request.Scheme)}'>Click here to review this payroll</a></p>";
+
+                        await _emailSender.SendEmailAsync(seniorHRUser.Email, subject, body);
+                        //await _emailSender.SendEmailAsync("hr001@cubicsoftware.com.my", subject, body);
+                    }
                 }
-            }
 
-            TempData["Success"] = "Payroll has been sent for approval.";
-            return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+                TempData["Success"] = "Payroll has been sent for approval.";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = $"Unable to send for approval: {ex.Message}";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "An error occurred while sending for approval. Please try again.";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            }
         }
 
         // POST: Payroll/MarkAsPaid
@@ -520,48 +546,61 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
             }
 
-            // Generate new ApprovalID
-            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
-
-            // Update status to completed and record approval trail
-            payroll.PaymentStatus = "Completed";
-
-            var paidByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
-            var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
-
-            _context.Approvals.Add(new Approval
+            try
             {
-                ApprovalID = approvalId,
-                ApprovalDate = DateTime.Now,
-                Action = "Mark as Paid",
-                ActionBy = paidByEmployeeId, // Store Employee ID instead of name
-                Status = "Completed",
-                Remarks = "Marked as paid",
-                EmployeeID = payroll.EmployeeID,
-                PayrollID = payroll.PayrollID
-            });
+                // Generate new ApprovalID
+                var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
 
-            await _context.SaveChangesAsync();
+                // Update status to paid and record approval trail
+                payroll.PaymentStatus = "Paid";
 
-            // Notify employee
-            if (!string.IsNullOrEmpty(payroll.Employee?.Email))
-            {
-                var subject = $"Your Salary for {monthName} {payroll.Year} Has Been Paid";
-                var body = $@"
-            <h2>Salary Payment Notification</h2>
-            <p>Dear {payroll.Employee.FirstName},</p>
-            <p>Your salary for {monthName} {payroll.Year} has been paid to your bank account.</p>
-            <ul>
-                <li><strong>Net Amount:</strong> RM {payroll.TotalWages:N2}</li>
-                <li><strong>Period:</strong> {monthName} {payroll.Year}</li>
-            </ul>
-            <p>You can now view your payslip online.</p>";
+                var paidByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
+                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(payroll.Month);
 
-                await _emailSender.SendEmailAsync(payroll.Employee.Email, subject, body);
+                _context.Approvals.Add(new Approval
+                {
+                    ApprovalID = approvalId,
+                    ApprovalDate = DateTime.Now,
+                    Action = "Mark as Paid",
+                    ActionBy = paidByEmployeeId, // Store Employee ID instead of name
+                    Status = "Paid",
+                    Remarks = "Marked as paid",
+                    EmployeeID = payroll.EmployeeID,
+                    PayrollID = payroll.PayrollID
+                });
+
+                await _context.SaveChangesAsync();
+
+                // Notify employee
+                if (!string.IsNullOrEmpty(payroll.Employee?.Email))
+                {
+                    var subject = $"Your Salary for {monthName} {payroll.Year} Has Been Paid";
+                    var body = $@"
+                <h2>Salary Payment Notification</h2>
+                <p>Dear {payroll.Employee.FirstName},</p>
+                <p>Your salary for {monthName} {payroll.Year} has been paid to your bank account.</p>
+                <ul>
+                    <li><strong>Net Amount:</strong> RM {payroll.TotalWages:N2}</li>
+                    <li><strong>Period:</strong> {monthName} {payroll.Year}</li>
+                </ul>
+                <p>You can now view your payslip online.</p>";
+
+                    await _emailSender.SendEmailAsync(payroll.Employee.Email, subject, body);
+                }
+
+                TempData["Success"] = "Payroll has been marked as paid.";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
             }
-
-            TempData["Success"] = "Payroll has been marked as paid.";
-            return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = $"Unable to mark as paid: {ex.Message}";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "An error occurred while marking as paid. Please try again.";
+                return RedirectToAction(nameof(Summary), new { month = payroll.Month, year = payroll.Year });
+            }
         }
 
 
@@ -679,46 +718,59 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            var approverEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
-            // Generate new ApprovalID
-            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
-
-            // Update status to approved and record approval entry
-            payroll.PaymentStatus = "Approved";
-            var monthName = GetMonthName(payroll.Month);
-            _context.Approvals.Add(new Approval
+            try
             {
-                ApprovalID = approvalId,
-                ApprovalDate = DateTime.Now,
-                Action = "Approve payroll",
-                ActionBy = approverEmployeeId, // Store Employee ID instead of name
-                Status = "Approved",
-                Remarks = comments,
-                EmployeeID = payroll.EmployeeID,
-                PayrollID = payroll.PayrollID
-            });
+                var approverEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
+                // Generate new ApprovalID
+                var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
 
-            await _context.SaveChangesAsync();
-
-            // Notify HR
-            var hrUsers = await _userManager.GetUsersInRoleAsync("HR");
-            foreach (var hrUser in hrUsers)
-            {
-                if (!string.IsNullOrEmpty(hrUser.Email))
+                // Update status to approved and record approval entry
+                payroll.PaymentStatus = "Approved";
+                var monthName = GetMonthName(payroll.Month);
+                _context.Approvals.Add(new Approval
                 {
-                    var subject = $"Payroll Approved for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
-                    var message = $@"
-                        <h2>Payroll Approval Notification</h2>
-                        <p>The payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} for {GetMonthName(payroll.Month)} {payroll.Year} has been approved.</p>
-                        <p>You may now proceed with payment.</p>
-                        <p><a href='{Url.Action("Summary", "Payroll", new { month = payroll.Month, year = payroll.Year }, Request.Scheme)}'>View Payroll Summary</a></p>";
+                    ApprovalID = approvalId,
+                    ApprovalDate = DateTime.Now,
+                    Action = "Approve payroll",
+                    ActionBy = approverEmployeeId, // Store Employee ID instead of name
+                    Status = "Approved",
+                    Remarks = comments,
+                    EmployeeID = payroll.EmployeeID,
+                    PayrollID = payroll.PayrollID
+                });
 
-                    await _emailSender.SendEmailAsync(hrUser.Email, subject, message);
+                await _context.SaveChangesAsync();
+
+                // Notify HR
+                var hrUsers = await _userManager.GetUsersInRoleAsync("HR");
+                foreach (var hrUser in hrUsers)
+                {
+                    if (!string.IsNullOrEmpty(hrUser.Email))
+                    {
+                        var subject = $"Payroll Approved for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+                        var message = $@"
+                            <h2>Payroll Approval Notification</h2>
+                            <p>The payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} for {GetMonthName(payroll.Month)} {payroll.Year} has been approved.</p>
+                            <p>You may now proceed with payment.</p>
+                            <p><a href='{Url.Action("Summary", "Payroll", new { month = payroll.Month, year = payroll.Year }, Request.Scheme)}'>View Payroll Summary</a></p>";
+
+                        await _emailSender.SendEmailAsync(hrUser.Email, subject, message);
+                    }
                 }
-            }
 
-            TempData["Success"] = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been approved successfully.";
-            return RedirectToAction(nameof(ApprovePayrolls));
+                TempData["Success"] = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been approved successfully.";
+                return RedirectToAction(nameof(ApprovePayrolls));
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = $"Unable to process approval: {ex.Message}";
+                return RedirectToAction(nameof(PayrollDetails), new { id });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "An error occurred while processing the approval. Please try again.";
+                return RedirectToAction(nameof(PayrollDetails), new { id });
+            }
         }
 
         // POST: Payroll/RejectPayroll/{id}
@@ -742,47 +794,60 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // Generate new ApprovalID
-            var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
-
-            // Update status to rejected and record approval entry
-            payroll.PaymentStatus = "Rejected";
-            var rejectedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
-            var monthName = GetMonthName(payroll.Month);
-
-            _context.Approvals.Add(new Approval
+            try
             {
-                ApprovalID = approvalId,
-                ApprovalDate = DateTime.Now,
-                Action = "Reject payroll",
-                ActionBy = rejectedByEmployeeId, // Store Employee ID instead of name
-                Status = "Rejected",
-                Remarks = reason,
-                EmployeeID = payroll.EmployeeID,
-                PayrollID = payroll.PayrollID
-            });
+                // Generate new ApprovalID
+                var approvalId = await _idGenerationService.GenerateApprovalIdAsync();
 
-            await _context.SaveChangesAsync();
+                // Update status to rejected and record approval entry
+                payroll.PaymentStatus = "Rejected";
+                var rejectedByEmployeeId = await GetCurrentUserEmployeeIdAsync(); // Store Employee ID
+                var monthName = GetMonthName(payroll.Month);
 
-            // Notify HR
-            var hrUsers = await _userManager.GetUsersInRoleAsync("HR");
-            foreach (var hrUser in hrUsers)
-            {
-                if (!string.IsNullOrEmpty(hrUser.Email))
+                _context.Approvals.Add(new Approval
                 {
-                    var subject = $"Payroll Rejected for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
-                    var message = $@"
+                    ApprovalID = approvalId,
+                    ApprovalDate = DateTime.Now,
+                    Action = "Reject payroll",
+                    ActionBy = rejectedByEmployeeId, // Store Employee ID instead of name
+                    Status = "Rejected",
+                    Remarks = reason,
+                    EmployeeID = payroll.EmployeeID,
+                    PayrollID = payroll.PayrollID
+                });
+
+                await _context.SaveChangesAsync();
+
+                // Notify HR
+                var hrUsers = await _userManager.GetUsersInRoleAsync("HR");
+                foreach (var hrUser in hrUsers)
+                {
+                    if (!string.IsNullOrEmpty(hrUser.Email))
+                    {
+                        var subject = $"Payroll Rejected for {payroll.Employee.FirstName} {payroll.Employee.LastName}";
+                        var message = $@"
                         <h2>Payroll Rejection Notification</h2>
                         <p>The payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} for {GetMonthName(payroll.Month)} {payroll.Year} has been rejected.</p>
                         <p><strong>Reason:</strong> {reason}</p>
                         <p><a href='{Url.Action("Process", "Payroll", new { month = payroll.Month, year = payroll.Year, employeeId = payroll.EmployeeID }, Request.Scheme)}'>Edit Payroll Entry</a></p>";
 
-                    await _emailSender.SendEmailAsync(hrUser.Email, subject, message);
+                        await _emailSender.SendEmailAsync(hrUser.Email, subject, message);
+                    }
                 }
-            }
 
-            TempData["Success"] = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been rejected.";
-            return RedirectToAction(nameof(ApprovePayrolls));
+                TempData["Success"] = $"Payroll for {payroll.Employee.FirstName} {payroll.Employee.LastName} has been rejected.";
+                return RedirectToAction(nameof(ApprovePayrolls));
+            }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = $"Unable to process rejection: {ex.Message}";
+                return RedirectToAction(nameof(PayrollDetails), new { id });
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = "An error occurred while processing the rejection. Please try again.";
+                return RedirectToAction(nameof(PayrollDetails), new { id });
+            }
         }
 
         // Helper method
@@ -811,13 +876,13 @@ namespace FinserveNew.Controllers
             var payslips = await _context.Payrolls
                 .Where(p => p.EmployeeID == user.EmployeeID &&
                        p.Year == year &&
-                       p.PaymentStatus == "Completed")
+                       p.PaymentStatus == "Paid")
                 .OrderByDescending(p => p.Year)
                 .ThenByDescending(p => p.Month)
                 .ToListAsync();
 
             var availableYears = await _context.Payrolls
-                .Where(p => p.EmployeeID == user.EmployeeID && p.PaymentStatus == "Completed")
+                .Where(p => p.EmployeeID == user.EmployeeID && p.PaymentStatus == "Paid")
                 .Select(p => p.Year)
                 .Distinct()
                 .OrderByDescending(y => y)
@@ -848,8 +913,8 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // Only allow viewing of completed payrolls
-            if (payslip.PaymentStatus != "Completed")
+            // Only allow viewing of paid payrolls
+            if (payslip.PaymentStatus != "Paid")
             {
                 return RedirectToAction(nameof(Payslips));
             }
@@ -871,7 +936,7 @@ namespace FinserveNew.Controllers
                 .Include(p => p.Employee)
                 .FirstOrDefaultAsync(p => p.PayrollID == id && p.EmployeeID == user.EmployeeID);
 
-            if (payslip == null || payslip.PaymentStatus != "Completed")
+            if (payslip == null || payslip.PaymentStatus != "Paid")
             {
                 return NotFound();
             }
@@ -1065,6 +1130,11 @@ namespace FinserveNew.Controllers
 
                 return RedirectToAction(nameof(Summary), new { month = month, year = year });
             }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = $"Unable to process batch approval request: {ex.Message}";
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
             catch (Exception ex)
             {
                 // Log the detailed error
@@ -1108,7 +1178,7 @@ namespace FinserveNew.Controllers
                 for (int i = 0; i < approvedPayrolls.Count; i++)
                 {
                     var payroll = approvedPayrolls[i];
-                    payroll.PaymentStatus = "Completed";
+                    payroll.PaymentStatus = "Paid";
 
                     // Create approval audit entry
                     var approvalEntry = new Approval
@@ -1117,7 +1187,7 @@ namespace FinserveNew.Controllers
                         ApprovalDate = DateTime.Now,
                         Action = "Mark as Paid (Batch)",
                         ActionBy = paidByEmployeeId, // Store Employee ID instead of name
-                        Status = "Completed",
+                        Status = "Paid",
                         Remarks = "Marked as paid via batch operation",
                         EmployeeID = payroll.EmployeeID,
                         PayrollID = payroll.PayrollID
@@ -1178,6 +1248,11 @@ namespace FinserveNew.Controllers
                 TempData["Success"] = message;
                 return RedirectToAction(nameof(Summary), new { month = month, year = year });
             }
+            catch (InvalidOperationException ex)
+            {
+                TempData["Error"] = $"Unable to process batch payment operation: {ex.Message}";
+                return RedirectToAction(nameof(Summary), new { month = month, year = year });
+            }
             catch (Exception ex)
             {
                 // Log the detailed error
@@ -1207,7 +1282,13 @@ namespace FinserveNew.Controllers
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser != null && !string.IsNullOrEmpty(currentUser.EmployeeID))
             {
-                return currentUser.EmployeeID;
+                // Verify the employee ID exists in the employees table
+                var employeeExists = await _context.Employees
+                    .AnyAsync(e => e.EmployeeID == currentUser.EmployeeID);
+                if (employeeExists)
+                {
+                    return currentUser.EmployeeID;
+                }
             }
             
             // Fallback: try to find by username or email
@@ -1215,10 +1296,14 @@ namespace FinserveNew.Controllers
             {
                 var employee = await _context.Employees
                     .FirstOrDefaultAsync(e => e.Email == currentUser.Email || e.Username == currentUser.UserName);
-                return employee?.EmployeeID ?? currentUser.UserName ?? "Unknown";
+                if (employee != null)
+                {
+                    return employee.EmployeeID;
+                }
             }
             
-            return User.Identity?.Name ?? "Unknown";
+            // If no valid employee ID found, throw an exception rather than returning invalid data
+            throw new InvalidOperationException($"Cannot find valid Employee ID for current user: {currentUser?.UserName ?? "Unknown"}. Please ensure the user is properly linked to an employee record.");
         }
 
         // Helper methods to get approval-based data
