@@ -16,8 +16,5 @@ namespace FinserveNew.Models
         public bool IsDeactivated { get; set; } = false;
         public DateTime? DeactivatedAt { get; set; }
         public string? DeactivationReason { get; set; }
-
-        // Navigation property - removed to avoid conflicts
-        // public Employee? Employee { get; set; }
     }
 }

@@ -132,8 +132,6 @@ namespace FinserveNew.Controllers
                 Month = month,
                 Year = year,
                 Payrolls = payrolls,
-                //TotalEmployerCost = payrolls.Sum(p => p.TotalEmployerCost),
-                //TotalWages = payrolls.Sum(p => p.TotalWages)
             };
 
             return View("~/Views/HR/Payroll/Summary.cshtml", viewModel);

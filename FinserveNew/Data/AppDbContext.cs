@@ -21,23 +21,12 @@ namespace FinserveNew.Data
         public DbSet<ClaimDetails> ClaimDetails { get; set; }
         public DbSet<ClaimType> ClaimTypes { get; set; }
         public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
-
-        //public DbSet<PayrollBatch> PayrollBatches { get; set; }
-        //public DbSet<PayrollRecord> PayrollRecords { get; set; }
-        //public DbSet<PayrollComponent> PayrollComponents { get; set; }
-        //public DbSet<StatutoryRate> StatutoryRates { get; set; }
-
         public DbSet<LeaveModel> Leaves { get; set; }
         public DbSet<LeaveTypeModel> LeaveTypes { get; set; }
-
         public DbSet<LeaveDetailsModel> LeaveDetails { get; set; }
-
         public DbSet<UnpaidLeaveRequestModel> UnpaidLeaveRequests { get; set; }
-
-        // Add the missing Invoice DbSet
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
-        
         public DbSet<ProcessOCRSubmissionModel> ProcessOCRSubmissions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -85,13 +74,7 @@ namespace FinserveNew.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configure the relationship between ApplicationUser and Employee
-            //modelBuilder.Entity<Employee>()
-            //    .HasOne(e => e.ApplicationUser)
-            //    .WithOne()
-            //    .HasForeignKey<Employee>(e => e.ApplicationUserId);
-
-            // Configure the Claim table (updated for RBAC approach)
+            // Configure the Claim table
             modelBuilder.Entity<Claim>(entity =>
             {
                 entity.HasKey(c => c.Id);

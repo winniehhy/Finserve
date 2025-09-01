@@ -24,7 +24,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     // Password settings
     options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 6;
+    options.Password.RequiredLength = 8;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
@@ -75,6 +75,7 @@ builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 
 // Add this line after your existing service registrations
 builder.Services.AddScoped<IOcrService, TesseractOcrService>();
+
 var app = builder.Build();
 
 // ✅ Seed users and roles
@@ -101,14 +102,13 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRotativa();
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
-
 
 app.Run();
