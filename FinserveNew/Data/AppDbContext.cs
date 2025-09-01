@@ -28,18 +28,10 @@ namespace FinserveNew.Data
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
         public DbSet<ProcessOCRSubmissionModel> ProcessOCRSubmissions { get; set; }
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // IGNORE UNUSED IDENTITY TABLES 
-            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserClaim<string>>();
-            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserLogin<string>>();
-            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>();
-            //modelBuilder.Ignore<Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>>();
-
-            // Configure Employee table
             modelBuilder.Entity<Employee>(entity =>
             {
                 entity.HasKey(e => e.EmployeeID);
@@ -74,7 +66,6 @@ namespace FinserveNew.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configure the Claim table
             modelBuilder.Entity<Claim>(entity =>
             {
                 entity.HasKey(c => c.Id);
@@ -88,18 +79,13 @@ namespace FinserveNew.Data
                 entity.Property(c => c.TotalAmount).HasPrecision(18, 2);
                 entity.Property(c => c.ApprovedBy).HasMaxLength(255);
                 entity.Property(c => c.ApprovalRemarks).HasMaxLength(1000);
-
-                // NEW: Configure currency-related fields
                 entity.Property(c => c.Currency).HasMaxLength(3).HasDefaultValue("MYR");
                 entity.Property(c => c.ClaimDate).IsRequired();
                 entity.Property(c => c.Description).HasMaxLength(1000);
-                
-                // Configure soft delete fields
                 entity.Property(c => c.IsDeleted).HasDefaultValue(false);
                 entity.Property(c => c.DeletedDate).IsRequired(false);
             });
 
-            // Configure the Invoice table
             modelBuilder.Entity<Invoice>(entity =>
             {
                 entity.HasKey(i => i.InvoiceID);
@@ -115,14 +101,13 @@ namespace FinserveNew.Data
 
             modelBuilder.Entity<ClaimDetails>(entity =>
             {
-                entity.HasKey(cd => cd.Id); // Use single primary key instead of composite
+                entity.HasKey(cd => cd.Id);
 
                 entity.Property(cd => cd.Comment).IsRequired().HasMaxLength(500);
                 entity.Property(cd => cd.DocumentPath).IsRequired().HasMaxLength(500);
                 entity.Property(cd => cd.OriginalFileName).HasMaxLength(255);
                 entity.Property(cd => cd.UploadDate).IsRequired();
 
-                // Configure relationships
                 entity.HasOne(cd => cd.Claim)
                       .WithMany(c => c.ClaimDetails)
                       .HasForeignKey(cd => cd.ClaimID)
@@ -145,7 +130,6 @@ namespace FinserveNew.Data
                 entity.Property(ct => ct.CreatedDate).IsRequired();
             });
 
-            // Configure remaining tables
             modelBuilder.Entity<BankInformation>(entity =>
             {
                 entity.HasKey(b => b.BankID);
@@ -161,7 +145,6 @@ namespace FinserveNew.Data
                 entity.HasKey(r => r.RoleID);
             });
 
-            // Configure Payroll table with string primary key
             modelBuilder.Entity<Payroll>(entity =>
             {
                 entity.HasKey(p => p.PayrollID);
@@ -172,36 +155,26 @@ namespace FinserveNew.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Configure Approval table with string primary key and relationships
             modelBuilder.Entity<Approval>(entity =>
             {
                 entity.HasKey(e => e.ApprovalID);
                 entity.Property(e => e.ApprovalID).HasMaxLength(50);
-                
-                // Configure relationship with Employee (for EmployeeID)
+               
                 entity.HasOne(e => e.Employee)
                       .WithMany()
                       .HasForeignKey(e => e.EmployeeID)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                // Configure relationship with ActionBy Employee
                 entity.HasOne(e => e.ActionByEmployee)
                       .WithMany()
                       .HasForeignKey(e => e.ActionBy)
                       .OnDelete(DeleteBehavior.SetNull);
 
-                // Configure relationship with Payroll
                 entity.HasOne(e => e.Payroll)
                       .WithMany(p => p.Approvals)
                       .HasForeignKey(e => e.PayrollID)
                       .OnDelete(DeleteBehavior.Cascade);
             });
-
-            //modelBuilder.Entity<PayrollBatch>(entity =>
-            //{
-            //    entity.HasKey(pb => pb.PayrollBatchId);
-            //    entity.Property(pb => pb.Status).HasMaxLength(20).HasDefaultValue("Draft");
-            //});
 
             modelBuilder.Entity<LeaveModel>(entity =>
             {

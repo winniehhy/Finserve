@@ -233,7 +233,7 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Create(Claim claim, List<IFormFile> UploadedFiles) // Changed parameter name to match form
+        public async Task<IActionResult> Create(Claim claim, List<IFormFile> UploadedFiles) 
         {
             try
             {
@@ -249,7 +249,7 @@ namespace FinserveNew.Controllers
                     return View("~/Views/Employee/Claim/Create.cshtml", claim);
                 }
 
-                // ADDED: Validate claim date is not in the future
+               
                 if (claim.ClaimDate > DateTime.Today)
                 {
                     ModelState.AddModelError("ClaimDate", "Claim date cannot be in the future.");
@@ -415,8 +415,11 @@ namespace FinserveNew.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> Edit(int id, List<IFormFile>? UploadedFiles)
+        public async Task<IActionResult> Edit(int id, Claim model, List<IFormFile>? UploadedFiles, List<int>? RemovedDocumentIds)
         {
+            _logger.LogInformation($"Edit POST called for claim ID: {id}");
+            _logger.LogInformation($"Model values - ClaimType: '{model.ClaimType}', Description: '{model.Description}', ClaimAmount: {model.ClaimAmount}, ClaimDate: {model.ClaimDate}");
+
             var employeeId = await GetCurrentEmployeeId();
             if (string.IsNullOrEmpty(employeeId))
                 return NotFound();
@@ -435,78 +438,159 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            if (await TryUpdateModelAsync(claimToUpdate, "",
-                c => c.ClaimType, c => c.ClaimAmount, c => c.Description, c => c.ClaimDate))
+            // Validate the model
+            if (model.ClaimDate > DateTime.Today)
             {
-                try
-                {
-                    // Handle new document uploads
-                    if (UploadedFiles != null && UploadedFiles.Count > 0 && UploadedFiles.Any(f => f != null && f.Length > 0))
-                    {
-                        var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
-                        Directory.CreateDirectory(uploadsFolder);
-
-                        var claimTypeId = await GetClaimTypeId(claimToUpdate.ClaimType);
-
-                        // Delete old ClaimDetails files
-                        var oldClaimDetails = claimToUpdate.ClaimDetails?.ToList() ?? new List<ClaimDetails>();
-                        foreach (var oldDetail in oldClaimDetails)
-                        {
-                            var oldPath = Path.Combine(_environment.WebRootPath, oldDetail.DocumentPath.TrimStart('/'));
-                            if (System.IO.File.Exists(oldPath))
-                                System.IO.File.Delete(oldPath);
-
-                            _context.ClaimDetails.Remove(oldDetail);
-                        }
-
-                        // Add new files
-                        foreach (var file in UploadedFiles.Where(f => f != null && f.Length > 0))
-                        {
-                            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
-                            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                            using (var fileStream = new FileStream(filePath, FileMode.Create))
-                            {
-                                await file.CopyToAsync(fileStream);
-                            }
-
-                            var claimDetail = new ClaimDetails
-                            {
-                                ClaimID = claimToUpdate.Id,
-                                ClaimTypeID = claimTypeId,
-                                Comment = $"Supporting document: {file.FileName}",
-                                DocumentPath = $"/uploads/claims/{uniqueFileName}",
-                                OriginalFileName = file.FileName,
-                                FileSize = file.Length,
-                                UploadDate = DateTime.Now
-                            };
-
-                            _context.ClaimDetails.Add(claimDetail);
-                        }
-
-                        // Update main claim for backward compatibility
-                        var firstFile = UploadedFiles.First(f => f != null && f.Length > 0);
-                        var firstUniqueFileName = $"{Guid.NewGuid()}_{firstFile.FileName}";
-
-                        claimToUpdate.SupportingDocumentName = firstFile.FileName;
-                        claimToUpdate.SupportingDocumentPath = $"/uploads/claims/{firstUniqueFileName}";
-                    }
-
-                    // TODO: Recalculate from OCR in future; keep total aligned
-                    claimToUpdate.TotalAmount = claimToUpdate.ClaimAmount;
-                    await _context.SaveChangesAsync();
-                    TempData["Success"] = "Claim updated successfully!";
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (DbUpdateException ex)
-                {
-                    _logger.LogError(ex, "Database error while updating claim");
-                    ModelState.AddModelError("", "An error occurred while updating the claim.");
-                }
+                ModelState.AddModelError("ClaimDate", "Claim date cannot be in the future.");
             }
 
-            await PopulateViewBagData();
-            return View("~/Views/Employee/Claim/Edit.cshtml", claimToUpdate);
+            if (model.ClaimAmount <= 0)
+            {
+                ModelState.AddModelError("ClaimAmount", "Claim amount must be greater than 0.");
+            }
+
+            if (string.IsNullOrWhiteSpace(model.ClaimType))
+            {
+                ModelState.AddModelError("ClaimType", "Please select a claim type.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                _logger.LogError("Model validation failed during edit");
+                foreach (var error in ModelState)
+                {
+                    _logger.LogError($"Field: {error.Key}, Errors: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
+                }
+                await PopulateViewBagData();
+                ViewBag.Documents = claimToUpdate.ClaimDetails?.ToList() ?? new List<ClaimDetails>();
+                return View("~/Views/Employee/Claim/Edit.cshtml", claimToUpdate);
+            }
+
+            try
+            {
+                // Update the basic claim fields from the model
+                claimToUpdate.ClaimType = model.ClaimType;
+                claimToUpdate.ClaimAmount = model.ClaimAmount;
+                claimToUpdate.Description = model.Description ?? string.Empty;
+                claimToUpdate.ClaimDate = model.ClaimDate;
+                claimToUpdate.Currency = model.Currency ?? claimToUpdate.Currency;
+
+                _logger.LogInformation($"Updating claim with values - ClaimType: '{claimToUpdate.ClaimType}', Description: '{claimToUpdate.Description}', ClaimAmount: {claimToUpdate.ClaimAmount}, ClaimDate: {claimToUpdate.ClaimDate}");
+
+                // Handle removed documents
+                if (RemovedDocumentIds != null && RemovedDocumentIds.Any())
+                {
+                    var documentsToRemove = claimToUpdate.ClaimDetails?
+                        .Where(d => RemovedDocumentIds.Contains(d.Id))
+                        .ToList() ?? new List<ClaimDetails>();
+
+                    foreach (var doc in documentsToRemove)
+                    {
+                        // Delete physical file
+                        try
+                        {
+                            var filePath = Path.Combine(_environment.WebRootPath, doc.DocumentPath.TrimStart('/'));
+                            if (System.IO.File.Exists(filePath))
+                                System.IO.File.Delete(filePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, $"Could not delete file: {doc.DocumentPath}");
+                        }
+
+                        // Remove from database
+                        _context.ClaimDetails.Remove(doc);
+                    }
+                    _logger.LogInformation($"Removed {documentsToRemove.Count} documents");
+                }
+
+                // Handle new document uploads
+                if (UploadedFiles != null && UploadedFiles.Count > 0 && UploadedFiles.Any(f => f != null && f.Length > 0))
+                {
+                    var uploadsFolder = Path.Combine(_environment.WebRootPath, "uploads", "claims");
+                    Directory.CreateDirectory(uploadsFolder);
+
+                    var claimTypeId = await GetClaimTypeId(claimToUpdate.ClaimType);
+                    string firstFilePath = null;
+                    string firstFileName = null;
+
+                    foreach (var file in UploadedFiles.Where(f => f != null && f.Length > 0))
+                    {
+                        // Validate file size (5MB limit)
+                        if (file.Length > 5 * 1024 * 1024)
+                        {
+                            ModelState.AddModelError("", $"File {file.FileName} exceeds the 5MB size limit.");
+                            continue;
+                        }
+
+                        var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+                        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(fileStream);
+                        }
+
+                        // Track first file for backward compatibility
+                        if (firstFilePath == null)
+                        {
+                            firstFilePath = $"/uploads/claims/{uniqueFileName}";
+                            firstFileName = file.FileName;
+                        }
+
+                        var claimDetail = new ClaimDetails
+                        {
+                            ClaimID = claimToUpdate.Id,
+                            ClaimTypeID = claimTypeId,
+                            Comment = $"Supporting document: {file.FileName}",
+                            DocumentPath = $"/uploads/claims/{uniqueFileName}",
+                            OriginalFileName = file.FileName,
+                            FileSize = file.Length,
+                            UploadDate = DateTime.Now
+                        };
+
+                        _context.ClaimDetails.Add(claimDetail);
+                    }
+
+                    // Update main claim for backward compatibility
+                    if (firstFilePath != null)
+                    {
+                        claimToUpdate.SupportingDocumentName = firstFileName;
+                        claimToUpdate.SupportingDocumentPath = firstFilePath;
+                    }
+
+                    _logger.LogInformation($"Added {UploadedFiles.Count(f => f != null && f.Length > 0)} new documents");
+                }
+
+                // Recalculate total amount
+                claimToUpdate.TotalAmount = claimToUpdate.ClaimAmount;
+
+                // Update the entity in context
+                _context.Claims.Update(claimToUpdate);
+
+                // Save all changes
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation($"Successfully updated claim {id}");
+                TempData["Success"] = "Claim updated successfully!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error while updating claim");
+                ModelState.AddModelError("", "An error occurred while updating the claim.");
+                await PopulateViewBagData();
+                ViewBag.Documents = claimToUpdate.ClaimDetails?.ToList() ?? new List<ClaimDetails>();
+                return View("~/Views/Employee/Claim/Edit.cshtml", claimToUpdate);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while updating claim");
+                ModelState.AddModelError("", "An unexpected error occurred while updating the claim.");
+                await PopulateViewBagData();
+                ViewBag.Documents = claimToUpdate.ClaimDetails?.ToList() ?? new List<ClaimDetails>();
+                return View("~/Views/Employee/Claim/Edit.cshtml", claimToUpdate);
+            }
         }
 
         [Authorize(Roles = "Employee")]
