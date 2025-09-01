@@ -1032,6 +1032,210 @@ namespace FinserveNew.Controllers
             return View("~/Views/Employee/Leaves/UnpaidLeaveRequests.cshtml", unpaidRequests);
         }
 
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> EditUnpaidLeave(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                return NotFound();
+            }
+
+            var unpaidRequest = await _context.UnpaidLeaveRequests
+                .Include(u => u.Employee)
+                .Include(u => u.LeaveType)
+                .FirstOrDefaultAsync(u => u.UnpaidLeaveRequestID == id && u.EmployeeID == employeeId);
+
+            if (unpaidRequest == null)
+            {
+                return NotFound();
+            }
+
+            // Only allow editing if status is Pending
+            if (unpaidRequest.Status != "Pending")
+            {
+                TempData["Error"] = "You can only edit unpaid leave requests that are in Pending status.";
+                return RedirectToAction(nameof(UnpaidLeaveRequests));
+            }
+
+            await PopulateLeaveTypeDropdownAsync();
+            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+            ViewBag.LeaveBalances = leaveBalances;
+            PopulateLeaveBalanceViewBag(leaveBalances);
+
+            // Check for medical certificate (use negative ID for unpaid leave)
+            var leaveDetails = await _context.LeaveDetails
+                .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
+
+            if (leaveDetails != null)
+            {
+                ViewBag.HasMedicalCertificate = true;
+                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
+                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
+            }
+            else
+            {
+                ViewBag.HasMedicalCertificate = false;
+                ViewBag.MedicalCertificateFileName = "";
+                ViewBag.MedicalCertificateUrl = "";
+            }
+
+            // Convert to LeaveModel for the view
+            var leaveModel = new LeaveModel
+            {
+                LeaveID = 0, // Dummy ID for unpaid leave
+                EmployeeID = unpaidRequest.EmployeeID,
+                LeaveTypeID = unpaidRequest.LeaveTypeID,
+                StartDate = unpaidRequest.StartDate,
+                EndDate = unpaidRequest.EndDate,
+                LeaveDays = unpaidRequest.RequestedDays,
+                Reason = unpaidRequest.Reason,
+                Status = unpaidRequest.Status,
+                SubmissionDate = unpaidRequest.SubmissionDate,
+                Employee = unpaidRequest.Employee,
+                LeaveType = unpaidRequest.LeaveType
+            };
+
+            ViewBag.IsUnpaidLeave = true;
+            ViewBag.UnpaidLeaveRequestID = unpaidRequest.UnpaidLeaveRequestID;
+            ViewBag.JustificationReason = unpaidRequest.JustificationReason;
+
+            return View("~/Views/Employee/Leaves/Edit.cshtml", leaveModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> EditUnpaidLeave(int id, LeaveModel leave, IFormFile? MedicalCertificate,
+            string DayType = "full", string? JustificationReason = null)
+        {
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+                return NotFound();
+
+            // Get the actual unpaid leave request
+            var unpaidRequest = await _context.UnpaidLeaveRequests
+                .FirstOrDefaultAsync(u => u.UnpaidLeaveRequestID == id && u.EmployeeID == employeeId);
+
+            if (unpaidRequest == null)
+                return NotFound();
+
+            if (unpaidRequest.Status != "Pending")
+            {
+                TempData["Error"] = "You can only edit unpaid leave requests that are in Pending status.";
+                return RedirectToAction(nameof(UnpaidLeaveRequests));
+            }
+
+            // Calculate LeaveDays with half-day support
+            var baseDays = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+            if (DayType == "half")
+            {
+                if (baseDays == 1)
+                {
+                    leave.LeaveDays = 0.5;
+                }
+                else
+                {
+                    leave.LeaveDays = baseDays - 0.5;
+                }
+            }
+            else
+            {
+                leave.LeaveDays = baseDays;
+            }
+
+            if (!await IsValidLeaveTypeAsync(leave.LeaveTypeID))
+            {
+                ModelState.AddModelError("LeaveTypeID", "Please select a valid leave type.");
+            }
+
+            // Check medical certificate requirements
+            var leaveType = await _context.LeaveTypes.FindAsync(leave.LeaveTypeID);
+            var existingLeaveDetails = await _context.LeaveDetails
+                .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
+
+            if (leaveType != null && leaveType.TypeName.ToLower().Contains("medical"))
+            {
+                if (existingLeaveDetails == null && (MedicalCertificate == null || MedicalCertificate.Length == 0))
+                {
+                    ModelState.AddModelError("MedicalCertificate", "Medical certificate is required for medical leave.");
+                }
+                else if (MedicalCertificate != null && MedicalCertificate.Length > 0)
+                {
+                    var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+                    var fileExtension = Path.GetExtension(MedicalCertificate.FileName).ToLower();
+
+                    if (!allowedExtensions.Contains(fileExtension))
+                    {
+                        ModelState.AddModelError("MedicalCertificate", "Invalid file type. Please upload PDF, JPG, PNG, DOC, or DOCX files only.");
+                    }
+
+                    if (MedicalCertificate.Length > 5 * 1024 * 1024) // 5MB limit
+                    {
+                        ModelState.AddModelError("MedicalCertificate", "File size exceeds 5MB limit.");
+                    }
+                }
+            }
+
+            // Validate justification reason
+            if (string.IsNullOrWhiteSpace(JustificationReason))
+            {
+                ModelState.AddModelError("JustificationReason", "Justification is required for unpaid leave requests.");
+            }
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    // Update the unpaid leave request
+                    unpaidRequest.LeaveTypeID = leave.LeaveTypeID;
+                    unpaidRequest.StartDate = leave.StartDate;
+                    unpaidRequest.EndDate = leave.EndDate;
+                    unpaidRequest.RequestedDays = leave.LeaveDays;
+                    unpaidRequest.Reason = leave.Reason;
+                    unpaidRequest.JustificationReason = JustificationReason;
+
+                    // Recalculate excess days based on current balance
+                    var currentYear = DateTime.Now.Year;
+                    var remainingBalance = await GetRemainingLeaveBalanceAsync(employeeId, leave.LeaveTypeID, currentYear);
+                    unpaidRequest.ExcessDays = Math.Max(0, leave.LeaveDays - remainingBalance);
+
+                    // Handle medical certificate upload if provided
+                    if (MedicalCertificate != null && MedicalCertificate.Length > 0)
+                    {
+                        await UpdateMedicalCertificateAsync(MedicalCertificate, -unpaidRequest.UnpaidLeaveRequestID, leave.LeaveTypeID, existingLeaveDetails);
+                    }
+
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = "Unpaid leave request updated successfully!";
+                    return RedirectToAction(nameof(UnpaidLeaveRequests));
+                }
+                catch (DbUpdateException ex)
+                {
+                    _logger.LogError(ex, "Database error while updating unpaid leave request");
+                    ModelState.AddModelError("", "An error occurred while updating the unpaid leave request.");
+                }
+            }
+
+            // If we got here, redisplay form with errors
+            await PopulateLeaveTypeDropdownAsync();
+            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+            ViewBag.LeaveBalances = leaveBalances;
+            PopulateLeaveBalanceViewBag(leaveBalances);
+
+            ViewBag.IsUnpaidLeave = true;
+            ViewBag.UnpaidLeaveRequestID = unpaidRequest.UnpaidLeaveRequestID;
+            ViewBag.JustificationReason = JustificationReason;
+
+            return View("~/Views/Employee/Leaves/Edit.cshtml", leave);
+        }
+
         // ================== HR ACTIONS ==================
 
         [Authorize(Roles = "HR")]
@@ -1690,6 +1894,277 @@ namespace FinserveNew.Controllers
                 _logger.LogError(ex, "💥 Unexpected error while processing unpaid leave request");
                 TempData["Error"] = "An unexpected error occurred. Please try again.";
                 return RedirectToAction(nameof(ProcessUnpaidLeave), new { id = id });
+            }
+        }
+
+        
+        /// Sends leave balance reminder emails to employees who have more than 10 days remaining
+        /// Should be called on December 1st or as needed
+        
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> SendLeaveBalanceReminders()
+        {
+            try
+            {
+                var remindersSent = 0;
+                var errors = 0;
+
+                // Get all active employees
+                var employees = await _context.Employees.ToListAsync();
+
+                foreach (var employee in employees)
+                {
+                    try
+                    {
+                        // Calculate leave balances for current year
+                        var leaveBalances = await CalculateLeaveBalancesAsync(employee.EmployeeID);
+
+                        // Check if any leave type has more than 10 days remaining
+                        var highBalanceLeaves = new List<object>();
+
+                        foreach (var balance in leaveBalances)
+                        {
+                            var balanceInfo = balance.Value as dynamic;
+                            if (balanceInfo?.RemainingDays > 10)
+                            {
+                                highBalanceLeaves.Add(new
+                                {
+                                    LeaveType = balance.Key,
+                                    RemainingDays = balanceInfo.RemainingDays,
+                                    DefaultDays = balanceInfo.DefaultDays
+                                });
+                            }
+                        }
+
+                        // Send reminder if employee has high balances
+                        if (highBalanceLeaves.Any())
+                        {
+                            await SendLeaveBalanceReminderToEmployee(employee, highBalanceLeaves);
+                            remindersSent++;
+
+                            _logger.LogInformation($"Leave balance reminder sent to {employee.Username} ({employee.Email})");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"Error sending reminder to employee {employee.EmployeeID}");
+                        errors++;
+                    }
+                }
+
+                TempData["Success"] = $"Leave balance reminders sent successfully! Sent: {remindersSent}, Errors: {errors}";
+                return RedirectToAction(nameof(LeaveReports));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in SendLeaveBalanceReminders");
+                TempData["Error"] = "An error occurred while sending leave balance reminders.";
+                return RedirectToAction(nameof(LeaveReports));
+            }
+        }
+
+        
+        /// Sends leave balance reminder email to a specific employee
+      
+        private async Task SendLeaveBalanceReminderToEmployee(Employee employee, List<object> highBalanceLeaves)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(employee.Email))
+                {
+                    _logger.LogWarning($"No email address for employee {employee.EmployeeID}");
+                    return;
+                }
+
+                // Build the leave balance table
+                var leaveBalanceRows = "";
+                var totalDaysToUse = 0.0;
+
+                foreach (var leave in highBalanceLeaves)
+                {
+                    var leaveType = leave.GetType().GetProperty("LeaveType")?.GetValue(leave)?.ToString();
+                    var remainingDays = Convert.ToDouble(leave.GetType().GetProperty("RemainingDays")?.GetValue(leave));
+                    var defaultDays = Convert.ToDouble(leave.GetType().GetProperty("DefaultDays")?.GetValue(leave));
+                    var usedDays = defaultDays - remainingDays;
+
+                    totalDaysToUse += remainingDays;
+
+                    leaveBalanceRows += $@"
+                <tr>
+                    <td style='padding: 12px; border-bottom: 1px solid #e9ecef;'>{leaveType}</td>
+                    <td style='padding: 12px; border-bottom: 1px solid #e9ecef; text-align: center;'>{defaultDays:0.#}</td>
+                    <td style='padding: 12px; border-bottom: 1px solid #e9ecef; text-align: center;'>{usedDays:0.#}</td>
+                    <td style='padding: 12px; border-bottom: 1px solid #e9ecef; text-align: center; font-weight: bold; color: #28a745;'>{remainingDays:0.#}</td>
+                </tr>";
+                }
+
+                string subject = "Reminder: Please Clear Your Leave Balance Before Year End";
+
+                string body = $@"
+        <html>
+        <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+            <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+                <h2 style='color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px;'>
+                    Leave Balance Reminder
+                </h2>
+                
+                <div style='background-color: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 5px solid #3498db;'>
+                    <h3 style='color: #2980b9; margin-top: 0;'>Dear {employee.FirstName} {employee.LastName},</h3>
+                    <p style='margin-bottom: 0; font-size: 16px;'>
+                        This is a friendly reminder that you have unused leave days that should be cleared before the year ends.
+                    </p>
+                </div>
+
+                <div style='background-color: #fff; border: 1px solid #dee2e6; border-radius: 8px; margin: 20px 0; overflow: hidden;'>
+                    <div style='background-color: #f8f9fa; padding: 15px; border-bottom: 1px solid #dee2e6;'>
+                        <h3 style='color: #495057; margin: 0;'>Your Current Leave Balance</h3>
+                    </div>
+                    
+                    <table style='width: 100%; border-collapse: collapse;'>
+                        <thead>
+                            <tr style='background-color: #f1f3f4;'>
+                                <th style='padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;'>Leave Type</th>
+                                <th style='padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;'>Allocated</th>
+                                <th style='padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;'>Used</th>
+                                <th style='padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;'>Remaining</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {leaveBalanceRows}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style='background-color: #fff3cd; padding: 20px; border-radius: 8px; border-left: 5px solid #ffc107; margin: 20px 0;'>
+                    <h4 style='color: #856404; margin-top: 0;'>Important Notice:</h4>
+                    <ul style='margin: 10px 0; padding-left: 20px;'>
+                        <li style='margin-bottom: 8px;'>You have <strong>{totalDaysToUse:0.#} days</strong> of leave remaining that should be used</li>
+                        <li style='margin-bottom: 8px;'>Unused leave days may be forfeited at year-end according to company policy</li>
+                        <li style='margin-bottom: 8px;'>Please plan and submit your leave applications early to ensure approval</li>
+                        <li style='margin-bottom: 8px;'>Consider taking time off to rest and recharge for better work-life balance</li>
+                    </ul>
+                </div>
+
+                <div style='background-color: #d4edda; padding: 20px; border-radius: 8px; border-left: 5px solid #28a745; margin: 20px 0;'>
+                    <h4 style='color: #155724; margin-top: 0;'>Next Steps:</h4>
+                    <ol style='margin: 10px 0; padding-left: 20px;'>
+                        <li style='margin-bottom: 8px;'>Review your leave balance above</li>
+                        <li style='margin-bottom: 8px;'>Plan your leave dates with your manager</li>
+                        <li style='margin-bottom: 8px;'>Submit your leave applications through the system</li>
+                        <li style='margin-bottom: 8px;'>Ensure proper handover of your responsibilities</li>
+                    </ol>
+                </div>
+
+                <div style='text-align: center; margin: 30px 0;'>
+                    <a href='{Url.Action("Create", "Leaves", null, Request.Scheme)}' 
+                       style='background-color: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold; font-size: 16px;'>
+                        Apply for Leave Now
+                    </a>
+                </div>
+
+                <div style='border-top: 1px solid #dee2e6; padding-top: 20px; margin-top: 30px;'>
+                    <p style='font-size: 14px; color: #6c757d; margin: 0;'>
+                        <strong>Need Help?</strong> Contact HR at hr001@cubicsoftware.com.my if you have any questions about your leave balance or need assistance with leave planning.
+                    </p>
+                    <p style='font-size: 12px; color: #6c757d; margin-top: 10px;'>
+                        This is an automated reminder from the Finserve Leave Management System.
+                        <br>Employee ID: {employee.EmployeeID} | Generated on: {DateTime.Now:dd/MM/yyyy HH:mm}
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>";
+
+                await _emailSender.SendEmailAsync(employee.Email, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending leave balance reminder to {employee.Email}");
+                throw; // Re-throw to be caught by calling method
+            }
+        }
+
+        
+        /// API endpoint to check employees who need leave balance reminders
+       
+        [Authorize(Roles = "HR")]
+        [HttpGet]
+        public async Task<IActionResult> GetEmployeesNeedingLeaveReminders()
+        {
+            try
+            {
+                var employeesNeedingReminders = new List<object>();
+                var employees = await _context.Employees.ToListAsync();
+
+                foreach (var employee in employees)
+                {
+                    var leaveBalances = await CalculateLeaveBalancesAsync(employee.EmployeeID);
+                    var highBalances = new List<object>();
+                    var totalHighBalance = 0.0;
+
+                    foreach (var balance in leaveBalances)
+                    {
+                        var balanceInfo = balance.Value as dynamic;
+                        if (balanceInfo?.RemainingDays > 10)
+                        {
+                            highBalances.Add(new
+                            {
+                                LeaveType = balance.Key,
+                                RemainingDays = balanceInfo.RemainingDays
+                            });
+                            totalHighBalance += balanceInfo.RemainingDays;
+                        }
+                    }
+
+                    if (highBalances.Any())
+                    {
+                        employeesNeedingReminders.Add(new
+                        {
+                            EmployeeID = employee.EmployeeID,
+                            EmployeeName = $"{employee.FirstName} {employee.LastName}",
+                            Email = employee.Email,
+                            TotalHighBalance = totalHighBalance,
+                            HighBalances = highBalances
+                        });
+                    }
+                }
+
+                return Json(new
+                {
+                    success = true,
+                    count = employeesNeedingReminders.Count,
+                    employees = employeesNeedingReminders
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting employees needing leave reminders");
+                return Json(new
+                {
+                    success = false,
+                    message = "Error retrieving data"
+                });
+            }
+        }
+
+        
+        /// Scheduled job method - can be called by a background service on December 1st
+        
+        public async Task<bool> SendAutomaticLeaveBalanceReminders()
+        {
+            try
+            {
+                _logger.LogInformation("Starting automatic leave balance reminders job");
+
+                var result = await SendLeaveBalanceReminders();
+
+                _logger.LogInformation("Completed automatic leave balance reminders job");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in automatic leave balance reminders job");
+                return false;
             }
         }
 

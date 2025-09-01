@@ -125,75 +125,75 @@ namespace FinserveNew.Services
             });
         }
 
-        // NEW: Method to process multiple images and calculate total
-        public async Task<MultipleOcrResult> ProcessMultipleImagesAsync(List<byte[]> imageDataList)
-        {
-            var results = new List<OcrResult>();
-            var allExtractedPrices = new List<ExtractedPrice>();
+        //// NEW: Method to process multiple images and calculate total
+        //public async Task<MultipleOcrResult> ProcessMultipleImagesAsync(List<byte[]> imageDataList)
+        //{
+        //    var results = new List<OcrResult>();
+        //    var allExtractedPrices = new List<ExtractedPrice>();
 
-            _logger.LogInformation($"Processing {imageDataList.Count} images for total calculation");
+        //    _logger.LogInformation($"Processing {imageDataList.Count} images for total calculation");
 
-            foreach (var imageData in imageDataList)
-            {
-                var result = await ProcessImageAsync(imageData);
-                results.Add(result);
+        //    foreach (var imageData in imageDataList)
+        //    {
+        //        var result = await ProcessImageAsync(imageData);
+        //        results.Add(result);
 
-                if (result.Success && result.ExtractedPrices != null)
-                {
-                    allExtractedPrices.AddRange(result.ExtractedPrices);
-                }
-            }
+        //        if (result.Success && result.ExtractedPrices != null)
+        //        {
+        //            allExtractedPrices.AddRange(result.ExtractedPrices);
+        //        }
+        //    }
 
-            var totalAmount = CalculateMultiDocumentTotal(results);
-            var combinedCurrency = DetermineCombinedCurrency(results);
+        //    var totalAmount = CalculateMultiDocumentTotal(results);
+        //    var combinedCurrency = DetermineCombinedCurrency(results);
 
-            return new MultipleOcrResult
-            {
-                IndividualResults = results,
-                TotalAmount = totalAmount,
-                Currency = combinedCurrency,
-                ProcessedDocuments = results.Count(r => r.Success),
-                TotalDocuments = imageDataList.Count,
-                Success = results.Any(r => r.Success)
-            };
-        }
+        //    return new MultipleOcrResult
+        //    {
+        //        IndividualResults = results,
+        //        TotalAmount = totalAmount,
+        //        Currency = combinedCurrency,
+        //        ProcessedDocuments = results.Count(r => r.Success),
+        //        TotalDocuments = imageDataList.Count,
+        //        Success = results.Any(r => r.Success)
+        //    };
+        //}
 
-        // NEW: Calculate total from multiple documents
-        private decimal CalculateMultiDocumentTotal(List<OcrResult> results)
-        {
-            decimal total = 0;
-            const decimal USD_TO_MYR_RATE = 4.7m; // You can make this configurable
+        //// NEW: Calculate total from multiple documents
+        //private decimal CalculateMultiDocumentTotal(List<OcrResult> results)
+        //{
+        //    decimal total = 0;
+        //    const decimal USD_TO_MYR_RATE = 4.7m; // You can make this configurable
 
-            foreach (var result in results.Where(r => r.Success))
-            {
-                var amount = result.CalculatedAmount;
+        //    foreach (var result in results.Where(r => r.Success))
+        //    {
+        //        var amount = result.CalculatedAmount;
 
-                // Convert USD to MYR if needed
-                if (result.Currency == "USD")
-                {
-                    amount *= USD_TO_MYR_RATE;
-                    _logger.LogInformation($"Converted USD {result.CalculatedAmount} to MYR {amount}");
-                }
+        //        // Convert USD to MYR if needed
+        //        if (result.Currency == "USD")
+        //        {
+        //            amount *= USD_TO_MYR_RATE;
+        //            _logger.LogInformation($"Converted USD {result.CalculatedAmount} to MYR {amount}");
+        //        }
 
-                total += amount;
-                _logger.LogInformation($"Added {result.Currency} {result.CalculatedAmount} (MYR {amount}) to total");
-            }
+        //        total += amount;
+        //        _logger.LogInformation($"Added {result.Currency} {result.CalculatedAmount} (MYR {amount}) to total");
+        //    }
 
-            _logger.LogInformation($"Multi-document total calculated: MYR {total}");
-            return total;
-        }
+        //    _logger.LogInformation($"Multi-document total calculated: MYR {total}");
+        //    return total;
+        //}
 
-        // NEW: Determine combined currency for multiple documents
-        private string DetermineCombinedCurrency(List<OcrResult> results)
-        {
-            var currencies = results.Where(r => r.Success && !string.IsNullOrEmpty(r.Currency))
-                                  .Select(r => r.Currency)
-                                  .ToList();
+        //// NEW: Determine combined currency for multiple documents
+        //private string DetermineCombinedCurrency(List<OcrResult> results)
+        //{
+        //    var currencies = results.Where(r => r.Success && !string.IsNullOrEmpty(r.Currency))
+        //                          .Select(r => r.Currency)
+        //                          .ToList();
 
-            // If all documents are in MYR or mixed, return MYR as the final currency
-            // since we convert everything to MYR for the total
-            return "MYR";
-        }
+        //    // If all documents are in MYR or mixed, return MYR as the final currency
+        //    // since we convert everything to MYR for the total
+        //    return "MYR";
+        //}
 
         private List<ExtractedPrice> ExtractPricesFromText(string text)
         {

@@ -15,17 +15,17 @@
                     <div id="alert-container">
                         @if (TempData["Success"] != null)
                         {
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle"></i> @TempData["Success"]
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle"></i> @TempData["Success"]
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
                         }
                         @if (TempData["Error"] != null)
                         {
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
                         }
                     </div>
 
@@ -42,24 +42,24 @@
 
                         <!-- Claim Type -->
                         <div class="mb-3">
-                            <label asp-for="ClaimType" class="form-label">Claim Type *</label>
+                            <label asp-for="ClaimType" class="form-label">Claim Type <span class="text-danger">*</span></label>
                             <select asp-for="ClaimType" class="form-select" id="claimType" required>
                                 <option value="">Select claim type...</option>
                                 @if (ViewBag.ClaimTypes != null)
                                 {
                                     foreach (var type in ViewBag.ClaimTypes)
                                     {
-                                <option value="@type">@type</option>
+                                        <option value="@type">@type</option>
                                     }
                                 }
                                 else
                                 {
-                                <option value="Travel">Travel</option>
-                                <option value="Medical">Medical</option>
-                                <option value="Equipment">Equipment</option>
-                                <option value="Training">Training</option>
-                                <option value="Entertainment">Entertainment</option>
-                                <option value="Other">Other</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Medical">Medical</option>
+                                    <option value="Equipment">Equipment</option>
+                                    <option value="Training">Training</option>
+                                    <option value="Entertainment">Entertainment</option>
+                                    <option value="Other">Other</option>
                                 }
                             </select>
                             <span asp-validation-for="ClaimType" class="text-danger"></span>
@@ -67,7 +67,7 @@
 
                         <!-- Claim Amount -->
                         <div class="mb-3">
-                            <label asp-for="ClaimAmount" class="form-label">Claim Amount *</label>
+                            <label asp-for="ClaimAmount" class="form-label">Claim Amount <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">@((Model?.Currency == "USD" ? "$" : "RM"))</span>
                                 <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" id="claimAmount" required />
@@ -77,7 +77,7 @@
 
                         <!-- Claim Date -->
                         <div class="mb-3">
-                            <label asp-for="ClaimDate" class="form-label">Claim Date *</label>
+                            <label asp-for="ClaimDate" class="form-label">Claim Date <span class="text-danger">*</span></label>
                             <input asp-for="ClaimDate" class="form-control" type="date" id="claimDate" required />
                             <span asp-validation-for="ClaimDate" class="text-danger"></span>
                         </div>
@@ -142,20 +142,25 @@
                         <!-- New Documents Upload -->
                         <div class="mb-4">
                             <h5><i class="fas fa-cloud-upload-alt"></i> Upload New Documents (Optional)</h5>
-                            <p class="text-muted small">Upload new documents if you want to replace or add to existing ones. OCR will process them to extract claim information.</p>
+                            <p class="text-muted small">Upload new documents if you want to replace or add to existing ones. Images only (JPG, PNG, GIF, etc.) - Max 5MB per file.</p>
 
                             <!-- File Input -->
                             <div class="drag-drop-area" id="dragDropArea">
                                 <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
-                                <p class="mb-2"><strong>Drag & drop files here</strong></p>
-                                <p class="text-muted">or click to browse (PDF, JPG, PNG - Max 5MB each)</p>
-                                <input type="file" name="UploadedFiles" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png" class="form-control" style="display: none;" />
+                                <p class="mb-2"><strong>Drag & drop images here</strong></p>
+                                <p class="text-muted">or click to browse (Images only - Max 5MB each)</p>
+                                <input type="file" name="UploadedFiles" id="fileInput" multiple accept="image/*" class="form-control" style="display: none;" />
+                            </div>
+
+                            <!-- File Error Display -->
+                            <div id="fileError" class="alert alert-danger mt-2" style="display: none;">
+                                <strong>Supporting document submission failed</strong>
                             </div>
 
                             <!-- File Previews -->
                             <div id="filePreviews"></div>
                             <div class="mt-2">
-                                <button type="button" id="processOCRBtn" class="btn btn-ocr" onclick="redirectToOCR()">
+                                <button type="button" id="processOCRBtn" class="btn btn-ocr" onclick="redirectToOCR()" style="display: none;">
                                     <i class="fas fa-magic me-1"></i> Review with OCR
                                 </button>
                                 <span id="loadingSpinner" class="loading-spinner ms-2">
@@ -315,34 +320,41 @@
 }
 
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script>
+        // Track if any document changes have been made
+        let hasDocumentChanges = false;
+        let uploadedFiles = [];
+        let removedDocumentIds = [];
+        let ocrProcessed = false;
+        let ocrData = {};
+
         // Existing claim documents exposed to JS for OCR (images only)
         window.existingDocuments = [
         @if (Model.ClaimDetails != null)
         {
-            foreach (var d in Model.ClaimDetails)
-            {
-                var ext = System.IO.Path.GetExtension(d.DocumentPath ?? "").ToLower();
-                var isImg = ext == ".jpg" || ext == ".jpeg" || ext == ".png";
-                if (isImg)
-                {
-            @: { id: @d.Id, name: '@(d.OriginalFileName ?? System.IO.Path.GetFileName(d.DocumentPath))'.replace("'", "\'"), url: '@d.DocumentPath', type: '@(ext == ".png" ? "image/png" : "image/jpeg")' },
-                }
-            }
+                    foreach (var d in Model.ClaimDetails)
+                    {
+                                var ext = System.IO.Path.GetExtension(d.DocumentPath ?? "").ToLower();
+                                var isImg = ext == ".jpg" || ext == ".jpeg" || ext == ".png";
+                                if (isImg)
+                                {
+                                    @: { id: @d.Id, name: '@(d.OriginalFileName ?? System.IO.Path.GetFileName(d.DocumentPath))'.replace("'", "\'"), url: '@d.DocumentPath', type: '@(ext == ".png" ? "image/png" : "image/jpeg")' },
+                                }
+                    }
         }
         ];
-        let uploadedFiles = [];
-        let ocrProcessed = false;
-        let ocrData = {};
 
-        // Drag and drop functionality
+        // DOM Elements
         const dragDropArea = document.getElementById('dragDropArea');
         const fileInput = document.getElementById('fileInput');
         const filePreviews = document.getElementById('filePreviews');
         const processOCRBtn = document.getElementById('processOCRBtn');
+        const fileError = document.getElementById('fileError');
 
         // Drag and drop events
         dragDropArea.addEventListener('click', () => fileInput.click());
@@ -374,18 +386,93 @@
         }
 
         function handleFiles(files) {
-            // keep existing files; add newly selected ones
-            Array.from(files).forEach(file => {
-                if (validateFile(file)) {
+            const maxFiles = 10;
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            const currentCount = uploadedFiles.length;
+            const incoming = Array.from(files);
+            const invalidFiles = [];
+            const nonImageFiles = [];
+            let hasErrors = false;
+
+            // Hide any existing error messages
+            fileError.style.display = 'none';
+
+            // Check file count limit
+            if (currentCount + incoming.length > maxFiles) {
+                fileError.innerHTML = '<strong>Supporting document submission failed</strong><br>Maximum 10 files allowed.';
+                fileError.style.display = 'block';
+                fileInput.value = '';
+                hasErrors = true;
+                return;
+            }
+
+            // Validate each file
+            for (const file of incoming) {
+                // Check if file is an image
+                if (!file.type.startsWith('image/')) {
+                    nonImageFiles.push(file.name);
+                    hasErrors = true;
+                    continue;
+                }
+
+                // Check file size
+                if (file.size > maxSize) {
+                    invalidFiles.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+                    hasErrors = true;
+                    continue;
+                }
+
+                // Check for duplicates by name and size
+                const isDuplicate = uploadedFiles.some(f => f.name === file.name && f.size === file.size);
+                if (!isDuplicate) {
                     uploadedFiles.push(file);
                 }
-            });
+            }
+
+            // Show error messages if any validation failed
+            if (hasErrors) {
+                let errorMessage = '<strong>Supporting document submission failed</strong><br>';
+
+                if (nonImageFiles.length > 0) {
+                    errorMessage += `Only image files are allowed. Invalid files: ${nonImageFiles.join(', ')}<br>`;
+                }
+
+                if (invalidFiles.length > 0) {
+                    errorMessage += `Files exceed 5MB limit: ${invalidFiles.join(', ')}`;
+                }
+
+                fileError.innerHTML = errorMessage;
+                fileError.style.display = 'block';
+            }
+
+            // Clear input so same file can be re-selected later
+            fileInput.value = '';
 
             displayFilePreviews();
-
-            // Always allow OCR review
-            processOCRBtn.style.display = 'inline-block';
+            updateDocumentChangesState();
         }
+
+        // FIXED: Update document changes state properly
+                function updateDocumentChangesState() {
+            const previousState = hasDocumentChanges;
+            hasDocumentChanges = (uploadedFiles.length > 0) || (removedDocumentIds.length > 0);
+
+            if (hasDocumentChanges) {
+                processOCRBtn.style.display = 'inline-block';
+                // Reset OCR processed state when new changes are made
+                if (!previousState) {
+                    ocrProcessed = false;
+                    console.log('Document changes detected - OCR required');
+                }
+            } else {
+                processOCRBtn.style.display = 'none';
+                document.getElementById('ocrResults').style.display = 'none';
+                // CRITICAL: When no document changes, allow form submission
+                ocrProcessed = true; // This allows basic field edits to be saved
+                console.log('No document changes - form submission allowed');
+            }
+        }
+
         async function redirectToOCR() {
             // Build claim data similar to create page and post to OCRWithData, then redirect
             const claimData = {
@@ -416,25 +503,27 @@
                 });
             }
 
-            // Track removed documents (already added as hidden inputs)
-            const removedInputs = document.querySelectorAll('input[name="RemovedDocumentIds"]');
-            const removedIds = Array.from(removedInputs).map(i => parseInt(i.value)).filter(v => !isNaN(v));
-            if (removedIds.length > 0) {
-                claimData.RemovedDocumentIds = removedIds;
+            // Include removed document IDs
+            if (removedDocumentIds.length > 0) {
+                claimData.RemovedDocumentIds = removedDocumentIds;
             }
 
             // Include remaining existing image documents for OCR
             try {
-                const remainingExisting = (window.existingDocuments || []).filter(d => !removedIds.includes(d.id));
+                const remainingExisting = (window.existingDocuments || []).filter(d => !removedDocumentIds.includes(d.id));
                 remainingExisting.forEach(d => {
                     claimData.Files.push({ name: d.name, type: d.type, url: d.url });
                 });
-            } catch {}
+            } catch (error) {
+                console.warn('Error processing existing documents:', error);
+            }
 
-            // Make data available to OCR page via sessionStorage to avoid large cookies
+            // Make data available to OCR page via sessionStorage
             try {
                 sessionStorage.setItem('claimData', JSON.stringify(claimData));
-            } catch (e) { /* ignore quota issues */ }
+            } catch (e) {
+                console.warn('SessionStorage failed:', e);
+            }
 
             const formData = new FormData();
             formData.append('ClaimDataJson', JSON.stringify(claimData));
@@ -461,25 +550,9 @@
                     showAlert('error', result && result.error ? result.error : 'Failed to prepare OCR review.');
                 }
             } catch (err) {
+                console.error('OCR redirect failed:', err);
                 showAlert('error', 'Unable to start OCR review. Please try again.');
             }
-        }
-
-        function validateFile(file) {
-            const maxSize = 5 * 1024 * 1024; // 5MB
-            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-
-            if (file.size > maxSize) {
-                showAlert('error', `File ${file.name} exceeds 5MB limit`);
-                return false;
-            }
-
-            if (!allowedTypes.includes(file.type)) {
-                showAlert('error', `File ${file.name} has unsupported format`);
-                return false;
-            }
-
-            return true;
         }
 
         function displayFilePreviews() {
@@ -489,7 +562,7 @@
                 const preview = document.createElement('div');
                 preview.className = 'file-preview-item';
                 preview.innerHTML = `
-                    <i class="fas fa-file-alt fa-2x text-primary"></i>
+                    <i class="fas fa-image fa-2x text-primary"></i>
                     <div class="file-info">
                         <h6 class="mb-1">${file.name}</h6>
                         <small class="text-muted">Size: ${formatFileSize(file.size)} | Type: ${file.type}</small>
@@ -507,12 +580,8 @@
         function removeFile(index) {
             uploadedFiles.splice(index, 1);
             displayFilePreviews();
-
-            if (uploadedFiles.length === 0) {
-                processOCRBtn.style.display = 'none';
-                document.getElementById('ocrResults').style.display = 'none';
-                ocrProcessed = false;
-            }
+            updateDocumentChangesState();
+            fileError.style.display = 'none'; // Hide error when user removes files
         }
 
         function removeCurrentDocument(docId) {
@@ -520,122 +589,34 @@
                 const docItem = document.querySelector(`[data-doc-id="${docId}"]`);
                 if (docItem) {
                     docItem.style.display = 'none';
-                    // Add hidden input to track removed documents
+
+                    // Track removed document ID
+                    if (!removedDocumentIds.includes(docId)) {
+                        removedDocumentIds.push(docId);
+                    }
+
+                    // Add hidden input to track removed documents for form submission
                     const hiddenInput = document.createElement('input');
                     hiddenInput.type = 'hidden';
                     hiddenInput.name = 'RemovedDocumentIds';
                     hiddenInput.value = docId;
                     document.getElementById('editClaimForm').appendChild(hiddenInput);
+
+                    // Update the document changes state
+                    updateDocumentChangesState();
+
+                    showAlert('info', 'Document removed. Please review with OCR before saving.');
                 }
             }
         }
 
-        async function processOCR() {
-            if (uploadedFiles.length === 0) {
-                showAlert('warning', 'Please select files first');
-                return;
-            }
-
-            showLoading(true);
-            processOCRBtn.disabled = true;
-
-            try {
-                let allText = '';
-                let totalAmount = 0;
-                let detectedType = '';
-
-                for (const file of uploadedFiles) {
-                    if (file.type.startsWith('image/')) {
-                        const text = await processImageWithOCR(file);
-                        allText += text + '\n\n';
-
-                        // Extract amount and type from text
-                        const extractedData = extractClaimData(text);
-                        if (extractedData.amount > totalAmount) {
-                            totalAmount = extractedData.amount;
-                        }
-                        if (extractedData.type && !detectedType) {
-                            detectedType = extractedData.type;
-                        }
-                    }
-                }
-
-                // Store OCR results
-                ocrData = {
-                    text: allText.trim(),
-                    amount: totalAmount,
-                    type: detectedType || 'Not specified'
-                };
-
-                // Display results
-                displayOCRResults(ocrData);
-                ocrProcessed = true;
-
-            } catch (error) {
-                console.error('OCR processing failed:', error);
-                showAlert('error', 'OCR processing failed. Please try again.');
-            } finally {
-                showLoading(false);
-                processOCRBtn.disabled = false;
-            }
+        // FIXED: Add function to mark OCR as completed
+        function markOCRCompleted() {
+            ocrProcessed = true;
+            showAlert('success', 'OCR review completed. You can now save your changes.');
         }
 
-        async function processImageWithOCR(file) {
-            try {
-                const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-                    logger: m => console.log(m)
-                });
-                return text;
-            } catch (error) {
-                console.error('Tesseract OCR failed:', error);
-                throw error;
-            }
-        }
-
-        function extractClaimData(text) {
-            const result = { amount: 0, type: '' };
-
-            // Extract amount (look for currency patterns)
-            const amountRegex = /(?:RM|MYR|\$)\s*(\d+(?:\.\d{2})?)|(\d+\.\d{2})/gi;
-            const amountMatches = text.match(amountRegex);
-            if (amountMatches) {
-                const amounts = amountMatches.map(match => {
-                    const num = match.replace(/[^\d.]/g, '');
-                    return parseFloat(num);
-                }).filter(num => !isNaN(num));
-
-                if (amounts.length > 0) {
-                    result.amount = Math.max(...amounts);
-                }
-            }
-
-            // Extract claim type based on keywords
-            const typeKeywords = {
-                'Travel': ['taxi', 'grab', 'flight', 'hotel', 'petrol', 'fuel', 'parking', 'toll'],
-                'Medical': ['clinic', 'hospital', 'pharmacy', 'doctor', 'medical', 'medicine'],
-                'Equipment': ['laptop', 'computer', 'equipment', 'hardware', 'software'],
-                'Training': ['course', 'training', 'seminar', 'workshop', 'certification'],
-                'Entertainment': ['restaurant', 'meal', 'lunch', 'dinner', 'entertainment']
-            };
-
-            const lowerText = text.toLowerCase();
-            for (const [type, keywords] of Object.entries(typeKeywords)) {
-                if (keywords.some(keyword => lowerText.includes(keyword))) {
-                    result.type = type;
-                    break;
-                }
-            }
-
-            return result;
-        }
-
-        function displayOCRResults(data) {
-            document.getElementById('ocrClaimType').textContent = data.type;
-            document.getElementById('ocrAmount').textContent = data.amount > 0 ? `RM ${data.amount.toFixed(2)}` : 'Not detected';
-            document.getElementById('ocrText').textContent = data.text;
-            document.getElementById('ocrResults').style.display = 'block';
-        }
-
+        // OCR Results Functions (for future use if needed)
         function acceptOCRResults() {
             if (ocrData.type && ocrData.type !== 'Not specified') {
                 document.getElementById('claimType').value = ocrData.type;
@@ -644,17 +625,17 @@
                 document.getElementById('claimAmount').value = ocrData.amount.toFixed(2);
             }
 
+            // Mark OCR as processed when results are accepted
+            ocrProcessed = true;
             showAlert('success', 'OCR results applied to form');
             document.getElementById('ocrResults').style.display = 'none';
         }
 
         function rejectOCRResults() {
+            // Mark OCR as processed even when results are rejected
+            ocrProcessed = true;
             document.getElementById('ocrResults').style.display = 'none';
             showAlert('info', 'OCR results discarded. Current values preserved.');
-        }
-
-        function showLoading(show) {
-            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
         }
 
         function showAlert(type, message) {
@@ -693,16 +674,47 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // Form submission handling
-        document.getElementById('editClaimForm').addEventListener('submit', function(e) {
-            // Only require OCR if user added new files or removed existing ones
-            const removedInputs = document.querySelectorAll('input[name="RemovedDocumentIds"]');
-            const filesChanged = (uploadedFiles && uploadedFiles.length > 0) || removedInputs.length > 0;
-            if (filesChanged && !ocrProcessed) {
+                document.getElementById('editClaimForm').addEventListener('submit', function(e) {
+            console.log('Form submission attempt:', {
+                hasDocumentChanges: hasDocumentChanges,
+                ocrProcessed: ocrProcessed
+            });
+
+            // Only block if there are document changes AND OCR hasn't been processed
+            if (hasDocumentChanges && !ocrProcessed) {
                 e.preventDefault();
                 showAlert('warning', 'Please review with OCR before saving changes because you added/removed documents.');
                 return false;
             }
+
+            // Allow submission - add loading state
+            const saveBtn = document.getElementById('saveChangesBtn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            }
+
+            return true;
+        });
+
+        // FIXED: Initialize the page properly
+                document.addEventListener('DOMContentLoaded', function() {
+            // Initialize with no document changes, allowing basic field edits
+            hasDocumentChanges = false;
+            ocrProcessed = true; // CRITICAL: Allow form submission by default for edits
+
+            updateDocumentChangesState();
+
+            // Check if user is returning from OCR page
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('ocrCompleted') === 'true') {
+                markOCRCompleted();
+            }
+
+            console.log('Edit page initialized:', {
+                hasDocumentChanges: hasDocumentChanges,
+                ocrProcessed: ocrProcessed
+            });
         });
     </script>
 }
