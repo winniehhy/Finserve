@@ -79,8 +79,8 @@ namespace FinserveNew.Models
 
         [Required]
         [MaxLength(30)]
-        [RegularExpression("^(Pending|Pending Approval|Approved|Rejected|Completed)$", 
-            ErrorMessage = "Payment status must be one of: Pending, Pending Approval, Approved, Rejected, or Completed")]
+        [RegularExpression("^(Pending|Pending Approval|Approved|Rejected|Paid)$", 
+            ErrorMessage = "Payment status must be one of: Pending, Pending Approval, Approved, Rejected, or Paid")]
         public string PaymentStatus { get; set; } = "Pending"; // Default value
 
         // Navigation property

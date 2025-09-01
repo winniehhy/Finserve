@@ -25,6 +25,8 @@ namespace FinserveNew.Models
         public string ActionBy { get; set; } = string.Empty;
 
         [MaxLength(30)]
+        [RegularExpression("^(Pending|Pending Approval|Approved|Rejected|Paid)$", 
+            ErrorMessage = "Status must be one of: Pending, Pending Approval, Approved, Rejected, or Paid")]
         public string? Status { get; set; }
 
         [MaxLength(1000)]

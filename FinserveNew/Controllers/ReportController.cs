@@ -69,7 +69,7 @@ namespace FinserveNew.Controllers
             var query = _context.Payrolls
                 .Include(p => p.Employee)
                 .Include(p => p.Approvals)
-                .Where(p => p.PaymentStatus == "Completed") // Only show completed payrolls
+                .Where(p => p.PaymentStatus == "Paid") // Only show paid payrolls
                 .AsQueryable();
 
             // Apply filters based on period type

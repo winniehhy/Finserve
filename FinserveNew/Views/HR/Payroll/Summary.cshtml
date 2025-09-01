@@ -145,50 +145,6 @@
         <div class="card-body">
             @if (Model.Payrolls.Any())
             {
-                <!-- Status Summary Cards -->
-                @* <div class="row mb-3">
-                    <div class="col-md-2">
-                        <div class="card border-secondary">
-                            <div class="card-body text-center py-2">
-                                <h6 class="card-title mb-1">Pending</h6>
-                                <span class="badge bg-secondary fs-6">@Model.Payrolls.Count(p => p.PaymentStatus == "Pending")</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card border-warning">
-                            <div class="card-body text-center py-2">
-                                <h6 class="card-title mb-1">Pending Approval</h6>
-                                <span class="badge bg-warning text-dark fs-6">@Model.Payrolls.Count(p => p.PaymentStatus == "Pending Approval")</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card border-info">
-                            <div class="card-body text-center py-2">
-                                <h6 class="card-title mb-1">Approved</h6>
-                                <span class="badge bg-info fs-6">@Model.Payrolls.Count(p => p.PaymentStatus == "Approved")</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card border-danger">
-                            <div class="card-body text-center py-2">
-                                <h6 class="card-title mb-1">Rejected</h6>
-                                <span class="badge bg-danger fs-6">@Model.Payrolls.Count(p => p.PaymentStatus == "Rejected")</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="card border-success">
-                            <div class="card-body text-center py-2">
-                                <h6 class="card-title mb-1">Completed</h6>
-                                <span class="badge bg-success fs-6">@Model.Payrolls.Count(p => p.PaymentStatus == "Completed")</span>
-                            </div>
-                        </div>
-                    </div>
-                </div> *@
-
                 <div class="table-responsive">
                     <table class="table table-hover" id="payrollTable">
                         <thead>
@@ -360,7 +316,7 @@
             "Pending Approval" => "warning",
             "Approved" => "info",
             "Rejected" => "danger",
-            "Completed" => "success",
+            "Paid" => "success",
             _ => "secondary"
         };
     }

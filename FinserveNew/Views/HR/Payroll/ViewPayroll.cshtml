@@ -39,12 +39,12 @@
                 <span class="ms-2">This payroll is waiting for approval and cannot be edited.</span>
                 break;
             case "Approved":
-                <span class="badge bg-success">@currentStatus</span>
+                <span class="badge bg-info">@currentStatus</span>
                 <span class="ms-2">This payroll has been approved and cannot be edited.</span>
                 break;
-            case "Completed":
-                <span class="badge bg-info">@currentStatus</span>
-                <span class="ms-2">This payroll has been completed and cannot be edited.</span>
+            case "Paid":
+                <span class="badge bg-success">@currentStatus</span>
+                <span class="ms-2">This payroll has been paid and cannot be edited.</span>
                 break;
             case "Rejected":
                 <span class="badge bg-danger">@currentStatus</span>
@@ -281,7 +281,7 @@
             </div>
 
             <!-- Status Card -->
-            @if (currentStatus == "Approved" || currentStatus == "Completed")
+            @if (currentStatus == "Approved" || currentStatus == "Paid")
             {
                 <div class="card mt-3">
                     <div class="card-header bg-light">
@@ -297,7 +297,7 @@
                                 This payroll has been approved and is ready for payment processing.
                             </div>
                         }
-                        else if (currentStatus == "Completed")
+                        else if (currentStatus == "Paid")
                         {
                             <div class="alert alert-success">
                                 <i class="fas fa-check-circle me-2"></i>

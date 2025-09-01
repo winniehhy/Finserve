@@ -40,81 +40,87 @@ public class DbInitializer
         // Save changes to the custom Roles table
         await context.SaveChangesAsync();
 
-        // Create HR user (HR staff with single role only)
-        var hrUser = await userManager.FindByEmailAsync("hr@finserve.com");
-        if (hrUser == null)
+        // Create ONLY ONE default HR user
+        var defaultHrUser = await userManager.FindByEmailAsync("hr@finserve.com");
+        if (defaultHrUser == null)
         {
             var user = new ApplicationUser
             {
                 UserName = "hr@finserve.com",
                 Email = "hr@finserve.com",
-                EmailConfirmed = true
+                EmailConfirmed = true,
+                IsDefaultAccount = true, // Mark as default account
+                FirstName = "Default",
+                LastName = "HR"
             };
             await userManager.CreateAsync(user, "Test@123");
             await userManager.AddToRoleAsync(user, "HR");
         }
-        else
+        else if (!defaultHrUser.IsDefaultAccount)
         {
-            // Ensure HR user has only HR role
-            await EnsureSingleRoleAsync(userManager, hrUser, "HR");
+            // Update existing account to be marked as default
+            defaultHrUser.IsDefaultAccount = true;
+            await userManager.UpdateAsync(defaultHrUser);
+            await EnsureSingleRoleAsync(userManager, defaultHrUser, "HR");
+        }
+    }
+
+    /// Check if there are other active HR accounts and deactivate the default account if conditions are met
+    public static async Task CheckAndDeactivateDefaultAccountAsync(IServiceProvider serviceProvider)
+    {
+        var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        
+        // Find the default HR account
+        var defaultAccount = await userManager.Users
+            .FirstOrDefaultAsync(u => u.IsDefaultAccount && !u.IsDeactivated);
+        
+        if (defaultAccount == null) return;
+
+        // Count other active HR accounts (excluding the default account)
+        var otherHrUsers = await userManager.GetUsersInRoleAsync("HR");
+        var activeOtherHrCount = otherHrUsers.Count(u => 
+            !u.IsDefaultAccount && 
+            !u.IsDeactivated && 
+            u.Id != defaultAccount.Id);
+
+        // If there's at least one other HR account, deactivate the default account
+        if (activeOtherHrCount > 0)
+        {
+            defaultAccount.IsDeactivated = true;
+            defaultAccount.DeactivatedAt = DateTime.UtcNow;
+            defaultAccount.DeactivationReason = "Deactivated automatically after creation of alternative HR accounts";
+            
+            await userManager.UpdateAsync(defaultAccount);
+        }
+    }
+
+    /// <summary>
+    /// Get a message about default account deactivation for display to users
+    /// </summary>
+    public static async Task<string?> GetDefaultAccountMessageAsync(IServiceProvider serviceProvider, string currentUserId)
+    {
+        var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        
+        var currentUser = await userManager.FindByIdAsync(currentUserId);
+        if (currentUser?.IsDefaultAccount == true && !currentUser.IsDeactivated)
+        {
+            var otherHrUsers = await userManager.GetUsersInRoleAsync("HR");
+            var activeOtherHrCount = otherHrUsers.Count(u => 
+                !u.IsDefaultAccount && 
+                !u.IsDeactivated && 
+                u.Id != currentUser.Id);
+
+            if (activeOtherHrCount > 0)
+            {
+                return "Notice: This is the default HR account. It will be automatically deactivated when you log out, as other HR accounts are now available. Please ensure you have access to an alternative HR account.";
+            }
+            else
+            {
+                return "You are using the default HR account. Please create additional HR accounts through the employee management system.";
+            }
         }
 
-        // Create regular Employee user (Employee role only)
-        var employeeUser = await userManager.FindByEmailAsync("employee@finserve.com");
-        if (employeeUser == null)
-        {
-            var user = new ApplicationUser
-            {
-                UserName = "employee@finserve.com",
-                Email = "employee@finserve.com",
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(user, "Test@123");
-            await userManager.AddToRoleAsync(user, "Employee");
-        }
-        else
-        {
-            // Ensure Employee user has only Employee role
-            await EnsureSingleRoleAsync(userManager, employeeUser, "Employee");
-        }
-
-        // Create Senior HR user (Senior HR role only)
-        var seniorHrUser = await userManager.FindByEmailAsync("seniorhr@finserve.com");
-        if (seniorHrUser == null)
-        {
-            var user = new ApplicationUser
-            {
-                UserName = "seniorhr@finserve.com",
-                Email = "seniorhr@finserve.com",
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(user, "Test@123");
-            await userManager.AddToRoleAsync(user, "Senior HR");
-        }
-        else
-        {
-            // Ensure Senior HR user has only Senior HR role
-            await EnsureSingleRoleAsync(userManager, seniorHrUser, "Senior HR");
-        }
-
-        // Create Admin user (Admin role only)
-        var adminUser = await userManager.FindByEmailAsync("admin@finserve.com");
-        if (adminUser == null)
-        {
-            var user = new ApplicationUser
-            {
-                UserName = "admin@finserve.com",
-                Email = "admin@finserve.com",
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(user, "Test@123");
-            await userManager.AddToRoleAsync(user, "Admin");
-        }
-        else
-        {
-            // Ensure Admin user has only Admin role
-            await EnsureSingleRoleAsync(userManager, adminUser, "Admin");
-        }
+        return null;
     }
 
     /// <summary>
@@ -144,8 +150,8 @@ public class DbInitializer
         {
             "Employee" => "Standard employee with basic access permissions",
             "HR" => "Human Resources staff with employee management capabilities",
-            "Senior HR" => "Senior Human Resources with advanced management and approval permissions",
-            "Admin" => "Administrator with full system access and control",
+            "Senior HR" => "Senior Human Resources with approval permissions",
+            "Admin" => "Administrator with invoice and report viewing",
             _ => $"System role: {roleName}"
         };
     }

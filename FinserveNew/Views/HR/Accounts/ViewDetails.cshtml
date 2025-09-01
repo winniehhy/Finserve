@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Employee Details";
+    bool requireConfirmation = TempData["RequireConfirmation"] != null && (bool)TempData["RequireConfirmation"];
+    string terminationWarning = TempData["TerminationWarning"] as string;
 }
 
 @if (TempData["Success"] != null)
@@ -12,17 +14,57 @@
     </div>
 }
 
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (requireConfirmation && !string.IsNullOrEmpty(terminationWarning))
+{
+    <div class="alert alert-warning border-danger" role="alert">
+        <div class="d-flex align-items-center mb-3">
+            <i class="fas fa-exclamation-triangle text-danger me-3" style="font-size: 1.5rem;"></i>
+            <h5 class="mb-0 text-danger">Employee Termination Confirmation Required</h5>
+        </div>
+        <div class="mb-3">
+            <p class="mb-2"><strong>⚠️ WARNING:</strong> @terminationWarning</p>
+            <ul class="mb-0">
+                <li>The employee will <strong>immediately lose access</strong> to all system functions</li>
+                <li>They will be unable to log in or access their dashboard, leaves, claims, or payslips</li>
+                <li>This action affects their user account permanently</li>
+                <li>The employee record will remain in the system for audit purposes</li>
+            </ul>
+        </div>
+        <div class="d-flex gap-2">
+            <form asp-action="ConfirmTermination" method="post" class="d-inline">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('I understand the consequences. Proceed with employee termination and account deactivation.')">
+                    <i class="fas fa-user-times me-2"></i>Yes, Terminate Employee & Deactivate Account
+                </button>
+            </form>
+            <button type="button" class="btn btn-secondary" onclick="cancelTermination()">
+                <i class="fas fa-times me-2"></i>Cancel, Keep Employee Active
+            </button>
+        </div>
+    </div>
+}
+
 <div class="container-fluid">
     <div class="row mb-4">
         <div class="col">
             <h2>Employee Details</h2>
             <h4 class="text-muted">ID: @Model.EmployeeID</h4>
+            @if (Model.ConfirmationStatus == "Terminated")
+            {
+                <span class="badge bg-danger fs-6 mt-2">
+                    <i class="fas fa-user-times me-1"></i>TERMINATED EMPLOYEE
+                </span>
+            }
         </div>
         <div class="col-auto">
-            @* <a asp-action="AllAccounts" class="btn btn-secondary"> *@
-            @*     <i class="fas fa-arrow-left"></i> Back to List *@
-            @* </a> *@
-            <button type="button" class="btn btn-primary" id="editButton">
+            <button type="button" class="btn btn-primary" id="editButton" @(requireConfirmation ? "disabled" : "")>
                 <i class="fas fa-edit"></i> Edit
             </button>
             <button type="button" class="btn btn-primary d-none" id="saveButton">
@@ -150,7 +192,7 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label asp-for="ConfirmationStatus" class="form-label"></label>
-                            <select asp-for="ConfirmationStatus" asp-items="@(new SelectList(Model.ConfirmationStatuses))" class="form-control"></select>
+                            <select asp-for="ConfirmationStatus" asp-items="@(new SelectList(Model.ConfirmationStatuses))" class="form-control" id="confirmationStatusSelect" data-original-value="@Model.ConfirmationStatus"></select>
                         </div>
                     </div>
                 </div>
@@ -173,10 +215,6 @@
                         <div class="mb-3">
                             <label class="form-label">Role</label>
                             <input class="form-control locked-field" value="@Model.RoleName" readonly disabled />
-                            <small class="text-warning">
-                                <i class="fas fa-exclamation-triangle me-1"></i>
-                                <strong>Role changes require administrator approval.</strong> Contact system administrator for role modifications.
-                            </small>
                         </div>
                     </div>
                 </div>
@@ -228,9 +266,7 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label asp-for="EmergencyContactRelationship" class="form-label"></label>
-                            <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships, Model.EmergencyContactRelationship))" class="form-control select2-dropdown" disabled>
-                                <option value="">-- Select Relationship --</option>
-                            </select>
+                            <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships))" class="form-control" disabled></select>
                         </div>
                     </div>
                 </div>
@@ -372,10 +408,16 @@
         opacity: 0.8;
     }
 
-    /* Warning text styling */
-    .text-warning {
-        font-size: 0.875rem;
-        font-weight: 500;
+    /* Termination warning styling */
+    .alert-warning.border-danger {
+        border: 2px solid #dc3545 !important;
+        background-color: #fff3cd;
+    }
+
+    /* Terminated employee badge styling */
+    .badge.bg-danger.fs-6 {
+        font-size: 0.9rem !important;
+        padding: 0.4rem 0.8rem;
     }
 </style>
 
@@ -402,6 +444,8 @@
             const passportContainer = $('#passportContainer');
             const icInput = $('#icInput');
             const passportInput = $('#passportInput');
+            const confirmationStatusSelect = $('#confirmationStatusSelect');
+            const requireConfirmation = @(requireConfirmation ? "true" : "false");
 
             // Initialize Select2 for searchable dropdowns
             $('.select2-dropdown').select2({
@@ -421,6 +465,12 @@
 
             // Set initial state for IC/Passport fields based on nationality
             handleNationalityChange();
+
+            // Disable edit button if termination confirmation is required
+            if (requireConfirmation) {
+                editButton.prop('disabled', true);
+                editButton.attr('title', 'Please complete the termination confirmation first');
+            }
 
             editButton.click(function () {
                 inputs.prop('readonly', false).prop('disabled', false);
@@ -451,6 +501,22 @@
             });
 
             saveButton.click(function () {
+                // Check if confirmation status is being changed to "Terminated"
+                const originalStatus = confirmationStatusSelect.data('original-value');
+                const newStatus = confirmationStatusSelect.val();
+                
+                if (originalStatus !== 'Terminated' && newStatus === 'Terminated') {
+                    const confirmMessage = 'You are about to terminate this employee. This will:\n\n' +
+                        '• Immediately deactivate their system account\n' +
+                        '• Prevent them from logging in\n' +
+                        '• Remove access to all system functions\n\n' +
+                        'Are you sure you want to proceed?';
+                    
+                    if (!confirm(confirmMessage)) {
+                        return false;
+                    }
+                }
+                
                 form.submit();
             });
 
@@ -480,6 +546,24 @@
                     }
                 }
             }
+
+            // Handle termination warning confirmation
+            confirmationStatusSelect.on('change', function() {
+                const originalStatus = $(this).data('original-value');
+                const newStatus = $(this).val();
+                
+                if (originalStatus !== 'Terminated' && newStatus === 'Terminated') {
+                    const employeeName = '@Model.FirstName @Model.LastName';
+                    const warningMessage = `⚠️ WARNING: You are changing the status to "Terminated" for ${employeeName}.\n\n` +
+                        'This will:\n' +
+                        '• Immediately deactivate their system account\n' +
+                        '• Prevent them from accessing the system\n' +
+                        '• Remove all system permissions\n\n' +
+                        'Click "Save Changes" to confirm this action.';
+                    
+                    alert(warningMessage);
+                }
+            });
 
             $('#addDocumentRow').click(function () {
                 $('#documentRows').append(`
@@ -551,6 +635,13 @@
                 $('.select2-selection').css('border-radius', '0.25rem');
             }, 100);
         });
+
+        // Function to cancel termination and reload the page
+        function cancelTermination() {
+            if (confirm('Are you sure you want to cancel the employee termination? The employee will remain active.')) {
+                window.location.reload();
+            }
+        }
     </script>
 }
 
