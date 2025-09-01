@@ -140,12 +140,10 @@ New account created will assigned with default password:
 2. **Payroll Processing**: Process monthly payrolls for employees
 3. **Claims Review**: Review and approve/reject employee claims
 4. **Leave Management**: Approve or reject leave applications
-5. **Reports**: Generate employee and payroll reports
+5. **Reports**: Generate payroll reports
 
 ### For Senior HR
 1. **Payroll Approval**: Final approval for processed payrolls
-2. **Advanced Reports**: Access to comprehensive reporting
-3. **Employee Oversight**: Full employee management capabilities
 
 ### For Administrators
 1. **Invoice Management**: Manage company invoices
