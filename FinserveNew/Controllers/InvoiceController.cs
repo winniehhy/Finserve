@@ -322,7 +322,6 @@ namespace FinserveNew.Controllers
             }
         }
 
-        // GET: Invoice/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -330,7 +329,6 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            // IMPORTANT: Include InvoiceItems when retrieving the invoice
             var invoice = await _context.Invoices
                 .Include(i => i.InvoiceItems)
                 .Where(i => i.InvoiceID == id && !i.IsDeleted)
@@ -341,13 +339,14 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
-            if (!invoice.CanEdit)
+            // Updated: Allow editing for both Pending and Sent invoices
+            if (invoice.Status != "Pending" && invoice.Status != "Sent")
             {
-                TempData["Error"] = "This invoice cannot be edited. Only pending invoices can be modified.";
+                TempData["Error"] = $"This invoice cannot be edited. Only pending and sent invoices can be modified. Current status: {invoice.Status}";
                 return RedirectToAction(nameof(InvoiceRecord));
             }
 
-            // Add an empty item if no items exist (for adding new items in edit mode)
+            // Add an empty item if no items exist
             if (!invoice.InvoiceItems.Any())
             {
                 invoice.InvoiceItems.Add(new InvoiceItem());
@@ -356,7 +355,7 @@ namespace FinserveNew.Controllers
             return View("~/Views/Admins/Invoice/Edit.cshtml", invoice);
         }
 
-        // POST: Invoice/Edit/5
+        // Updated POST: Invoice/Edit/5 method validation
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Invoice invoice, IFormFile invoiceFile)
@@ -382,7 +381,6 @@ namespace FinserveNew.Controllers
             {
                 try
                 {
-                    // Get existing invoice with items from database
                     var existingInvoice = await _context.Invoices
                         .Include(i => i.InvoiceItems)
                         .Where(i => i.InvoiceID == id && !i.IsDeleted)
@@ -393,13 +391,14 @@ namespace FinserveNew.Controllers
                         return NotFound();
                     }
 
-                    if (!existingInvoice.CanEdit)
+                    // Updated: Allow editing for both Pending and Sent invoices
+                    if (existingInvoice.Status != "Pending" && existingInvoice.Status != "Sent")
                     {
-                        TempData["Error"] = "This invoice cannot be edited. Only pending invoices can be modified.";
+                        TempData["Error"] = $"This invoice cannot be edited. Only pending and sent invoices can be modified. Current status: {existingInvoice.Status}";
                         return RedirectToAction(nameof(InvoiceRecord));
                     }
 
-                    // Update invoice properties (don't change InvoiceNumber, CreatedBy, or CreatedDate)
+                    // Update invoice properties
                     existingInvoice.ClientName = invoice.ClientName;
                     existingInvoice.ClientCompany = invoice.ClientCompany;
                     existingInvoice.ClientEmail = invoice.ClientEmail;
@@ -425,18 +424,16 @@ namespace FinserveNew.Controllers
                             item.InvoiceID = existingInvoice.InvoiceID;
                             item.CalculateLineTotal();
                             item.CreatedDate = DateTime.Now;
-                            item.InvoiceItemID = 0; // Reset ID for new items
+                            item.InvoiceItemID = 0;
                             existingInvoice.InvoiceItems.Add(item);
                         }
 
-                        // Calculate total from items
                         existingInvoice.CalculateTotalFromItems();
                     }
 
                     // Handle file upload
                     if (invoiceFile != null && invoiceFile.Length > 0)
                     {
-                        // Delete old file if exists
                         if (!string.IsNullOrEmpty(existingInvoice.FilePath))
                         {
                             var oldFilePath = Path.Combine(_webHostEnvironment.WebRootPath, existingInvoice.FilePath.TrimStart('/'));
@@ -455,30 +452,14 @@ namespace FinserveNew.Controllers
                     TempData["Success"] = "Invoice updated successfully!";
                     return RedirectToAction(nameof(InvoiceRecord));
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!InvoiceExists(invoice.InvoiceID))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                catch (DbUpdateException ex)
-                {
-                    _logger.LogError(ex, "Database error while updating invoice");
-                    ModelState.AddModelError("", "An error occurred while updating the invoice. Please try again.");
-                }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Unexpected error while updating invoice");
-                    ModelState.AddModelError("", "An unexpected error occurred. Please try again.");
+                    _logger.LogError(ex, "Error updating invoice");
+                    ModelState.AddModelError("", "An error occurred while updating the invoice. Please try again.");
                 }
             }
 
-            // If we reach here, there was an error - ensure we have items for form re-display
+            // If we reach here, there was an error
             if (invoice.InvoiceItems == null || !invoice.InvoiceItems.Any())
             {
                 invoice.InvoiceItems = new List<InvoiceItem> { new InvoiceItem() };
