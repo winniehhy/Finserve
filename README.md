@@ -120,6 +120,12 @@ The system creates a default HR account for initial access:
 
 ⚠️ **Important**: This default account will be automatically deactivated once you create additional HR accounts.
 
+New account created will assigned with default password:
+- **First Name**: John / john
+- **Default Password**: John#1234
+
+💡 **Tips**: Password can later be changed from the profile page.
+
 ## 📖 User Guide
 
 ### For Employees
