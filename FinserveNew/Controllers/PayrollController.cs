@@ -124,6 +124,8 @@ namespace FinserveNew.Controllers
 
             var payrolls = await _context.Payrolls
                 .Include(p => p.Employee)
+                .Include(p => p.Approvals)
+                    .ThenInclude(a => a.ActionByEmployee)
                 .Where(p => p.Month == month && p.Year == year)
                 .ToListAsync();
 
@@ -351,16 +353,6 @@ namespace FinserveNew.Controllers
                 if (netSalary < (model.BasicSalary * 0.5m))
                 {
                     ModelState.AddModelError("", "Net salary after deductions is unusually low. Please verify the deduction amounts.");
-                    isValid = false;
-                }
-            }
-
-            // Validate SOCSO contribution limits (varies by salary level)
-            if (model.BasicSalary <= 4000)
-            {
-                if (model.EmployeeSocso > 19.75m || model.EmployerSocso > 33.25m)
-                {
-                    ModelState.AddModelError("", "SOCSO contribution amounts exceed maximum limits for this salary level.");
                     isValid = false;
                 }
             }

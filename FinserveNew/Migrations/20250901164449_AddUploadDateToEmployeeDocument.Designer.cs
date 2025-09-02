@@ -4,6 +4,7 @@ using FinserveNew.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250901164449_AddUploadDateToEmployeeDocument")]
+    partial class AddUploadDateToEmployeeDocument
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -150,7 +153,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("PayrollID");
 
-                    b.ToTable("Approvals", (string)null);
+                    b.ToTable("Approvals");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
@@ -178,7 +181,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("BankID");
 
-                    b.ToTable("BankInformations", (string)null);
+                    b.ToTable("BankInformations");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
@@ -265,7 +268,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Claims", (string)null);
+                    b.ToTable("Claims");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
@@ -308,7 +311,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("ClaimTypeID");
 
-                    b.ToTable("ClaimDetails", (string)null);
+                    b.ToTable("ClaimDetails");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
@@ -347,7 +350,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ClaimTypes", (string)null);
+                    b.ToTable("ClaimTypes");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmergencyContact", b =>
@@ -375,7 +378,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("EmergencyID");
 
-                    b.ToTable("EmergencyContacts", (string)null);
+                    b.ToTable("EmergencyContacts");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Employee", b =>
@@ -474,7 +477,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("RoleID");
 
-                    b.ToTable("Employees", (string)null);
+                    b.ToTable("Employees");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmployeeDocument", b =>
@@ -511,7 +514,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("EmployeeDocuments", (string)null);
+                    b.ToTable("EmployeeDocuments");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
@@ -592,7 +595,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("InvoiceID");
 
-                    b.ToTable("Invoices", (string)null);
+                    b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
@@ -627,7 +630,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("InvoiceID");
 
-                    b.ToTable("InvoiceItems", (string)null);
+                    b.ToTable("InvoiceItems");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
@@ -649,7 +652,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("RoleID");
 
-                    b.ToTable("Roles", (string)null);
+                    b.ToTable("Roles");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
@@ -685,7 +688,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("LeaveTypeID");
 
-                    b.ToTable("LeaveDetails", (string)null);
+                    b.ToTable("LeaveDetails");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
@@ -749,7 +752,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("LeaveTypeID");
 
-                    b.ToTable("Leaves", (string)null);
+                    b.ToTable("Leaves");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveTypeModel", b =>
@@ -777,7 +780,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("LeaveTypeID");
 
-                    b.ToTable("LeaveTypes", (string)null);
+                    b.ToTable("LeaveTypes");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Payroll", b =>
@@ -848,7 +851,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Payrolls", (string)null);
+                    b.ToTable("Payrolls");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ProcessOCRSubmissionModel", b =>
@@ -883,7 +886,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProcessOCRSubmissions", (string)null);
+                    b.ToTable("ProcessOCRSubmissions");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.UnpaidLeaveRequestModel", b =>
@@ -956,7 +959,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("LeaveTypeID");
 
-                    b.ToTable("UnpaidLeaveRequests", (string)null);
+                    b.ToTable("UnpaidLeaveRequests");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

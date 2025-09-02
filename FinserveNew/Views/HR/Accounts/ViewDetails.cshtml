@@ -327,11 +327,11 @@
                                                 <td>@doc.DocumentType</td>
                                                 <td>@doc.FileName</td>
                                                 <td>
-                                                    <a href="@doc.FilePath" class="btn btn-sm btn-info" target="_blank">
-                                                        <i class="fas fa-eye"></i> View
+                                                    <a href="@doc.FilePath" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                        <i class="fas fa-eye"></i>
                                                     </a>
-                                                    <button type="submit" class="btn btn-sm btn-danger" asp-action="DeleteDocument" asp-route-documentId="@doc.DocumentID">
-                                                        <i class="fas fa-trash"></i> Delete
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" asp-action="DeleteDocument" asp-route-documentId="@doc.DocumentID">
+                                                        <i class="fas fa-trash"></i>
                                                     </button>
                                                 </td>
                                             </tr>

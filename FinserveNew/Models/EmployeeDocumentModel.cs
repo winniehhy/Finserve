@@ -24,8 +24,8 @@ namespace FinserveNew.Models
         [MaxLength(500)]
         public string FilePath { get; set; } = string.Empty;
 
-        // [Required]
-        // public DateTime UploadDate { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime UploadDate { get; set; } = DateTime.UtcNow;
 
         [ForeignKey("EmployeeID")]
         public virtual Employee Employee { get; set; } = null!;

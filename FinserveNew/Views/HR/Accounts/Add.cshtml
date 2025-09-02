@@ -10,7 +10,7 @@
 <div class="container mt-4">
     <h2>Add New Employee</h2>
 
-    <form asp-action="Add" method="post" enctype="multipart/form-data">
+    <form id="addEmployeeForm" asp-action="Add" method="post" enctype="multipart/form-data">
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
         <div class="card mb-4">
@@ -330,6 +330,7 @@
         const fileInput = document.getElementById('fileInput');
         const browseFiles = document.getElementById('browseFiles');
         const fileList = document.getElementById('fileList');
+        const addEmployeeForm = document.getElementById('addEmployeeForm'); // Get specific form reference
 
         // Store files and their document types with persistent state
         let documentsData = [];
@@ -446,11 +447,11 @@
             renderFileList();
         }
 
-        // FIXED: New function that preserves existing form state
+        // FIXED: New function that preserves existing form state and targets correct form
         function updateFormInputsPreservingState() {
-            // Remove only our generated form inputs, not all inputs
-            const existingDocInputs = document.querySelectorAll('input[name="NewDocuments"][data-generated="true"]');
-            const existingTypeInputs = document.querySelectorAll('input[name="NewDocumentTypes"][data-generated="true"]');
+            // Remove only our generated form inputs from the specific form
+            const existingDocInputs = addEmployeeForm.querySelectorAll('input[name="NewDocuments"][data-generated="true"]');
+            const existingTypeInputs = addEmployeeForm.querySelectorAll('input[name="NewDocumentTypes"][data-generated="true"]');
             
             existingDocInputs.forEach(input => input.remove());
             existingTypeInputs.forEach(input => input.remove());
@@ -470,11 +471,11 @@
                 typeInput.value = docData.documentType;
                 typeInput.setAttribute('data-generated', 'true'); // Mark as our generated input
                 typeInput.setAttribute('data-file-id', docData.id); // Track which file this belongs to
-                document.querySelector('form').appendChild(typeInput);
+                addEmployeeForm.appendChild(typeInput); // Append to specific form
             });
 
             // Create or update file input for form submission
-            let submissionFileInput = document.querySelector('input[name="NewDocuments"][data-generated="true"]');
+            let submissionFileInput = addEmployeeForm.querySelector('input[name="NewDocuments"][data-generated="true"]');
             if (!submissionFileInput) {
                 submissionFileInput = document.createElement('input');
                 submissionFileInput.type = 'file';
@@ -482,7 +483,7 @@
                 submissionFileInput.multiple = true;
                 submissionFileInput.style.display = 'none';
                 submissionFileInput.setAttribute('data-generated', 'true');
-                document.querySelector('form').appendChild(submissionFileInput);
+                addEmployeeForm.appendChild(submissionFileInput); // Append to specific form
             }
             
             // Assign files to the submission input
@@ -491,7 +492,8 @@
             console.log('Form inputs updated:', {
                 filesCount: dt.files.length,
                 typesCount: documentsData.length,
-                documentsWithTypes: documentsData.filter(d => d.documentType).length
+                documentsWithTypes: documentsData.filter(d => d.documentType).length,
+                formId: addEmployeeForm.id
             });
         }
 
@@ -503,8 +505,8 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        // Form submission validation
-        document.querySelector('form').addEventListener('submit', function(e) {
+        // Form submission validation - target specific form
+        addEmployeeForm.addEventListener('submit', function(e) {
             // Check if all selected files have document types
             const missingTypes = documentsData.filter(d => !d.documentType || d.documentType === '');
             if (missingTypes.length > 0) {

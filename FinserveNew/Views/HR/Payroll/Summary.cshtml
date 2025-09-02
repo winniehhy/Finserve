@@ -175,11 +175,11 @@
                                         {
                                             // Get rejection reason for display
                                             var rejectionApproval = entry.Approvals?
-                                            .Where(a => a.Status == "Rejected")
-                                            .OrderByDescending(a => a.ApprovalDate)
-                                            .FirstOrDefault();
+                                                                    .Where(a => a.Status == "Rejected")
+                                                                    .OrderByDescending(a => a.ApprovalDate)
+                                                                    .FirstOrDefault();
                                             var rejectionReason = rejectionApproval?.Remarks ?? "No reason provided";
-                                            var rejectedByName = rejectionApproval?.ActionByName ?? "Unknown"; // Use ActionByName
+                                            var rejectedByName = rejectionApproval?.ActionByName ?? "Unknown"; 
                                             <button type="button" class="btn btn-sm"
                                                     data-bs-toggle="tooltip"
                                                     data-bs-placement="top"

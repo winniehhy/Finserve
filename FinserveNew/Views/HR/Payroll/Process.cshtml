@@ -553,21 +553,6 @@
                 }
             }
 
-            // SOCSO validation for salary levels
-            const employeeSocsoAmount = parseFloat($('#EmployeeSocso').val()) || 0;
-            const employerSocsoAmount = parseFloat($('#EmployerSocso').val()) || 0;
-
-            if (basicSalary <= 4000) {
-                if (employeeSocsoAmount > 19.75) {
-                    errors.push("Employee SOCSO contribution exceeds maximum limit (RM 19.75) for this salary level");
-                    isValid = false;
-                }
-                if (employerSocsoAmount > 33.25) {
-                    errors.push("Employer SOCSO contribution exceeds maximum limit (RM 33.25) for this salary level");
-                    isValid = false;
-                }
-            }
-
             // EIS validation (0.5% max)
             const employeeEisAmount = parseFloat($('#EmployeeEis').val()) || 0;
             const employerEisAmount = parseFloat($('#EmployerEis').val()) || 0;
