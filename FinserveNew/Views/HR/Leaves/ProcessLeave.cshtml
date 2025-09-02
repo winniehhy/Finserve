@@ -101,14 +101,25 @@
                         </div>
                         <div class="row mb-3">
                             <div class="col-sm-4"><strong>Reason:</strong></div>
-                            <div class="col-sm-8">@(unpaidLeaveRequest.Reason ?? "No reason provided")</div>
+                            <div class="col-sm-8">
+                                @if (string.IsNullOrEmpty(unpaidLeaveRequest.Reason) || unpaidLeaveRequest.Reason == "Leave request")
+                                {
+                                    <span class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>No specific reason provided
+                                    </span>
+                                }
+                                else
+                                {
+                                    @unpaidLeaveRequest.Reason
+                                }
+                            </div>
                         </div>
                         <div class="row mb-3">
-                            <div class="col-sm-4"><strong>Justification:</strong></div>
+                            <div class="col-sm-4"><strong>Reason for Unpaid Leave:</strong></div>
                             <div class="col-sm-8">
                                 <div class="alert alert-info mb-0">
                                     <i class="fas fa-quote-left me-2"></i>
-                                    @(unpaidLeaveRequest.JustificationReason ?? "No justification provided")
+                                    @(unpaidLeaveRequest.Reason ?? "No reason provided")
                                 </div>
                             </div>
                         </div>
@@ -146,12 +157,23 @@
                         </div>
                         <div class="row mb-3">
                             <div class="col-sm-4"><strong>Reason:</strong></div>
-                            <div class="col-sm-8">@(Model.Reason ?? "No reason provided")</div>
+                            <div class="col-sm-8">
+                                @if (string.IsNullOrEmpty(Model.Reason) || Model.Reason == "Leave request")
+                                {
+                                    <span class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>No specific reason provided
+                                    </span>
+                                }
+                                else
+                                {
+                                    @Model.Reason
+                                }
+                            </div>
                         </div>
                         if (!string.IsNullOrEmpty(Model.Description))
                         {
                             <div class="row mb-3">
-                                <div class="col-sm-4"><strong>Description:</strong></div>
+                                <div class="col-sm-4"><strong>Reason:</strong></div>
                                 <div class="col-sm-8">@Model.Description</div>
                             </div>
                         }
@@ -353,8 +375,8 @@
                         <strong>Unpaid Leave Request Details:</strong><br>
                         This request will deduct <strong>@(unpaidLeaveRequest.RequestedDays - unpaidLeaveRequest.ExcessDays) days</strong> from the employee's leave balance and mark <strong>@unpaidLeaveRequest.ExcessDays days</strong> as unpaid leave.
                         <br><br>
-                        <strong>Employee Justification:</strong><br>
-                        <em>"@(unpaidLeaveRequest.JustificationReason ?? "No justification provided")"</em>
+                        <strong>Employee Reason:</strong><br>
+                        <em>"@(unpaidLeaveRequest.Reason ?? "No reason provided")"</em>
                     </div>
 
                     <!-- Remarks Field -->

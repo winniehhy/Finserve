@@ -32,7 +32,7 @@
     </div>
 
     <!-- Quick Stats Cards -->
-    <div class="row mb-4">
+    <div class="row mb-3">
         @{
             // Fixed null handling for ViewBag values
             var pendingClaims = (ViewBag.PendingClaims as int?) ?? 0;
@@ -43,8 +43,8 @@
             var totalRemainingLeave = (ViewBag.TotalRemainingLeave as double?) ?? 0.0;
         }
 
-        <div class="col-lg-6 col-md-6 mb-3">
-            <div class="stat-card">
+        <div class="col-lg-6 col-md-6 mb-2">
+            <div class="stat-card compact">
                 <div class="stat-icon bg-warning">
                     <i class="fas fa-hourglass-half"></i>
                 </div>
@@ -59,8 +59,8 @@
             </div>
         </div>
 
-        <div class="col-lg-6 col-md-6 mb-3">
-            <div class="stat-card">
+        <div class="col-lg-6 col-md-6 mb-2">
+            <div class="stat-card compact">
                 <div class="stat-icon bg-info">
                     <i class="fas fa-chart-line"></i>
                 </div>
@@ -73,24 +73,24 @@
                     </div>
                 </div>
             </div>
-        </div>        
+        </div>
     </div>
 
     <!-- Main Content Grid -->
     <div class="row">
         <!-- Left Column -->
-        <div class="col-lg-8">
+        <div class="col-lg-8 col-xl-8">
             <!-- Quick Actions -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
+            <div class="card mb-3">
+                <div class="card-header py-2">
+                    <h6 class="card-title mb-0">
                         <i class="fas fa-bolt me-2"></i>Quick Actions
-                    </h5>
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <a href="@Url.Action("Create", "Claim")" class="quick-action-btn">
+                <div class="card-body py-3">
+                    <div class="row g-2">
+                        <div class="col-md-3 col-sm-6">
+                            <a href="@Url.Action("Create", "Claim")" class="quick-action-btn compact">
                                 <div class="quick-action-icon bg-primary">
                                     <i class="fas fa-plus"></i>
                                 </div>
@@ -100,8 +100,8 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="@Url.Action("Create", "Leaves")" class="quick-action-btn">
+                        <div class="col-md-3 col-sm-6">
+                            <a href="@Url.Action("Create", "Leaves")" class="quick-action-btn compact">
                                 <div class="quick-action-icon bg-success">
                                     <i class="fas fa-calendar-plus"></i>
                                 </div>
@@ -111,8 +111,19 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="@Url.Action("Payslips", "Payroll")" class="quick-action-btn">
+                        <div class="col-md-3 col-sm-6">
+                            <a href="@Url.Action("UnpaidLeaveRequests", "Leaves")" class="quick-action-btn compact">
+                                <div class="quick-action-icon bg-warning">
+                                    <i class="fas fa-file-invoice"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <h6>Unpaid Leaves</h6>
+                                    <p>View unpaid requests</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-3 col-sm-6">
+                            <a href="@Url.Action("Payslips", "Payroll")" class="quick-action-btn compact">
                                 <div class="quick-action-icon bg-info">
                                     <i class="fas fa-file-invoice"></i>
                                 </div>
@@ -122,196 +133,166 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="@Url.Action("Index", "Claim")" class="quick-action-btn">
-                                <div class="quick-action-icon bg-secondary">
-                                    <i class="fas fa-history"></i>
-                                </div>
-                                <div class="quick-action-content">
-                                    <h6>Claims History</h6>
-                                    <p>View all claims</p>
-                                </div>
-                            </a>
-                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Recent Claims -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="card-title mb-0">
                         <i class="fas fa-file-medical me-2"></i>Recent Claims
-                    </h5>
+                    </h6>
                     <a href="@Url.Action("Index", "Claim")" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
-                <div class="card-body">
+                <div class="card-body py-2">
                     @if (ViewBag.RecentClaims != null && ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Any())
                     {
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Claim ID</th>
-                                        <th>Date</th>
-                                        <th>Type</th>
-                                        <th>Amount</th>
-                                        <th>Description</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var claim in (List<FinserveNew.Models.Claim>)ViewBag.RecentClaims)
-                                    {
-                                        <tr class="@(claim.Status == "Pending" && (DateTime.Now - claim.CreatedDate).Days > 7 ? "table-warning" : "")">
-                                            <td>#CLM-@claim.Id</td>
-                                            <td>@claim.CreatedDate.ToString("dd MMM yyyy")</td>
-                                            <td>
-                                                <span class="badge bg-info">@claim.ClaimType</span>
-                                            </td>
-                                            <td>
-                                                <strong>@claim.DisplayAmount</strong>
-                                            </td>
-                                            <td>
-                                                <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@claim.Description">
-                                                    @(claim.Description?.Length > 50 ? claim.Description.Substring(0, 50) + "..." : claim.Description)
-                                                </span>
-                                            </td>
-                                            <td>
-                                                @if (claim.Status == "Pending")
-                                                {
-                                                    <span class="badge bg-warning">@claim.Status</span>
-                                                }
-                                                else if (claim.Status == "Approved")
-                                                {
-                                                    <span class="badge bg-success">@claim.Status</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-danger">@claim.Status</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                <div class="btn-group" role="group">
-                                                    <a asp-action="Details" asp-controller="Claim" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary" title="View Details">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                    @if (claim.Status == "Pending")
-                                                    {
-                                                        <a asp-action="Edit" asp-controller="Claim" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-success" title="Edit">
-                                                            <i class="fas fa-edit"></i>
-                                                        </a>
-                                                    }
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var claim in ((List<FinserveNew.Models.Claim>)ViewBag.RecentClaims).Take(3))
+                                {
+                                <tr class="@(claim.Status == "Pending" && (DateTime.Now - claim.CreatedDate).Days > 7 ? "table-warning" : "")">
+                                    <td><small>#CLM-@claim.Id</small></td>
+                                    <td><small>@claim.CreatedDate.ToString("dd MMM")</small></td>
+                                    <td>
+                                        <span class="badge bg-info badge-sm">@claim.ClaimType</span>
+                                    </td>
+                                    <td>
+                                        <strong>@claim.DisplayAmount</strong>
+                                    </td>
+                                    <td>
+                                        @if (claim.Status == "Pending")
+                                        {
+                                        <span class="badge bg-warning badge-sm">@claim.Status</span>
+                                        }
+                                        else if (claim.Status == "Approved")
+                                        {
+                                        <span class="badge bg-success badge-sm">@claim.Status</span>
+                                        }
+                                        else
+                                        {
+                                        <span class="badge bg-danger badge-sm">@claim.Status</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-controller="Claim" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            @if (claim.Status == "Pending")
+                                            {
+                                            <a asp-action="Edit" asp-controller="Claim" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-success" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
                     }
                     else
                     {
-                        <div class="text-center py-5">
-                            <i class="fas fa-file-medical fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No claims submitted yet</h5>
-                            <p class="text-muted">Start by submitting your first medical claim.</p>
-                            <a href="@Url.Action("Create", "Claim")" class="btn btn-primary">
-                                <i class="fas fa-plus me-2"></i>Submit First Claim
-                            </a>
-                        </div>
+                    <div class="text-center py-3">
+                        <i class="fas fa-file-medical fa-2x text-muted mb-2"></i>
+                        <h6 class="text-muted">No claims submitted yet</h6>
+                        <p class="text-muted mb-2">Start by submitting your first medical claim.</p>
+                        <a href="@Url.Action("Create", "Claim")" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus me-2"></i>Submit First Claim
+                        </a>
+                    </div>
                     }
                 </div>
             </div>
 
             <!-- Recent Leave Applications -->
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="card-title mb-0">
                         <i class="fas fa-calendar-alt me-2"></i>Recent Leave Applications
-                    </h5>
+                    </h6>
                     <a href="@Url.Action("LeaveRecords", "Leaves")" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
-                <div class="card-body">
-                    @if (ViewBag.RecentLeaves != null && ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Any())
+                <div class="card-body py-2">
+                    @if (ViewBag.RecentLeaves != null && ((List<object>)ViewBag.RecentLeaves).Any())
                     {
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Leave ID</th>
-                                        <th>Leave Type</th>
-                                        <th>From</th>
-                                        <th>To</th>
-                                        <th>Days</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves)
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Type</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (dynamic leave in ((List<object>)ViewBag.RecentLeaves).Take(3))
                                     {
-                                        var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
-                                        var isUpcoming = leave.StartDate > DateOnly.FromDateTime(DateTime.Now);
-                                        var isOngoing = leave.StartDate <= DateOnly.FromDateTime(DateTime.Now) && leave.EndDate >= DateOnly.FromDateTime(DateTime.Now);
-
-                                        <tr class="@(leave.Status == "Pending" && (DateTime.Now - leave.CreatedDate).Days > 3 ? "table-warning" : isOngoing && leave.Status == "Approved" ? "table-success" : "")">
-                                            <td>
-                                                #LVE-@leave.LeaveID
-                               
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-info">@(leave.LeaveType?.TypeName ?? "N/A")</span>
-                                            </td>
-                                            <td>
-                                                @leave.StartDate.ToString("dd MMM yyyy")
-                                            </td>
-                                            <td>
-                                                @leave.EndDate.ToString("dd MMM yyyy")
-                                            </td>
-                                            <td>@duration days</td>
-                                            <td>
-                                                <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
-                                                    @leave.Status
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <a href="@Url.Action("Details", "Leaves", new { id = leave.LeaveID })" class="btn btn-sm btn-outline-primary">
-                                                    <i class="fas fa-eye me-1"></i>View
-                                                </a>
-                                            </td>
-                                        </tr>
+                                        var leaveType = leave.GetType().GetProperty("Type")?.GetValue(leave)?.ToString();
+                                        var isUnpaid = leaveType == "Unpaid";
+                                        var duration = isUnpaid ? Convert.ToDouble(leave.Days) : (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+                                <tr>
+                                    <td><small>#LVE-@leave.Id.ToString("D3")</small></td>
+                                    <td>
+                                        <span class="badge bg-info badge-sm">@(leave.LeaveType?.TypeName ?? "N/A")</span>
+                                    </td>
+                                    <td><small>@leave.StartDate.ToString("dd MMM")</small></td>
+                                    <td><small>@leave.EndDate.ToString("dd MMM")</small></td>
+                                    <td><strong>@duration.ToString("0.#")</strong></td>
+                                    <td>
+                                        <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger") badge-sm">
+                                            @leave.Status
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="@Url.Action("Details", "Leaves", new { id = leave.Id })" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
                                     }
-                                </tbody>
-                            </table>
-                        </div>
+                            </tbody>
+                        </table>
+                    </div>
                     }
                     else
                     {
-                        <div class="text-center py-4">
-                            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
-                            <h5 class="text-muted">No leave applications yet</h5>
-                            <p class="text-muted">Apply for your first leave when needed.</p>
-                            <a href="@Url.Action("Create", "Leaves")" class="btn btn-success">
-                                <i class="fas fa-calendar-plus me-2"></i>Apply for Leave
-                            </a>
-                        </div>
+                    <div class="text-center py-3">
+                        <i class="fas fa-calendar-alt fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-2">No recent leave applications</p>
+                        <a href="@Url.Action("Create", "Leaves")" class="btn btn-primary btn-sm">Apply for Leave</a>
+                    </div>
                     }
                 </div>
             </div>
         </div>
 
         <!-- Right Column -->
-        <div class="col-lg-4">
+        <div class="col-lg-4 col-xl-4">
             <!-- Leave Balance -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
+            <div class="card mb-3">
+                <div class="card-header py-2">
+                    <h6 class="card-title mb-0">
                         <i class="fas fa-calendar-check me-2"></i>Leave Balance (@((ViewBag.CurrentYear as int?) ?? DateTime.Now.Year))
-                    </h5>
+                    </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body py-2">
                     @if (ViewBag.LeaveBalances != null && ((Dictionary<string, object>)ViewBag.LeaveBalances).Any())
                     {
                         foreach (var balance in (Dictionary<string, object>)ViewBag.LeaveBalances)
@@ -326,98 +307,99 @@
                                 var percentage = defaultDays > 0 ? (remainingDays * 100.0 / defaultDays) : 0;
                                 var progressColor = percentage > 70 ? "success" : percentage > 30 ? "warning" : "danger";
 
-                                <div class="leave-balance-item">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="fw-medium">@balance.Key</span>
-                                        <span class="fw-bold">@remainingDays.ToString("0.#") / @defaultDays.ToString("0.#") days</span>
-                                    </div>
-                                    <div class="progress mb-2" style="height: 10px;">
-                                        <div class="progress-bar bg-@progressColor"
-                                             style="width: @percentage.ToString("0.0")%"
-                                             role="progressbar"
-                                             aria-valuenow="@remainingDays"
-                                             aria-valuemin="0"
-                                             aria-valuemax="@defaultDays">
-                                        </div>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-sm">
-                                        <small class="text-muted">Used: @usedDays.ToString("0.#") days</small>
-                                        @if (pendingDays > 0)
-                                        {
-                                            <small class="text-warning">Pending: @pendingDays.ToString("0.#") days</small>
-                                        }
-                                    </div>
-                                    <hr class="my-3">
-                                </div>
+                    <div class="leave-balance-item compact">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="fw-medium">@balance.Key</small>
+                            <small class="fw-bold">@remainingDays.ToString("0.#") / @defaultDays.ToString("0.#")</small>
+                        </div>
+                        <div class="progress mb-1" style="height: 8px;">
+                            <div class="progress-bar bg-@progressColor"
+                                 style="width: @percentage.ToString("0.0")%"
+                                 role="progressbar"
+                                 aria-valuenow="@remainingDays"
+                                 aria-valuemin="0"
+                                 aria-valuemax="@defaultDays">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Used: @usedDays.ToString("0.#")</small>
+                            @if (pendingDays > 0)
+                                {
+                            <small class="text-warning">Pending: @pendingDays.ToString("0.#")</small>
+                                }
+                        </div>
+                        <hr class="my-2">
+                    </div>
                             }
                         }
                     }
                     else
                     {
-                        <div class="text-center py-4">
-                            <i class="fas fa-exclamation-circle fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No leave balance data available</p>
-                            <small class="text-muted">Contact HR if you believe this is an error</small>
-                        </div>
+                    <div class="text-center py-3">
+                        <i class="fas fa-exclamation-circle fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-1">No leave balance data available</p>
+                        <small class="text-muted">Contact HR if you believe this is an error</small>
+                    </div>
                     }
                 </div>
             </div>
 
             <!-- Notifications -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="card-title mb-0">
                         <i class="fas fa-bell me-2"></i>Notifications
-                    </h5>
+                    </h6>
                     <button class="btn btn-sm btn-outline-secondary" onclick="markAllAsRead()">
-                        Mark All Read
+                        <small>Mark All Read</small>
                     </button>
                 </div>
-                <div class="card-body" id="notificationContainer">
+                <div class="card-body py-2" id="notificationContainer">
                     @{
-                        var hasNotifications = false;
-                        var currentMonth = DateTime.Now.Month;
-                        var currentYear = DateTime.Now.Year;
-                        var isDecember = currentMonth == 12;
+                    var hasNotifications = false;
+                    var currentMonth = DateTime.Now.Month;
+                    var currentYear = DateTime.Now.Year;
+                    var isDecember = currentMonth == 12;
                     }
 
                     @* Leave Reminder for December *@
                     @if (isDecember && totalRemainingLeave > 10)
                     {
                         hasNotifications = true;
-                        <div class="notification-item urgent" data-type="leave-reminder" data-id="leave-reminder-@currentYear">
-                            <div class="notification-icon bg-warning">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <div class="notification-content">
-                                <h6>Leave Balance Reminder</h6>
-                                <p>You have @totalRemainingLeave.ToString("0.#") days of leave remaining. Please plan to clear your leave before year-end.</p>
-                                <small class="text-muted">December @DateTime.Now.Year</small>
-                            </div>
-                            <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'leave-reminder', 'leave-reminder-@currentYear')">
-                                Mark as Read
-                            </button>
+                    <div class="notification-item compact urgent" data-type="leave-reminder" data-id="leave-reminder-@currentYear">
+                        <div class="notification-icon bg-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
                         </div>
+                        <div class="notification-content">
+                            <h6>Leave Balance Reminder</h6>
+                            <p><small>You have @totalRemainingLeave.ToString("0.#") days remaining. Plan to clear before year-end.</small></p>
+                            <small class="text-muted">December @DateTime.Now.Year</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'leave-reminder', 'leave-reminder-@currentYear')">
+                            <small>Read</small>
+                        </button>
+                    </div>
                     }
 
                     @* Low Leave Balance Warning *@
                     @if (totalRemainingLeave < 3 && totalRemainingLeave > 0)
                     {
                         hasNotifications = true;
-                        <div class="notification-item" data-type="low-leave" data-id="low-leave-@currentYear">
-                            <div class="notification-icon bg-warning">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <div class="notification-content">
-                                <h6>Low Leave Balance</h6>
-                                <p>You only have @totalRemainingLeave.ToString("0.#") days of leave remaining this year. Plan your leave carefully.</p>
-                                <small class="text-muted">Current year balance</small>
-                            </div>
-                            <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'low-leave', 'low-leave-@currentYear')">
-                                Mark as Read
-                            </button>
+                    <div class="notification-item compact" data-type="low-leave" data-id="low-leave-@currentYear">
+                        <div class="notification-icon bg-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
                         </div>
+                        <div class="notification-content">
+                            <h6>Low Leave Balance</h6>
+                            <p><small>Only @totalRemainingLeave.ToString("0.#") days remaining. Plan carefully.</small></p>
+                            <small class="text-muted">Current year balance</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'low-leave', 'low-leave-@currentYear')">
+                            <small>Read</small>
+                        </button>
+                    </div>
                     }
+
                     @* Approved Claims *@
                     @if (ViewBag.RecentClaims != null)
                     {
@@ -425,64 +407,41 @@
                         foreach (var claim in recentApprovedClaims)
                         {
                             hasNotifications = true;
-                            <div class="notification-item" data-type="claim" data-id="claim-@claim.Id">
-                                <div class="notification-icon bg-success">
-                                    <i class="fas fa-check"></i>
-                                </div>
-                                <div class="notification-content">
-                                    <h6>Claim Approved</h6>
-                                    <p>Your @claim.ClaimType claim for @claim.DisplayAmount has been approved.</p>
-                                    <small class="text-muted">@((DateTime.Now - claim.CreatedDate).Days) days ago</small>
-                                </div>
-                                <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'claim', 'claim-@claim.Id')">
-                                    Mark as Read
-                                </button>
-                            </div>
-                        }
-                    }
-
-                    @* Approved Leaves *@
-                    @if (ViewBag.RecentLeaves != null)
-                    {
-                        var recentApprovedLeaves = ((List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaves).Where(l => l.Status == "Approved" && (DateTime.Now - l.CreatedDate).Days <= 7).Take(2);
-                        foreach (var leave in recentApprovedLeaves)
-                        {
-                            hasNotifications = true;
-                            <div class="notification-item" data-type="leave" data-id="leave-@leave.LeaveID">
-                                <div class="notification-icon bg-success">
-                                    <i class="fas fa-calendar-check"></i>
-                                </div>
-                                <div class="notification-content">
-                                    <h6>Leave Approved</h6>
-                                    <p>Your @(leave.LeaveType?.TypeName ?? "leave") request has been approved.</p>
-                                    <small class="text-muted">@leave.StartDate.ToString("MMM dd") - @leave.EndDate.ToString("MMM dd")</small>
-                                </div>
-                                <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'leave', 'leave-@leave.LeaveID')">
-                                    Mark as Read
-                                </button>
-                            </div>
+                    <div class="notification-item compact" data-type="claim" data-id="claim-@claim.Id">
+                        <div class="notification-icon bg-success">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h6>Claim Approved</h6>
+                            <p><small>@claim.ClaimType claim for @claim.DisplayAmount approved.</small></p>
+                            <small class="text-muted">@((DateTime.Now - claim.CreatedDate).Days) days ago</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary notification-read-btn" onclick="markAsRead(this, 'claim', 'claim-@claim.Id')">
+                            <small>Read</small>
+                        </button>
+                    </div>
                         }
                     }
 
                     @if (!hasNotifications)
                     {
-                        <div class="text-center py-3" id="noNotifications">
-                            <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
-                            <p class="text-muted">All caught up! No recent notifications.</p>
-                        </div>
+                    <div class="text-center py-2" id="noNotifications">
+                        <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0"><small>All caught up! No recent notifications.</small></p>
+                    </div>
                     }
                 </div>
             </div>
 
-            <!-- Enhanced Calendar Widget -->
+            <!-- Compact Calendar Widget -->
             <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
+                <div class="card-header py-2">
+                    <h6 class="card-title mb-0">
                         <i class="fas fa-calendar me-2"></i>Leave Calendar
-                    </h5>
+                    </h6>
                 </div>
-                <div class="card-body">
-                    <div class="calendar-widget" id="calendarWidget">
+                <div class="card-body py-2">
+                    <div class="calendar-widget compact" id="calendarWidget">
                         <!-- Calendar navigation -->
                         <div class="calendar-navigation">
                             <button class="btn btn-sm btn-outline-primary" id="prevMonth" onclick="changeMonth(-1)">
@@ -497,7 +456,7 @@
                         </div>
 
                         <!-- Calendar grid -->
-                        <div class="calendar-grid" id="calendarGrid">
+                        <div class="calendar-grid compact" id="calendarGrid">
                             <!-- Will be populated by JavaScript -->
                         </div>
 
@@ -505,11 +464,11 @@
                         <div class="calendar-legend">
                             <div class="legend-item">
                                 <div class="legend-color today"></div>
-                                <span>Today</span>
+                                <span><small>Today</small></span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-color leave-day"></div>
-                                <span>Approved Leave</span>
+                                <span><small>Leave</small></span>
                             </div>
                         </div>
                     </div>
@@ -569,8 +528,8 @@
 
         // Update calendar title
         function updateCalendarTitle() {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'];
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
             const monthYearElement = document.getElementById('calendarMonthYear');
             const titleElement = document.getElementById('calendarTitle');
@@ -665,14 +624,8 @@
             }
         }
 
-        // Read notifications functions with localStorage safety
+        // Read notifications functions with in-memory storage
         let readNotifications = [];
-        try {
-            readNotifications = JSON.parse(localStorage.getItem('employee_readNotifications') || '[]');
-        } catch (e) {
-            console.warn('Failed to parse readNotifications from localStorage:', e);
-            readNotifications = [];
-        }
 
         function loadReadNotifications() {
             readNotifications.forEach(function(notificationId) {
@@ -682,27 +635,6 @@
                 }
             });
             checkForEmptyNotifications();
-        }
-
-        function markAsRead(button, type, id) {
-            const notificationItem = button.closest('.notification-item');
-
-            if (!readNotifications.includes(id)) {
-                readNotifications.push(id);
-                try {
-                    localStorage.setItem('employee_readNotifications', JSON.stringify(readNotifications));
-                } catch (e) {
-                    console.warn('Failed to save to localStorage:', e);
-                }
-            }
-
-            notificationItem.style.transition = 'opacity 0.3s ease';
-            notificationItem.style.opacity = '0';
-
-            setTimeout(() => {
-                notificationItem.style.display = 'none';
-                checkForEmptyNotifications();
-            }, 300);
         }
 
         function markAllAsRead() {
@@ -722,12 +654,6 @@
                 }, 300);
             });
 
-            try {
-                localStorage.setItem('employee_readNotifications', JSON.stringify(readNotifications));
-            } catch (e) {
-                console.warn('Failed to save to localStorage:', e);
-            }
-
             setTimeout(() => {
                 checkForEmptyNotifications();
             }, 300);
@@ -744,10 +670,10 @@
                 if (!emptyState) {
                     emptyState = document.createElement('div');
                     emptyState.id = 'noNotifications';
-                    emptyState.className = 'text-center py-3';
+                    emptyState.className = 'text-center py-2';
                     emptyState.innerHTML = `
                         <i class="fas fa-bell-slash fa-2x text-muted mb-2"></i>
-                        <p class="text-muted">All caught up! No recent notifications.</p>
+                        <p class="text-muted mb-0"><small>All caught up! No recent notifications.</small></p>
                     `;
                     container.appendChild(emptyState);
                 } else {
@@ -766,7 +692,204 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/rbac_dashboard.css" />
     <style>
-        /* Employee Dashboard specific styles */
+        /* Compact Dashboard Styles */
+        .dashboard-container {
+            font-size: 0.9rem;
+        }
+
+        /* Compact stat cards */
+        .stat-card.compact {
+            padding: 1rem;
+            min-height: auto;
+        }
+
+        .stat-card.compact .stat-number {
+            font-size: 1.5rem;
+        }
+
+        .stat-card.compact .stat-label {
+            font-size: 0.8rem;
+        }
+
+        .stat-card.compact .stat-change {
+            font-size: 0.75rem;
+        }
+
+        /* Compact quick action buttons */
+        .quick-action-btn.compact {
+            padding: 0.75rem;
+            min-height: auto;
+        }
+
+        .quick-action-btn.compact .quick-action-icon {
+            width: 35px;
+            height: 35px;
+            line-height: 35px;
+        }
+
+        .quick-action-btn.compact .quick-action-content h6 {
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .quick-action-btn.compact .quick-action-content p {
+            font-size: 0.7rem;
+            margin-bottom: 0;
+        }
+
+        /* Compact cards */
+        .card.mb-3 {
+            margin-bottom: 1rem !important;
+        }
+
+        .card-header.py-2 {
+            padding: 0.5rem 1rem !important;
+        }
+
+        .card-body.py-2 {
+            padding: 0.5rem 1rem !important;
+        }
+
+        .card-body.py-3 {
+            padding: 0.75rem 1rem !important;
+        }
+
+        /* Compact tables */
+        .table-sm td, .table-sm th {
+            padding: 0.4rem;
+            font-size: 0.8rem;
+        }
+
+        .badge.badge-sm {
+            font-size: 0.7em;
+            padding: 0.25em 0.4em;
+        }
+
+        /* Compact notifications */
+        .notification-item.compact {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-item.compact .notification-content h6 {
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .notification-item.compact .notification-content p {
+            margin-bottom: 0.25rem;
+        }
+
+        .notification-item.compact .notification-icon {
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+        }
+
+        /* Compact leave balance */
+        .leave-balance-item.compact {
+            margin-bottom: 1rem;
+        }
+
+        .leave-balance-item.compact .progress {
+            height: 6px;
+        }
+
+        /* Compact calendar */
+        .calendar-widget.compact {
+            font-size: 0.8rem;
+        }
+
+        .calendar-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .calendar-month-year {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .calendar-grid.compact {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 0.75rem;
+        }
+
+        .calendar-day-header {
+            padding: 0.4rem 0.2rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #6c757d;
+            background: #f8f9fa;
+        }
+
+        .calendar-day {
+            padding: 0.4rem 0.2rem;
+            text-align: center;
+            border: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.75rem;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .calendar-day:hover {
+            background: #e3f2fd;
+            transform: scale(1.05);
+        }
+
+        .calendar-day.today {
+            background: #2196f3;
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+        }
+
+        .calendar-day.leave-day {
+            background: #4caf50;
+            color: white;
+            font-weight: 600;
+        }
+
+        .calendar-day.leave-day.today {
+            background: #388e3c;
+        }
+
+        .calendar-legend {
+            display: flex;
+            justify-content: space-around;
+            font-size: 0.75rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .legend-color.today {
+            background: #2196f3;
+        }
+
+        .legend-color.leave-day {
+            background: #4caf50;
+        }
+
+        /* Enhanced urgent animations */
         .stat-card.urgent {
             animation: urgentPulse 2s infinite;
             border: 2px solid #dc3545;
@@ -812,41 +935,14 @@
             transition: width 0.3s ease;
         }
 
-        /* Enhanced calendar styling */
-        .calendar-day {
-            transition: all 0.2s ease;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .calendar-day:hover {
-            background: #e3f2fd;
-            transform: scale(1.05);
-        }
-
-        .calendar-day.today {
-            background: #2196f3;
-            color: white;
-            font-weight: 700;
-            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
-        }
-
-        .calendar-day.leave-day {
-            background: #4caf50;
-            color: white;
-            font-weight: 600;
-        }
-
-        .calendar-day.leave-day.today {
-            background: #388e3c;
-        }
-
         /* Enhanced notification styling */
         .notification-item {
-            border-radius: 10px;
-            margin-bottom: 12px;
+            border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             transition: all 0.3s ease;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
         }
 
         .notification-item:hover {
@@ -854,11 +950,43 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
 
+        .notification-icon {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-read-btn {
+            margin-top: 0.5rem;
+        }
+
         /* Enhanced quick action buttons */
         .quick-action-btn {
+            display: block;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            background: white;
+            border: 1px solid #e9ecef;
+            color: inherit;
             position: relative;
             overflow: hidden;
-            transition: all 0.3s ease;
+        }
+
+        .quick-action-btn:hover {
+            text-decoration: none;
+            color: inherit;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
         .quick-action-btn::before {
@@ -876,19 +1004,27 @@
             left: 100%;
         }
 
-        /* Badge positioning for notifications */
-        .position-absolute {
-            z-index: 10;
+        .quick-action-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin: 0 auto 0.5rem auto;
         }
 
         /* Enhanced card hover effects */
         .card {
             transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
         }
 
         /* Status indicators */
@@ -898,22 +1034,87 @@
         }
 
         /* Responsive adjustments */
+        @@media (max-width: 1200px) {
+            .dashboard-container {
+                font-size: 0.85rem;
+            }
+        }
+
+        @@media (max-width: 992px) {
+            .col-lg-8, .col-lg-4 {
+                margin-bottom: 1rem;
+            }
+
+            .calendar-day {
+                min-height: 25px;
+                font-size: 0.7rem;
+            }
+        }
+
         @@media (max-width: 768px) {
             .stat-number {
-                font-size: 1.5rem;
+                font-size: 1.3rem;
             }
 
             .quick-action-content h6 {
-                font-size: 0.9rem;
+                font-size: 0.8rem;
             }
 
             .quick-action-content p {
-                font-size: 0.75rem;
+                font-size: 0.7rem;
             }
 
             .notification-item {
-                padding: 12px;
+                padding: 0.5rem;
+                font-size: 0.85rem;
+            }
+
+            .calendar-day {
+                min-height: 22px;
+                font-size: 0.65rem;
+                padding: 0.2rem;
+            }
+        }
+
+        /* Fixed height for right column to ensure fit */
+        @@media (min-width: 992px) {
+            .col-lg-4 {
+                max-height: calc(100vh - 200px);
+                overflow-y: auto;
+            }
+
+            .col-lg-4::-webkit-scrollbar {
+                width: 4px;
+            }
+
+            .col-lg-4::-webkit-scrollbar-track {
+                background: #f1f1f1;
+            }
+
+            .col-lg-4::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 2px;
+            }
+
+            .col-lg-4::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
             }
         }
     </style>
-}
+}AsRead(button, type, id) {
+            const notificationItem = button.closest('.notification-item');
+
+            if (!readNotifications.includes(id)) {
+                readNotifications.push(id);
+            }
+
+            notificationItem.style.transition = 'opacity 0.3s ease';
+            notificationItem.style.opacity = '0';
+
+            setTimeout(() => {
+                notificationItem.style.display = 'none';
+                checkForEmptyNotifications();
+            }, 300);
+        }
+
+        function mark

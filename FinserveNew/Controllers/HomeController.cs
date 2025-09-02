@@ -202,21 +202,82 @@ namespace FinserveNew.Controllers
                     .Where(e => e.ResignationDate == null || e.ResignationDate > DateOnly.FromDateTime(DateTime.Now))
                     .CountAsync();
 
-                // Get leave statistics
-                var totalPendingLeaves = await _context.Leaves
+                // Get leave statistics (including unpaid leave requests)
+                var totalPendingRegularLeaves = await _context.Leaves
                     .Where(l => l.Status == "Pending")
                     .CountAsync();
+
+                var totalPendingUnpaidLeaves = await _context.UnpaidLeaveRequests
+                    .Where(u => u.Status == "Pending")
+                    .CountAsync();
+
+                var totalPendingLeaves = totalPendingRegularLeaves + totalPendingUnpaidLeaves;
 
                 var totalApprovedLeaves = await _context.Leaves
                     .Where(l => l.Status == "Approved" && l.StartDate.Year == currentYear)
                     .CountAsync();
 
-                var recentLeaveApplications = await _context.Leaves
+                // Get recent leave applications (regular + unpaid)
+                var recentRegularLeaves = await _context.Leaves
                     .Include(l => l.Employee)
                     .Include(l => l.LeaveType)
                     .OrderByDescending(l => l.CreatedDate)
-                    .Take(5)
+                    .Take(10)
                     .ToListAsync();
+
+                var recentUnpaidLeaves = await _context.UnpaidLeaveRequests
+                    .Include(u => u.Employee)
+                    .Include(u => u.LeaveType)
+                    .OrderByDescending(u => u.SubmissionDate != DateTime.MinValue ? u.SubmissionDate : u.CreatedDate)
+                    .Take(10)
+                    .ToListAsync();
+
+                // Combine and sort all leave applications
+                var allLeaveApplications = new List<object>();
+                
+                // Add regular leaves
+                foreach (var leave in recentRegularLeaves)
+                {
+                    allLeaveApplications.Add(new
+                    {
+                        Id = leave.LeaveID,
+                        Type = "Regular",
+                        LeaveType = leave.LeaveType,
+                        StartDate = leave.StartDate,
+                        EndDate = leave.EndDate,
+                        Status = leave.Status,
+                        CreatedDate = leave.CreatedDate,
+                        SubmissionDate = leave.SubmissionDate,
+                        Employee = leave.Employee,
+                        Days = leave.LeaveDays,
+                        Reason = leave.Description ?? leave.Reason
+                    });
+                }
+
+                // Add unpaid leave requests
+                foreach (var unpaid in recentUnpaidLeaves)
+                {
+                    allLeaveApplications.Add(new
+                    {
+                        Id = unpaid.UnpaidLeaveRequestID,
+                        Type = "Unpaid",
+                        LeaveType = unpaid.LeaveType,
+                        StartDate = unpaid.StartDate,
+                        EndDate = unpaid.EndDate,
+                        Status = unpaid.Status,
+                        CreatedDate = unpaid.CreatedDate,
+                        SubmissionDate = unpaid.SubmissionDate,
+                        Employee = unpaid.Employee,
+                        Days = unpaid.RequestedDays,
+                        Reason = unpaid.Reason
+                    });
+                }
+
+                // Sort by submission/created date and take top 10
+                var recentLeaveApplications = allLeaveApplications
+                    .OrderByDescending(x => x.GetType().GetProperty("SubmissionDate")?.GetValue(x) ?? x.GetType().GetProperty("CreatedDate")?.GetValue(x))
+                    .Take(10)
+                    .ToList();
 
                 // FIXED: Get claims statistics - match the filtering used in HRIndex
                 var totalPendingClaims = await _context.Claims
@@ -435,19 +496,81 @@ namespace FinserveNew.Controllers
                     }
                 }
 
-                // Get recent leave applications
+                // Get recent leave applications (including unpaid leave requests)
                 var recentLeaves = await _context.Leaves
                     .Include(l => l.Employee)
                     .Include(l => l.LeaveType)
                     .Where(l => l.EmployeeID == employeeId)
                     .OrderByDescending(l => l.CreatedDate)
-                    .Take(5)
+                    .Take(10)
                     .ToListAsync();
 
-                // Get pending requests count
-                var pendingRequestsCount = await _context.Leaves
+                // Get unpaid leave requests for the same employee
+                var unpaidLeaveRequests = await _context.UnpaidLeaveRequests
+                    .Include(u => u.Employee)
+                    .Include(u => u.LeaveType)
+                    .Where(u => u.EmployeeID == employeeId)
+                    .OrderByDescending(u => u.SubmissionDate != DateTime.MinValue ? u.SubmissionDate : u.CreatedDate)
+                    .Take(10)
+                    .ToListAsync();
+
+                // Combine and sort all leave requests (regular + unpaid)
+                var allLeaveRequests = new List<object>();
+                
+                // Add regular leaves
+                foreach (var leave in recentLeaves)
+                {
+                    allLeaveRequests.Add(new
+                    {
+                        Id = leave.LeaveID,
+                        Type = "Regular",
+                        LeaveType = leave.LeaveType,
+                        StartDate = leave.StartDate,
+                        EndDate = leave.EndDate,
+                        Status = leave.Status,
+                        CreatedDate = leave.CreatedDate,
+                        SubmissionDate = leave.SubmissionDate,
+                        Employee = leave.Employee,
+                        Days = leave.LeaveDays,
+                        Reason = leave.Description ?? leave.Reason
+                    });
+                }
+
+                // Add unpaid leave requests
+                foreach (var unpaid in unpaidLeaveRequests)
+                {
+                    allLeaveRequests.Add(new
+                    {
+                        Id = unpaid.UnpaidLeaveRequestID,
+                        Type = "Unpaid",
+                        LeaveType = unpaid.LeaveType,
+                        StartDate = unpaid.StartDate,
+                        EndDate = unpaid.EndDate,
+                        Status = unpaid.Status,
+                        CreatedDate = unpaid.CreatedDate,
+                        SubmissionDate = unpaid.SubmissionDate,
+                        Employee = unpaid.Employee,
+                        Days = unpaid.RequestedDays,
+                        Reason = unpaid.Reason
+                    });
+                }
+
+                // Sort by submission/created date and take top 10
+                var combinedRecentLeaves = allLeaveRequests
+                    .OrderByDescending(x => x.GetType().GetProperty("SubmissionDate")?.GetValue(x) ?? x.GetType().GetProperty("CreatedDate")?.GetValue(x))
+                    .Take(10)
+                    .ToList();
+
+                // Get pending requests count (regular + unpaid)
+                var pendingRegularLeaves = await _context.Leaves
                     .Where(l => l.EmployeeID == employeeId && l.Status == "Pending")
                     .CountAsync();
+                
+                var pendingUnpaidLeaves = await _context.UnpaidLeaveRequests
+                    .Where(u => u.EmployeeID == employeeId && u.Status == "Pending")
+                    .CountAsync();
+                
+                var pendingRequestsCount = pendingRegularLeaves + pendingUnpaidLeaves;
 
                 // Claims data
                 // Pull claims exactly like the claim management Index: exclude soft-deleted
@@ -509,7 +632,7 @@ namespace FinserveNew.Controllers
                 ViewBag.TotalDefaultDays = Math.Round(totalDefaultDays, 1);
                 ViewBag.CurrentYear = currentYear;
                 ViewBag.CurrentMonth = DateTime.Now.ToString("MMMM yyyy");
-                ViewBag.RecentLeaves = recentLeaves;
+                ViewBag.RecentLeaves = combinedRecentLeaves;
                 ViewBag.PendingRequestsCount = pendingRequestsCount;
                 ViewBag.CalendarData = calendarData;
                 ViewBag.CurrentMonthIndex = DateTime.Now.Month;

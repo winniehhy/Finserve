@@ -99,11 +99,10 @@ namespace FinserveNew.Models
         public double RequestedDays { get; set; }
         public double ExcessDays { get; set; } // Days exceeding balance
 
-        [Required, MaxLength(500)]
-        public string Reason { get; set; }
-
+        [Required(ErrorMessage = "Reason is required")]
+        [Display(Name = "Reason")]
         [MaxLength(1000)]
-        public string JustificationReason { get; set; }
+        public string Reason { get; set; }
 
         public string Status { get; set; } = "Pending";
 

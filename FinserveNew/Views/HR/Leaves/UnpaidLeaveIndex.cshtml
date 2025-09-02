@@ -164,7 +164,7 @@
                                                     data-requested="@request.RequestedDays"
                                                     data-unpaid="@request.ExcessDays"
                                                     data-reason="@request.Reason"
-                                                    data-justification="@request.JustificationReason"
+                                                    data-justification="@request.Reason"
                                                     data-status="@request.Status"
                                                     data-approval-date="@(request.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")"
                                                     data-approval-remarks="@(request.ApprovalRemarks ?? "No remarks")"
@@ -295,7 +295,7 @@
                                                     data-requested="@request.RequestedDays"
                                                     data-unpaid="@request.ExcessDays"
                                                     data-reason="@request.Reason"
-                                                    data-justification="@request.JustificationReason"
+                                                    data-justification="@request.Reason"
                                                     data-status="@request.Status"
                                                     data-approval-date="@(request.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")"
                                                     data-approval-remarks="@(request.ApprovalRemarks ?? "No remarks")"
@@ -367,7 +367,7 @@
                                                     data-requested="@request.RequestedDays"
                                                     data-unpaid="@request.ExcessDays"
                                                     data-reason="@request.Reason"
-                                                    data-justification="@request.JustificationReason"
+                                                    data-justification="@request.Reason"
                                                     data-status="@request.Status"
                                                     data-approval-date="@(request.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")"
                                                     data-approval-remarks="@(request.ApprovalRemarks ?? "No remarks")"
@@ -467,7 +467,7 @@
                             <div class="bg-light p-2 rounded mb-3">
                                 <span id="modal-reason"></span>
                             </div>
-                            <h6 class="text-primary">Justification for Unpaid Leave</h6>
+                            <h6 class="text-primary">Reason for Unpaid Leave</h6>
                             <div class="bg-warning bg-opacity-10 p-2 rounded border border-warning">
                                 <span id="modal-justification"></span>
                             </div>
@@ -492,8 +492,13 @@
                     $('#modal-request-id').text('#LVE-' + button.data('request-id').toString().padStart(3, '0'));
                     $('#modal-employee').text(button.data('employee'));
                     $('#modal-leave-type').text(button.data('leave-type'));
-                    $('#modal-reason').text(button.data('reason') || 'No reason provided');
-                    $('#modal-justification').text(button.data('justification') || 'No justification provided');
+                    const reason = button.data('reason');
+                    if (!reason || reason === 'Leave request') {
+                        $('#modal-reason').html('<span class="text-muted"><i class="fas fa-info-circle me-1"></i>No specific reason provided</span>');
+                    } else {
+                        $('#modal-reason').text(reason);
+                    }
+                    $('#modal-justification').text(button.data('justification') || 'No reason provided');
                     $('#modal-status').html('<span class="badge bg-' +
                         (button.data('status') === 'Approved' ? 'success' : 'danger') + '">' +
                         button.data('status') + '</span>');

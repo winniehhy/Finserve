@@ -191,7 +191,7 @@
                         <span asp-validation-for="Reason" class="text-danger"></span>
                     </div>
 
-                    <!-- Unpaid Leave Justification Section (Hidden by default) -->
+                    <!-- Unpaid Leave Reason Section (Hidden by default) -->
                     <div class="mb-3" id="unpaidLeaveSection" style="display: none;">
                         <div class="card border-warning">
                             <div class="card-header bg-warning bg-opacity-10">
@@ -206,15 +206,15 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="JustificationReason" class="form-label">
-                                        Justification for Unpaid Leave <span class="text-danger">*</span>
+                                    <label for="Reason" class="form-label">
+                                        Reason for Unpaid Leave <span class="text-danger">*</span>
                                     </label>
-                                    <textarea name="JustificationReason" id="JustificationReason"
+                                    <textarea name="Reason" id="Reason"
                                               class="form-control" rows="4"
-                                              placeholder="Please explain why you need to take unpaid leave beyond your allocated balance. This will be reviewed by HR for approval."></textarea>
+                                              placeholder="Please provide a reason for why you need to take unpaid leave beyond your allocated balance. This will be reviewed by HR for approval."></textarea>
                                     <div class="form-text">
                                         <i class="fas fa-info-circle me-1"></i>
-                                        This request will be sent to HR for approval. Provide a clear justification for exceeding your leave balance.
+                                        This request will be sent to HR for approval. Provide a clear reason for exceeding your leave balance.
                                     </div>
                                 </div>
 
@@ -636,8 +636,8 @@
                     // Set hidden field
                     $('#IsUnpaidLeaveRequest').val('true');
 
-                    // Make justification required
-                    $('#JustificationReason').prop('required', true);
+                    // Make reason required
+                    $('#Reason').prop('required', true);
                 } else {
                     isUnpaidLeaveMode = false;
 
@@ -651,8 +651,8 @@
 
                     // Clear hidden field and remove requirements
                     $('#IsUnpaidLeaveRequest').val('false');
-                    $('#JustificationReason').prop('required', false);
-                    $('#JustificationReason').val('');
+                    $('#Reason').prop('required', false);
+                    $('#Reason').val('');
                     $('#confirmUnpaidLeave').prop('checked', false);
                 }
             }
@@ -751,9 +751,9 @@
 
                 // Check if any unpaid days remain
                 if (allocationBreakdown.unpaidDays > 0) {
-                    $('#JustificationReason').prop('required', true);
+                    $('#Reason').prop('required', true);
                 } else {
-                    $('#JustificationReason').prop('required', false);
+                    $('#Reason').prop('required', false);
                 }
             });
 
@@ -921,13 +921,23 @@
                 // Check reason field based on mode
                 let reasonText = '';
                 if (isUnpaidLeaveMode) {
-                    reasonText = $('#JustificationReason').val().trim();
-                    if (!reasonText) {
-                        alert('Please provide justification for unpaid leave.');
-                        $('#JustificationReason').focus();
-                        e.preventDefault();
-                        return false;
-                    }
+                                            // For unpaid leave, both Reason fields are required
+                        const mainReason = $('#Reason').val().trim();
+                        const unpaidReason = $('#Reason').val().trim();
+                        
+                        if (!mainReason) {
+                            alert('Please provide a reason for your leave application.');
+                            $('#Reason').focus();
+                            e.preventDefault();
+                            return false;
+                        }
+                        
+                        if (!unpaidReason) {
+                            alert('Please provide a reason for unpaid leave.');
+                            $('#Reason').focus();
+                            e.preventDefault();
+                            return false;
+                        }
 
                     if (!$('#confirmUnpaidLeave').is(':checked')) {
                         alert('Please confirm that you understand this will be an unpaid leave request.');
@@ -962,12 +972,12 @@
                             return false;
                         }
 
-                        // Check if justification is needed for remaining unpaid days
+                        // Check if reason is needed for remaining unpaid days
                         if (allocationBreakdown.unpaidDays > 0) {
-                            const justificationText = $('#JustificationReason').val().trim();
-                            if (!justificationText) {
-                                alert('Please provide justification for the remaining unpaid days.');
-                                $('#JustificationReason').focus();
+                            const reasonText = $('#Reason').val().trim();
+                            if (!reasonText) {
+                                alert('Please provide a reason for the remaining unpaid days.');
+                                $('#Reason').focus();
                                 e.preventDefault();
                                 return false;
                             }
@@ -1007,7 +1017,7 @@
             });
 
             // Auto-resize textareas
-            $('#Reason, #JustificationReason').on('input', function() {
+            $('#Reason').on('input', function() {
                 this.style.height = 'auto';
                 this.style.height = (this.scrollHeight) + 'px';
             });

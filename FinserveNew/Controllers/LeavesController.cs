@@ -156,7 +156,7 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Create(LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full",
-      string? JustificationReason = null, bool ConfirmUnpaidLeave = false,
+              string? Reason = null, bool ConfirmUnpaidLeave = false,
       string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null)
         {
             _logger.LogInformation("🚀 CREATE LEAVE POST started");
@@ -344,9 +344,9 @@ namespace FinserveNew.Controllers
                         // If there are still remaining days, create unpaid leave request
                         if (remainingDaysToAllocate > 0)
                         {
-                            if (string.IsNullOrWhiteSpace(JustificationReason))
+                            if (string.IsNullOrWhiteSpace(Reason))
                             {
-                                ModelState.AddModelError("JustificationReason", "Justification is required for the unpaid portion of your leave.");
+                                ModelState.AddModelError("Reason", "Reason is required for the unpaid portion of your leave.");
                                 await PopulateViewDataForFormRedisplay(employeeId);
                                 return View("~/Views/Employee/Leaves/Create.cshtml", leave);
                             }
@@ -359,8 +359,8 @@ namespace FinserveNew.Controllers
                                 EndDate = leave.EndDate,
                                 RequestedDays = remainingDaysToAllocate,
                                 ExcessDays = remainingDaysToAllocate,
-                                Reason = isEmergencyLeave ? $"[EMERGENCY LEAVE - UNPAID PORTION] {leave.Reason ?? ""}".Trim() : $"[UNPAID PORTION] {leave.Reason ?? ""}".Trim(),
-                                JustificationReason = JustificationReason,
+                                Reason = isEmergencyLeave ? $"[EMERGENCY LEAVE - UNPAID PORTION] {leave.Reason ?? "No reason provided"}".Trim() : $"[UNPAID PORTION] {leave.Reason ?? "No reason provided"}".Trim(),
+                               
                                 Status = "Pending",
                                 SubmissionDate = DateTime.Now,
                                 CreatedDate = DateTime.Now
@@ -406,9 +406,9 @@ namespace FinserveNew.Controllers
                     // Check if this is an unpaid leave request
                     else if (Request.Form["IsUnpaidLeaveRequest"].ToString() == "true")
                     {
-                        if (string.IsNullOrWhiteSpace(JustificationReason))
+                        if (string.IsNullOrWhiteSpace(Reason))
                         {
-                            ModelState.AddModelError("JustificationReason", "Justification is required for unpaid leave requests.");
+                            ModelState.AddModelError("Reason", "Reason is required for unpaid leave requests.");
                             await PopulateViewDataForFormRedisplay(employeeId);
                             return View("~/Views/Employee/Leaves/Create.cshtml", leave);
                         }
@@ -421,8 +421,7 @@ namespace FinserveNew.Controllers
                             EndDate = leave.EndDate,
                             RequestedDays = requestedDays,
                             ExcessDays = excessDays,
-                            Reason = !string.IsNullOrWhiteSpace(leave.Reason) ? leave.Reason : "Leave request",
-                            JustificationReason = JustificationReason,
+                            Reason = Reason,
                             Status = "Pending",
                             SubmissionDate = DateTime.Now,
                             CreatedDate = DateTime.Now
@@ -598,7 +597,7 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Edit(int id, LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full",
-    string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null, string? JustificationReason = null)
+            string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null, string? Reason = null)
         {
             if (id != leave.LeaveID)
                 return NotFound();
@@ -730,9 +729,9 @@ namespace FinserveNew.Controllers
 
                     // Check if there are unpaid days and justification is required
                     var unpaidDays = (double)allocationBreakdown.GetType().GetProperty("UnpaidDays")?.GetValue(allocationBreakdown);
-                    if (unpaidDays > 0 && string.IsNullOrWhiteSpace(JustificationReason))
+                    if (unpaidDays > 0 && string.IsNullOrWhiteSpace(Reason))
                     {
-                        ModelState.AddModelError("JustificationReason", "Justification is required for the unpaid portion of your leave.");
+                        ModelState.AddModelError("Reason", "Reason is required for the unpaid portion of your leave.");
                         await PopulateLeaveTypeDropdownAsync();
                         var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
                         ViewBag.LeaveBalances = currentLeaveBalances;
@@ -785,10 +784,7 @@ namespace FinserveNew.Controllers
                             EndDate = leave.EndDate,
                             RequestedDays = unpaidDays,
                             ExcessDays = unpaidDays,
-                            Reason = isEmergencyLeave ?
-                                $"[EMERGENCY LEAVE - UNPAID PORTION] {leave.Reason ?? ""}".Trim() :
-                                $"[UNPAID PORTION] {leave.Reason ?? ""}".Trim(),
-                            JustificationReason = JustificationReason,
+                            Reason = Reason,
                             Status = "Pending",
                             SubmissionDate = DateTime.Now,
                             CreatedDate = DateTime.Now
@@ -828,15 +824,15 @@ namespace FinserveNew.Controllers
                 // Handle direct unpaid leave request
                 else if (Request.Form["IsUnpaidLeaveRequest"].ToString() == "true")
                 {
-                    if (string.IsNullOrWhiteSpace(JustificationReason))
-                    {
-                        ModelState.AddModelError("JustificationReason", "Justification is required for unpaid leave requests.");
-                        await PopulateLeaveTypeDropdownAsync();
-                        var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
-                        ViewBag.LeaveBalances = currentLeaveBalances;
-                        PopulateLeaveBalanceViewBag(currentLeaveBalances);
-                        return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
-                    }
+                                            if (string.IsNullOrWhiteSpace(Reason))
+                        {
+                            ModelState.AddModelError("Reason", "Reason is required for unpaid leave requests.");
+                            await PopulateLeaveTypeDropdownAsync();
+                            var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+                            ViewBag.LeaveBalances = currentLeaveBalances;
+                            PopulateLeaveBalanceViewBag(currentLeaveBalances);
+                            return View("~/Views/Employee/Leaves/Edit.cshtml", leaveToUpdate);
+                        }
 
                     // Convert to unpaid leave request
                     _context.Leaves.Remove(leaveToUpdate);
@@ -849,8 +845,7 @@ namespace FinserveNew.Controllers
                         EndDate = leave.EndDate,
                         RequestedDays = requestedDays,
                         ExcessDays = excessDays,
-                        Reason = !string.IsNullOrWhiteSpace(leave.Reason) ? leave.Reason : "Leave request",
-                        JustificationReason = JustificationReason,
+                        Reason = Reason,
                         Status = "Pending",
                         SubmissionDate = DateTime.Now,
                         CreatedDate = leaveToUpdate.CreatedDate
@@ -984,33 +979,80 @@ namespace FinserveNew.Controllers
             return View("~/Views/Employee/Leaves/Delete.cshtml", leave);
         }
 
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Employee")]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var employeeId = await GetCurrentEmployeeId();
-            if (string.IsNullOrEmpty(employeeId))
-                return RedirectToAction(nameof(LeaveRecords));
+        //[HttpPost, ActionName("Delete")]
+        //[ValidateAntiForgeryToken]
+        //[Authorize(Roles = "Employee")]
+        //public async Task<IActionResult> DeleteConfirmed(int id)
+        //{
+        //    var employeeId = await GetCurrentEmployeeId();
+        //    if (string.IsNullOrEmpty(employeeId))
+        //        return RedirectToAction(nameof(LeaveRecords));
 
-            var leave = await _context.Leaves.FindAsync(id);
+        //    // Check if this is an unpaid leave request (negative ID)
+        //    if (id < 0)
+        //    {
+        //        var unpaidRequestId = Math.Abs(id);
+        //        var unpaidRequest = await _context.UnpaidLeaveRequests
+        //            .FirstOrDefaultAsync(u => u.UnpaidLeaveRequestID == unpaidRequestId && u.EmployeeID == employeeId);
 
-            if (leave != null && leave.EmployeeID == employeeId)
-            {
-                // Only allow deletion if status is Pending
-                if (leave.Status != "Pending")
-                {
-                    TempData["Error"] = "You can only delete leaves that are in Pending status.";
-                    return RedirectToAction(nameof(LeaveRecords));
-                }
+        //        if (unpaidRequest != null)
+        //        {
+        //            // Only allow deletion if status is Pending
+        //            if (unpaidRequest.Status != "Pending")
+        //            {
+        //                TempData["Error"] = "You can only cancel unpaid leave requests that are in Pending status.";
+        //                return RedirectToAction(nameof(UnpaidLeaveRequests));
+        //            }
 
-                _context.Leaves.Remove(leave);
-                await _context.SaveChangesAsync();
-                TempData["Success"] = "Leave deleted successfully!";
-            }
+        //            try
+        //            {
+        //                // Remove associated leave details if any
+        //                var leaveDetails = await _context.LeaveDetails
+        //                    .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
+                        
+        //                if (leaveDetails != null)
+        //                {
+        //                    _context.LeaveDetails.Remove(leaveDetails);
+        //                }
 
-            return RedirectToAction(nameof(LeaveRecords));
-        }
+        //                // Remove the unpaid leave request
+        //                _context.UnpaidLeaveRequests.Remove(unpaidRequest);
+        //                await _context.SaveChangesAsync();
+
+        //                TempData["Success"] = "Unpaid leave request cancelled successfully!";
+        //                _logger.LogInformation($"✅ Employee {employeeId} cancelled unpaid leave request {unpaidRequestId}");
+        //            }
+        //            catch (DbUpdateException ex)
+        //            {
+        //                _logger.LogError(ex, "Database error while cancelling unpaid leave request");
+        //                TempData["Error"] = "An error occurred while cancelling the unpaid leave request.";
+        //            }
+
+        //            return RedirectToAction(nameof(UnpaidLeaveRequests));
+        //        }
+        //    }
+        //    else
+        //    {
+        //        // Handle regular leave deletion
+        //        var leave = await _context.Leaves.FindAsync(id);
+
+        //        if (leave != null && leave.EmployeeID == employeeId)
+        //        {
+        //            // Only allow deletion if status is Pending
+        //            if (leave.Status != "Pending")
+        //            {
+        //                TempData["Error"] = "You can only delete leaves that are in Pending status.";
+        //                return RedirectToAction(nameof(LeaveRecords));
+        //            }
+
+        //            _context.Leaves.Remove(leave);
+        //            await _context.SaveChangesAsync();
+        //            TempData["Success"] = "Leave deleted successfully!";
+        //        }
+        //    }
+
+        //    return RedirectToAction(nameof(LeaveRecords));
+        //}
 
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> UnpaidLeaveRequests()
@@ -1063,47 +1105,23 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(UnpaidLeaveRequests));
             }
 
-            await PopulateLeaveTypeDropdownAsync();
-            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
-            ViewBag.LeaveBalances = leaveBalances;
-            PopulateLeaveBalanceViewBag(leaveBalances);
-
-            // Check for medical certificate (use negative ID for unpaid leave)
-            var leaveDetails = await _context.LeaveDetails
-                .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
-
-            if (leaveDetails != null)
-            {
-                ViewBag.HasMedicalCertificate = true;
-                ViewBag.MedicalCertificateFileName = Path.GetFileName(leaveDetails.DocumentPath);
-                ViewBag.MedicalCertificateUrl = leaveDetails.DocumentPath;
-            }
-            else
-            {
-                ViewBag.HasMedicalCertificate = false;
-                ViewBag.MedicalCertificateFileName = "";
-                ViewBag.MedicalCertificateUrl = "";
-            }
-
-            // Convert to LeaveModel for the view
             var leaveModel = new LeaveModel
             {
-                LeaveID = 0, // Dummy ID for unpaid leave
+                LeaveID = -unpaidRequest.UnpaidLeaveRequestID, // Negative to indicate unpaid leave
                 EmployeeID = unpaidRequest.EmployeeID,
                 LeaveTypeID = unpaidRequest.LeaveTypeID,
                 StartDate = unpaidRequest.StartDate,
                 EndDate = unpaidRequest.EndDate,
-                LeaveDays = unpaidRequest.RequestedDays,
+                //RequestedDays = unpaidRequest.RequestedDays,
                 Reason = unpaidRequest.Reason,
                 Status = unpaidRequest.Status,
-                SubmissionDate = unpaidRequest.SubmissionDate,
-                Employee = unpaidRequest.Employee,
-                LeaveType = unpaidRequest.LeaveType
+                CreatedDate = unpaidRequest.SubmissionDate
             };
 
             ViewBag.IsUnpaidLeave = true;
             ViewBag.UnpaidLeaveRequestID = unpaidRequest.UnpaidLeaveRequestID;
-            ViewBag.JustificationReason = unpaidRequest.JustificationReason;
+            ViewBag.Reason = unpaidRequest.Reason;
+            ViewBag.LeaveTypeName = unpaidRequest.LeaveType.TypeName;
 
             return View("~/Views/Employee/Leaves/Edit.cshtml", leaveModel);
         }
@@ -1112,7 +1130,7 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> EditUnpaidLeave(int id, LeaveModel leave, IFormFile? MedicalCertificate,
-            string DayType = "full", string? JustificationReason = null)
+            string DayType = "full", string? Reason = null)
         {
             var employeeId = await GetCurrentEmployeeId();
             if (string.IsNullOrEmpty(employeeId))
@@ -1182,10 +1200,10 @@ namespace FinserveNew.Controllers
                 }
             }
 
-            // Validate justification reason
-            if (string.IsNullOrWhiteSpace(JustificationReason))
+            // Validate reason
+            if (string.IsNullOrWhiteSpace(Reason))
             {
-                ModelState.AddModelError("JustificationReason", "Justification is required for unpaid leave requests.");
+                ModelState.AddModelError("Reason", "Reason is required for unpaid leave requests.");
             }
 
             if (ModelState.IsValid)
@@ -1197,8 +1215,8 @@ namespace FinserveNew.Controllers
                     unpaidRequest.StartDate = leave.StartDate;
                     unpaidRequest.EndDate = leave.EndDate;
                     unpaidRequest.RequestedDays = leave.LeaveDays;
-                    unpaidRequest.Reason = leave.Reason;
-                    unpaidRequest.JustificationReason = JustificationReason;
+             
+                    unpaidRequest.Reason = Reason;
 
                     // Recalculate excess days based on current balance
                     var currentYear = DateTime.Now.Year;
@@ -1231,10 +1249,12 @@ namespace FinserveNew.Controllers
 
             ViewBag.IsUnpaidLeave = true;
             ViewBag.UnpaidLeaveRequestID = unpaidRequest.UnpaidLeaveRequestID;
-            ViewBag.JustificationReason = JustificationReason;
+            ViewBag.Reason = Reason;
 
             return View("~/Views/Employee/Leaves/Edit.cshtml", leave);
         }
+
+
 
         // ================== HR ACTIONS ==================
 
@@ -1389,9 +1409,9 @@ namespace FinserveNew.Controllers
                     LeaveTypeID = unpaidRequest.LeaveTypeID,
                     StartDate = unpaidRequest.StartDate,
                     EndDate = unpaidRequest.EndDate,
-                    LeaveDays = unpaidRequest.RequestedDays,
-                    Reason = unpaidRequest.Reason,
-                    Status = unpaidRequest.Status,
+                                    LeaveDays = unpaidRequest.RequestedDays,
+                Reason = unpaidRequest.Reason,
+                Status = unpaidRequest.Status,
                     SubmissionDate = unpaidRequest.SubmissionDate,
                     Employee = unpaidRequest.Employee,
                     LeaveType = unpaidRequest.LeaveType
@@ -2937,7 +2957,7 @@ namespace FinserveNew.Controllers
                         <p><strong>Start Date:</strong> {leave.StartDate:dd/MM/yyyy}</p>
                         <p><strong>End Date:</strong> {leave.EndDate:dd/MM/yyyy}</p>
                         <p><strong>Duration:</strong> {leave.LeaveDays} day(s)</p>
-                        <p><strong>Reason:</strong> {leave.Reason ?? "No reason provided"}</p>
+                        
                         <p><strong>Submitted On:</strong> {leave.SubmissionDate:dd/MM/yyyy HH:mm}</p>
                     </div>
 
@@ -3013,8 +3033,8 @@ namespace FinserveNew.Controllers
                         <p><strong>Start Date:</strong> {unpaidRequest.StartDate:dd/MM/yyyy}</p>
                         <p><strong>End Date:</strong> {unpaidRequest.EndDate:dd/MM/yyyy}</p>
                         <p><strong>Duration:</strong> {unpaidRequest.RequestedDays} day(s)</p>
+                        
                         <p><strong>Reason:</strong> {unpaidRequest.Reason ?? "No reason provided"}</p>
-                        <p><strong>Justification:</strong> {unpaidRequest.JustificationReason ?? "No justification provided"}</p>
                         <p><strong>Submitted On:</strong> {unpaidRequest.SubmissionDate:dd/MM/yyyy HH:mm}</p>
                     </div>
 

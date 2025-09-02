@@ -23,6 +23,7 @@
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" href="@Url.Action("AllAccounts", "Accounts")">Manage Employees</a></li>
                         <li><a class="dropdown-item" href="@Url.Action("LeaveIndex", "Leaves")">Review Leave Applications</a></li>
+                        <li><a class="dropdown-item" href="@Url.Action("UnpaidLeaveRequests", "Leaves")">Review Unpaid Leave Requests</a></li>
                         <li><a class="dropdown-item" href="@Url.Action("HRIndex", "Claim")">Review Claims</a></li>
                         <li><a class="dropdown-item" href="@Url.Action("Summary", "Payroll")">Process Payroll</a></li>
                     </ul>
@@ -332,15 +333,24 @@
                                     <th>To</th>
                                     <th>Days</th>
                                     <th>Status</th>
+                                    <th>Reason</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var leave in (List<FinserveNew.Models.LeaveModel>)ViewBag.RecentLeaveApplications)
+                                @foreach (dynamic leave in ViewBag.RecentLeaveApplications)
                                     {
-                                        var duration = (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
+                                        var leaveType = leave.GetType().GetProperty("Type")?.GetValue(leave)?.ToString();
+                                        var isUnpaid = leaveType == "Unpaid";
+                                        var duration = isUnpaid ? Convert.ToDouble(leave.Days) : (leave.EndDate.DayNumber - leave.StartDate.DayNumber) + 1;
                                 <tr>
-                                    <td>#LVE-@leave.LeaveID.ToString("D3")</td>
+                                    <td>
+                                        @if (isUnpaid)
+                                        {
+                                            <span class="badge bg-warning text-dark me-1">Unpaid</span>
+                                        }
+                                        #LVE-@leave.Id.ToString("D3")
+                                    </td>
                                     <td>
                                         @if (leave.Employee != null)
                                                 {
@@ -353,17 +363,36 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-info">@(leave.LeaveType?.TypeName ?? "N/A")</span>
+                                        @if (isUnpaid)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1">Unpaid</span>
+                                        }
                                     </td>
                                     <td>@leave.StartDate.ToString("dd MMM, yyyy")</td>
                                     <td>@leave.EndDate.ToString("dd MMM, yyyy")</td>
-                                    <td><strong>@duration days</strong></td>
+                                    <td><strong>@duration.ToString("0.#") days</strong></td>
                                     <td>
                                         <span class="badge bg-@(leave.Status == "Approved" ? "success" : leave.Status == "Pending" ? "warning" : "danger")">
                                             @leave.Status
                                         </span>
                                     </td>
                                     <td>
-                                        <a href="@Url.Action("LeaveDetails", "Leaves", new { id = leave.LeaveID })" class="btn btn-sm btn-outline-primary">View</a>
+                                        @{
+                                            var reason = leave.GetType().GetProperty("Reason")?.GetValue(leave)?.ToString() ?? "No reason provided";
+                                        }
+                                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@reason">
+                                            @reason
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (isUnpaid)
+                                        {
+                                            <a href="@Url.Action("UnpaidLeaveRequests", "Leaves")" class="btn btn-sm btn-outline-primary">View</a>
+                                        }
+                                        else
+                                        {
+                                            <a href="@Url.Action("LeaveDetails", "Leaves", new { id = leave.Id })" class="btn btn-sm btn-outline-primary">View</a>
+                                        }
                                     </td>
                                 </tr>
                                     }
