@@ -136,6 +136,16 @@ namespace FinserveNew.Controllers
             return View();
         }
 
+        // Method to check if current user is a default account (for logout confirmation)
+        [HttpGet]
+        public async Task<IActionResult> IsDefaultAccount()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            var isDefaultAccount = currentUser?.IsDefaultAccount == true && !currentUser.IsDeactivated;
+            
+            return Json(new { isDefaultAccount = isDefaultAccount });
+        }
+
         private async Task<IActionResult> RedirectBasedOnRole(ApplicationUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);

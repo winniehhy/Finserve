@@ -3,6 +3,14 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
+@if (TempData["Warning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["Warning"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
 <!-- Dashboard Content -->
 <div class="dashboard-container">
     <!-- Page Header -->
@@ -790,6 +798,21 @@
 
         .card:hover {
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .alert {
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: none;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .btn-close {
+            font-size: 0.8rem;
         }
     </style>
 }

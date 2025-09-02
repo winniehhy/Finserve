@@ -59,8 +59,8 @@
                     <!-- <li><a class="dropdown-item" href="@Url.Action("Settings", "Account")"><i class="fas fa-cog me-2"></i>Settings</a></li> -->
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                            <button type="submit" class="dropdown-item">
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline" id="logoutForm">
+                            <button type="button" class="dropdown-item" id="logoutBtn">
                                 <i class="fas fa-sign-out-alt me-2"></i>Logout
                             </button>
                         </form>
@@ -266,5 +266,37 @@
     }
 
     @RenderSection("Scripts", required: false)
+
+    <!-- Default Account Logout Confirmation Script -->
+    <script>
+        $(document).ready(function() {
+            $('#logoutBtn').on('click', function(e) {
+                e.preventDefault();
+                
+                // Check if this is a default account via AJAX
+                $.ajax({
+                    url: '@Url.Action("IsDefaultAccount", "Account")',
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.isDefaultAccount) {
+                            // Show double confirmation for default account
+                            if (confirm('⚠️ WARNING: This is the default HR account.\n\nLogging out will permanently deactivate this account as other HR accounts are now available.\n\nAre you sure you want to continue?')) {
+                                if (confirm('🔒 FINAL CONFIRMATION:\n\nThis action cannot be undone. The default account will be deactivated immediately.\n\nClick OK to proceed with logout and account deactivation.')) {
+                                    $('#logoutForm').submit();
+                                }
+                            }
+                        } else {
+                            // Regular logout for non-default accounts
+                            $('#logoutForm').submit();
+                        }
+                    },
+                    error: function() {
+                        // If AJAX fails, just proceed with regular logout
+                        $('#logoutForm').submit();
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
