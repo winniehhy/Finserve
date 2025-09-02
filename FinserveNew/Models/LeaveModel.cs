@@ -104,6 +104,10 @@ namespace FinserveNew.Models
         [MaxLength(1000)]
         public string Reason { get; set; }
 
+        [Display(Name = "Justification Reason")]
+        [MaxLength(1000)]
+        public string? JustificationReason { get; set; }
+
         public string Status { get; set; } = "Pending";
 
         public DateTime SubmissionDate { get; set; }

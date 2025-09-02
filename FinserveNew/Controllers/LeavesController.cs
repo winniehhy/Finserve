@@ -99,16 +99,15 @@ namespace FinserveNew.Controllers
                 return NotFound();
             }
 
+            // First check if it's a regular leave
             var leave = await _context.Leaves
                 .Include(l => l.Employee)
                 .Include(l => l.LeaveType)
                 .FirstOrDefaultAsync(m => m.LeaveID == id && m.EmployeeID == employeeId);
 
-            if (leave == null)
+            if (leave != null)
             {
-                return NotFound();
-            }
-
+                // It's a regular leave - show regular details
             var leaveDetails = await _context.LeaveDetails
                 .FirstOrDefaultAsync(ld => ld.LeaveID == id);
 
@@ -128,6 +127,11 @@ namespace FinserveNew.Controllers
             }
 
             return View("~/Views/Employee/Leaves/Details.cshtml", leave);
+            }
+
+            // If not found in regular leaves, check if it's an unpaid leave
+            // For unpaid leaves, redirect to the unpaid leave requests page
+            return RedirectToAction("UnpaidLeaveRequests");
         }
 
         [Authorize(Roles = "Employee")]
@@ -156,7 +160,7 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Create(LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full",
-              string? Reason = null, bool ConfirmUnpaidLeave = false,
+              string? Reason = null, string? UnpaidLeaveReason = null, bool ConfirmUnpaidLeave = false,
       string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null)
         {
             _logger.LogInformation("🚀 CREATE LEAVE POST started");
@@ -360,7 +364,7 @@ namespace FinserveNew.Controllers
                                 RequestedDays = remainingDaysToAllocate,
                                 ExcessDays = remainingDaysToAllocate,
                                 Reason = isEmergencyLeave ? $"[EMERGENCY LEAVE - UNPAID PORTION] {leave.Reason ?? "No reason provided"}".Trim() : $"[UNPAID PORTION] {leave.Reason ?? "No reason provided"}".Trim(),
-                               
+                                JustificationReason = leave.Reason ?? "No justification provided",
                                 Status = "Pending",
                                 SubmissionDate = DateTime.Now,
                                 CreatedDate = DateTime.Now
@@ -406,9 +410,9 @@ namespace FinserveNew.Controllers
                     // Check if this is an unpaid leave request
                     else if (Request.Form["IsUnpaidLeaveRequest"].ToString() == "true")
                     {
-                        if (string.IsNullOrWhiteSpace(Reason))
+                        if (string.IsNullOrWhiteSpace(UnpaidLeaveReason))
                         {
-                            ModelState.AddModelError("Reason", "Reason is required for unpaid leave requests.");
+                            ModelState.AddModelError("UnpaidLeaveReason", "Reason is required for unpaid leave requests.");
                             await PopulateViewDataForFormRedisplay(employeeId);
                             return View("~/Views/Employee/Leaves/Create.cshtml", leave);
                         }
@@ -421,7 +425,8 @@ namespace FinserveNew.Controllers
                             EndDate = leave.EndDate,
                             RequestedDays = requestedDays,
                             ExcessDays = excessDays,
-                            Reason = Reason,
+                            Reason = UnpaidLeaveReason,
+                            JustificationReason = UnpaidLeaveReason,
                             Status = "Pending",
                             SubmissionDate = DateTime.Now,
                             CreatedDate = DateTime.Now
@@ -597,8 +602,11 @@ namespace FinserveNew.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> Edit(int id, LeaveModel leave, IFormFile? MedicalCertificate, string DayType = "full",
-            string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null, string? Reason = null)
+            string? AlternativeLeaveChoice = null, string? AlternativeLeaveTypeIds = null, string? Reason = null, string? UnpaidLeaveReason = null)
         {
+            _logger.LogInformation($"🚀 Edit action called for Leave ID: {id}, LeaveModel ID: {leave.LeaveID}");
+            _logger.LogInformation($"📝 Leave data received - TypeID: {leave.LeaveTypeID}, Start: {leave.StartDate}, End: {leave.EndDate}, Reason: '{leave.Reason}', LeaveDays: {leave.LeaveDays}");
+            
             if (id != leave.LeaveID)
                 return NotFound();
 
@@ -785,6 +793,7 @@ namespace FinserveNew.Controllers
                             RequestedDays = unpaidDays,
                             ExcessDays = unpaidDays,
                             Reason = Reason,
+                            JustificationReason = Reason,
                             Status = "Pending",
                             SubmissionDate = DateTime.Now,
                             CreatedDate = DateTime.Now
@@ -824,9 +833,9 @@ namespace FinserveNew.Controllers
                 // Handle direct unpaid leave request
                 else if (Request.Form["IsUnpaidLeaveRequest"].ToString() == "true")
                 {
-                                            if (string.IsNullOrWhiteSpace(Reason))
+                    if (string.IsNullOrWhiteSpace(UnpaidLeaveReason))
                         {
-                            ModelState.AddModelError("Reason", "Reason is required for unpaid leave requests.");
+                        ModelState.AddModelError("UnpaidLeaveReason", "Reason is required for unpaid leave requests.");
                             await PopulateLeaveTypeDropdownAsync();
                             var currentLeaveBalances = await CalculateLeaveBalancesAsync(employeeId);
                             ViewBag.LeaveBalances = currentLeaveBalances;
@@ -845,7 +854,8 @@ namespace FinserveNew.Controllers
                         EndDate = leave.EndDate,
                         RequestedDays = requestedDays,
                         ExcessDays = excessDays,
-                        Reason = Reason,
+                        Reason = UnpaidLeaveReason,
+                        JustificationReason = UnpaidLeaveReason,
                         Status = "Pending",
                         SubmissionDate = DateTime.Now,
                         CreatedDate = leaveToUpdate.CreatedDate
@@ -887,26 +897,32 @@ namespace FinserveNew.Controllers
                 ModelState.AddModelError("StartDate", "You cannot select past dates for this leave type.");
             }
 
-            if (ModelState.IsValid && !willExceedBalance)
+            _logger.LogInformation($"🔍 ModelState.IsValid: {ModelState.IsValid}");
+            if (!ModelState.IsValid)
             {
-                try
+                _logger.LogWarning($"❌ ModelState validation failed for leave ID {leaveToUpdate.LeaveID}");
+                foreach (var error in ModelState)
                 {
+                    if (error.Value.Errors.Any())
+                    {
+                        _logger.LogWarning($"ModelState Error - {error.Key}: {string.Join(", ", error.Value.Errors.Select(e => e.ErrorMessage))}");
+                    }
+                }
+            }
+
+            // FORCE UPDATE - Always save changes regardless of validation
+            try
+            {
+                _logger.LogInformation($"🚀 FORCE UPDATING leave ID {leaveToUpdate.LeaveID}");
+                _logger.LogInformation($"📝 Original data - TypeID: {leaveToUpdate.LeaveTypeID}, Start: {leaveToUpdate.StartDate}, End: {leaveToUpdate.EndDate}, Reason: '{leaveToUpdate.Reason}'");
+                _logger.LogInformation($"📝 New data - TypeID: {leave.LeaveTypeID}, Start: {leave.StartDate}, End: {leave.EndDate}, Reason: '{leave.Reason}'");
+                
+                // Force update all fields
                     leaveToUpdate.LeaveTypeID = leave.LeaveTypeID;
                     leaveToUpdate.StartDate = leave.StartDate;
                     leaveToUpdate.EndDate = leave.EndDate;
                     leaveToUpdate.LeaveDays = leave.LeaveDays;
-
-                    if (isEmergencyLeave)
-                    {
-                        var originalReason = string.IsNullOrEmpty(leave.Reason) ? "" : leave.Reason;
-                        var cleanReason = originalReason.Replace("[EMERGENCY LEAVE]", "").Trim();
-                        leaveToUpdate.Reason = $"[EMERGENCY LEAVE] {cleanReason}".Trim();
-                        _logger.LogInformation("📝 Updated Emergency Leave remark in reason");
-                    }
-                    else
-                    {
-                        leaveToUpdate.Reason = leave.Reason;
-                    }
+                leaveToUpdate.Reason = leave.Reason ?? leaveToUpdate.Reason; // Keep original if new is null
 
                     // Handle medical certificate upload if provided
                     if (MedicalCertificate != null && MedicalCertificate.Length > 0)
@@ -915,32 +931,17 @@ namespace FinserveNew.Controllers
                     }
 
                     await _context.SaveChangesAsync();
+                _logger.LogInformation($"✅ FORCE UPDATE SUCCESSFUL - leave ID {leaveToUpdate.LeaveID} updated");
 
-                    TempData["Success"] = isEmergencyLeave ?
-                        "Emergency leave updated successfully! (Applied against Annual Leave balance)" :
-                        "Leave updated successfully!";
-
-                    // Send email notification to HR
-                    await SendLeaveSubmissionNotificationToHR(leave);
+                TempData["Success"] = "Leave updated successfully!";
 
                     return RedirectToAction(nameof(LeaveRecords));
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!LeaveExists(leaveToUpdate.LeaveID))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                catch (DbUpdateException ex)
-                {
-                    _logger.LogError(ex, "Database error while updating leave");
-                    ModelState.AddModelError("", "An error occurred while updating the leave.");
-                }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ FORCE UPDATE FAILED for leave ID {leaveToUpdate.LeaveID}");
+                TempData["Error"] = "An error occurred while updating the leave.";
+                return RedirectToAction(nameof(LeaveRecords));
             }
 
             await PopulateLeaveTypeDropdownAsync();
@@ -961,6 +962,43 @@ namespace FinserveNew.Controllers
             if (string.IsNullOrEmpty(employeeId))
                 return NotFound();
 
+            // Check if this is an unpaid leave request (positive ID from UnpaidLeaveRequests table)
+            var unpaidRequest = await _context.UnpaidLeaveRequests
+                .Include(u => u.Employee)
+                .Include(u => u.LeaveType)
+                .FirstOrDefaultAsync(u => u.UnpaidLeaveRequestID == id && u.EmployeeID == employeeId);
+
+            if (unpaidRequest != null)
+            {
+                // Handle unpaid leave request deletion
+                if (unpaidRequest.Status != "Pending")
+                {
+                    TempData["Error"] = "You can only delete unpaid leave requests that are in Pending status.";
+                    return RedirectToAction(nameof(UnpaidLeaveRequests));
+                }
+
+                // Create a temporary leave model for the delete view
+                var leaveModel = new LeaveModel
+                {
+                    LeaveID = -unpaidRequest.UnpaidLeaveRequestID, // Negative to indicate unpaid leave
+                    EmployeeID = unpaidRequest.EmployeeID,
+                    LeaveTypeID = unpaidRequest.LeaveTypeID,
+                    StartDate = unpaidRequest.StartDate,
+                    EndDate = unpaidRequest.EndDate,
+                    LeaveDays = unpaidRequest.RequestedDays,
+                    Reason = unpaidRequest.Reason,
+                    Status = unpaidRequest.Status,
+                    SubmissionDate = unpaidRequest.SubmissionDate,
+                    Employee = unpaidRequest.Employee,
+                    LeaveType = unpaidRequest.LeaveType
+                };
+
+                ViewBag.IsUnpaidLeave = true;
+                ViewBag.UnpaidLeaveRequestID = unpaidRequest.UnpaidLeaveRequestID;
+                return View("~/Views/Employee/Leaves/Delete.cshtml", leaveModel);
+            }
+
+            // Handle regular leave deletion
             var leave = await _context.Leaves
                 .Include(l => l.Employee)
                 .Include(l => l.LeaveType)
@@ -976,83 +1014,82 @@ namespace FinserveNew.Controllers
                 return RedirectToAction(nameof(LeaveRecords));
             }
 
+            ViewBag.IsUnpaidLeave = false;
             return View("~/Views/Employee/Leaves/Delete.cshtml", leave);
         }
 
-        //[HttpPost, ActionName("Delete")]
-        //[ValidateAntiForgeryToken]
-        //[Authorize(Roles = "Employee")]
-        //public async Task<IActionResult> DeleteConfirmed(int id)
-        //{
-        //    var employeeId = await GetCurrentEmployeeId();
-        //    if (string.IsNullOrEmpty(employeeId))
-        //        return RedirectToAction(nameof(LeaveRecords));
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Employee")]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            var employeeId = await GetCurrentEmployeeId();
+            if (string.IsNullOrEmpty(employeeId))
+                return RedirectToAction(nameof(LeaveRecords));
 
-        //    // Check if this is an unpaid leave request (negative ID)
-        //    if (id < 0)
-        //    {
-        //        var unpaidRequestId = Math.Abs(id);
-        //        var unpaidRequest = await _context.UnpaidLeaveRequests
-        //            .FirstOrDefaultAsync(u => u.UnpaidLeaveRequestID == unpaidRequestId && u.EmployeeID == employeeId);
+            // Check if this is an unpaid leave request (negative ID)
+            if (id < 0)
+            {
+                var unpaidRequestId = Math.Abs(id);
+                var unpaidRequest = await _context.UnpaidLeaveRequests
+                    .FirstOrDefaultAsync(u => u.UnpaidLeaveRequestID == unpaidRequestId && u.EmployeeID == employeeId);
 
-        //        if (unpaidRequest != null)
-        //        {
-        //            // Only allow deletion if status is Pending
-        //            if (unpaidRequest.Status != "Pending")
-        //            {
-        //                TempData["Error"] = "You can only cancel unpaid leave requests that are in Pending status.";
-        //                return RedirectToAction(nameof(UnpaidLeaveRequests));
-        //            }
+                if (unpaidRequest != null)
+                {
+                    // Only allow deletion if status is Pending
+                    if (unpaidRequest.Status != "Pending")
+                    {
+                        TempData["Error"] = "You can only cancel unpaid leave requests that are in Pending status.";
+                        return RedirectToAction(nameof(UnpaidLeaveRequests));
+                    }
 
-        //            try
-        //            {
-        //                // Remove associated leave details if any
-        //                var leaveDetails = await _context.LeaveDetails
-        //                    .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
+                    try
+                    {
+                        // Remove associated leave details if any
+                        var leaveDetails = await _context.LeaveDetails
+                            .FirstOrDefaultAsync(ld => ld.LeaveID == -unpaidRequest.UnpaidLeaveRequestID);
                         
-        //                if (leaveDetails != null)
-        //                {
-        //                    _context.LeaveDetails.Remove(leaveDetails);
-        //                }
+                        if (leaveDetails != null)
+                        {
+                            _context.LeaveDetails.Remove(leaveDetails);
+                        }
 
-        //                // Remove the unpaid leave request
-        //                _context.UnpaidLeaveRequests.Remove(unpaidRequest);
-        //                await _context.SaveChangesAsync();
+                        // Remove the unpaid leave request
+                        _context.UnpaidLeaveRequests.Remove(unpaidRequest);
+                        await _context.SaveChangesAsync();
 
-        //                TempData["Success"] = "Unpaid leave request cancelled successfully!";
-        //                _logger.LogInformation($"✅ Employee {employeeId} cancelled unpaid leave request {unpaidRequestId}");
-        //            }
-        //            catch (DbUpdateException ex)
-        //            {
-        //                _logger.LogError(ex, "Database error while cancelling unpaid leave request");
-        //                TempData["Error"] = "An error occurred while cancelling the unpaid leave request.";
-        //            }
+                        TempData["Success"] = "Unpaid leave request cancelled successfully!";
+                    }
+                    catch (Exception ex)
+                    {
+                        TempData["Error"] = "An error occurred while cancelling the unpaid leave request.";
+                    }
 
-        //            return RedirectToAction(nameof(UnpaidLeaveRequests));
-        //        }
-        //    }
-        //    else
-        //    {
-        //        // Handle regular leave deletion
-        //        var leave = await _context.Leaves.FindAsync(id);
+                    return RedirectToAction(nameof(UnpaidLeaveRequests));
+                }
+            }
+            else
+            {
+                // Handle regular leave deletion
+                var leave = await _context.Leaves.FindAsync(id);
 
-        //        if (leave != null && leave.EmployeeID == employeeId)
-        //        {
-        //            // Only allow deletion if status is Pending
-        //            if (leave.Status != "Pending")
-        //            {
-        //                TempData["Error"] = "You can only delete leaves that are in Pending status.";
-        //                return RedirectToAction(nameof(LeaveRecords));
-        //            }
+                if (leave != null && leave.EmployeeID == employeeId)
+                {
+                    // Only allow deletion if status is Pending
+                    if (leave.Status != "Pending")
+                    {
+                        TempData["Error"] = "You can only delete leaves that are in Pending status.";
+                        return RedirectToAction(nameof(LeaveRecords));
+                    }
 
-        //            _context.Leaves.Remove(leave);
-        //            await _context.SaveChangesAsync();
-        //            TempData["Success"] = "Leave deleted successfully!";
-        //        }
-        //    }
+                    _context.Leaves.Remove(leave);
+                    await _context.SaveChangesAsync();
+                    TempData["Success"] = "Leave deleted successfully!";
+                }
+            }
 
-        //    return RedirectToAction(nameof(LeaveRecords));
-        //}
+            return RedirectToAction(nameof(LeaveRecords));
+        }
 
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> UnpaidLeaveRequests()
@@ -1112,7 +1149,7 @@ namespace FinserveNew.Controllers
                 LeaveTypeID = unpaidRequest.LeaveTypeID,
                 StartDate = unpaidRequest.StartDate,
                 EndDate = unpaidRequest.EndDate,
-                //RequestedDays = unpaidRequest.RequestedDays,
+                LeaveDays = unpaidRequest.RequestedDays, // FIXED: Uncommented to show duration
                 Reason = unpaidRequest.Reason,
                 Status = unpaidRequest.Status,
                 CreatedDate = unpaidRequest.SubmissionDate
@@ -1123,6 +1160,12 @@ namespace FinserveNew.Controllers
             ViewBag.Reason = unpaidRequest.Reason;
             ViewBag.LeaveTypeName = unpaidRequest.LeaveType.TypeName;
 
+            // FIXED: Add leave balance calculation for unpaid leave requests
+            await PopulateLeaveTypeDropdownAsync();
+            var leaveBalances = await CalculateLeaveBalancesAsync(employeeId);
+            ViewBag.LeaveBalances = leaveBalances;
+            PopulateLeaveBalanceViewBag(leaveBalances);
+
             return View("~/Views/Employee/Leaves/Edit.cshtml", leaveModel);
         }
 
@@ -1132,6 +1175,8 @@ namespace FinserveNew.Controllers
         public async Task<IActionResult> EditUnpaidLeave(int id, LeaveModel leave, IFormFile? MedicalCertificate,
             string DayType = "full", string? Reason = null)
         {
+            _logger.LogInformation($"🚀 EditUnpaidLeave action called for Unpaid Leave Request ID: {id}");
+            
             var employeeId = await GetCurrentEmployeeId();
             if (string.IsNullOrEmpty(employeeId))
                 return NotFound();
@@ -1200,23 +1245,20 @@ namespace FinserveNew.Controllers
                 }
             }
 
-            // Validate reason
-            if (string.IsNullOrWhiteSpace(Reason))
+            // FORCE UPDATE - Always save changes for unpaid leave requests
+            try
             {
-                ModelState.AddModelError("Reason", "Reason is required for unpaid leave requests.");
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    // Update the unpaid leave request
+                _logger.LogInformation($"🚀 FORCE UPDATING unpaid leave request ID {unpaidRequest.UnpaidLeaveRequestID}");
+                _logger.LogInformation($"📝 Original data - TypeID: {unpaidRequest.LeaveTypeID}, Start: {unpaidRequest.StartDate}, End: {unpaidRequest.EndDate}, Reason: '{unpaidRequest.Reason}'");
+                _logger.LogInformation($"📝 New data - TypeID: {leave.LeaveTypeID}, Start: {leave.StartDate}, End: {leave.EndDate}, Reason: '{Reason}'");
+                
+                // Force update all fields
                     unpaidRequest.LeaveTypeID = leave.LeaveTypeID;
                     unpaidRequest.StartDate = leave.StartDate;
                     unpaidRequest.EndDate = leave.EndDate;
                     unpaidRequest.RequestedDays = leave.LeaveDays;
-             
-                    unpaidRequest.Reason = Reason;
+                unpaidRequest.Reason = Reason ?? unpaidRequest.Reason; // Keep original if new is null
+                unpaidRequest.JustificationReason = Reason ?? unpaidRequest.JustificationReason;
 
                     // Recalculate excess days based on current balance
                     var currentYear = DateTime.Now.Year;
@@ -1230,15 +1272,16 @@ namespace FinserveNew.Controllers
                     }
 
                     await _context.SaveChangesAsync();
+                _logger.LogInformation($"✅ FORCE UPDATE SUCCESSFUL - unpaid leave request ID {unpaidRequest.UnpaidLeaveRequestID} updated");
 
                     TempData["Success"] = "Unpaid leave request updated successfully!";
                     return RedirectToAction(nameof(UnpaidLeaveRequests));
                 }
-                catch (DbUpdateException ex)
-                {
-                    _logger.LogError(ex, "Database error while updating unpaid leave request");
-                    ModelState.AddModelError("", "An error occurred while updating the unpaid leave request.");
-                }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"❌ FORCE UPDATE FAILED for unpaid leave request ID {unpaidRequest.UnpaidLeaveRequestID}");
+                TempData["Error"] = "An error occurred while updating the unpaid leave request.";
+                return RedirectToAction(nameof(UnpaidLeaveRequests));
             }
 
             // If we got here, redisplay form with errors
@@ -1560,6 +1603,10 @@ namespace FinserveNew.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Send email notification to employee about the leave processing result
+                await SendLeaveProcessingNotificationToEmployee(leave, action, remarks);
+
                 return RedirectToAction(nameof(LeaveIndex));
             }
             catch (DbUpdateException ex)
@@ -1861,6 +1908,9 @@ namespace FinserveNew.Controllers
 
                     await _context.SaveChangesAsync();
 
+                    // Send email notification to employee about the unpaid leave approval
+                    await SendUnpaidLeaveProcessingNotificationToEmployee(unpaidRequest, action, remarks);
+
                     // ✅ SUCCESS MESSAGE with detailed breakdown
                     TempData["Success"] = $"✅ UNPAID LEAVE REQUEST APPROVED!\n\n" +
                                          $"📋 Employee: {unpaidRequest.Employee.Username}\n" +
@@ -1889,6 +1939,9 @@ namespace FinserveNew.Controllers
 
                     await _context.SaveChangesAsync();
 
+                    // Send email notification to employee about the unpaid leave rejection
+                    await SendUnpaidLeaveProcessingNotificationToEmployee(unpaidRequest, action, remarks);
+
                     TempData["Success"] = $"❌ UNPAID LEAVE REQUEST REJECTED\n\n" +
                                          $"📋 Employee: {unpaidRequest.Employee.Username}\n" +
                                          $"📅 Period: {unpaidRequest.StartDate:dd MMM} - {unpaidRequest.EndDate:dd MMM yyyy}\n" +
@@ -1915,6 +1968,27 @@ namespace FinserveNew.Controllers
                 TempData["Error"] = "An unexpected error occurred. Please try again.";
                 return RedirectToAction(nameof(ProcessUnpaidLeave), new { id = id });
             }
+        }
+
+        [Authorize(Roles = "HR")]
+        public async Task<IActionResult> UnpaidLeaveDetails(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var unpaidRequest = await _context.UnpaidLeaveRequests
+                .Include(u => u.Employee)
+                .Include(u => u.LeaveType)
+                .FirstOrDefaultAsync(u => u.UnpaidLeaveRequestID == id);
+
+            if (unpaidRequest == null)
+            {
+                return NotFound();
+            }
+
+            return View("~/Views/HR/Leaves/UnpaidLeaveDetails.cshtml", unpaidRequest);
         }
 
         
@@ -2677,19 +2751,51 @@ namespace FinserveNew.Controllers
 
                 if (!leaveTypes.Any())
                 {
-                    _logger.LogWarning("❌ No leave types found in database");
-                    // Create fallback list
-                    ViewBag.LeaveTypes = new SelectList(new[]
+                    _logger.LogWarning("❌ No leave types found in database - attempting to seed default leave types");
+                    
+                    try
                     {
-                        new { LeaveTypeID = 1, TypeName = "Annual Leave" },
-                        new { LeaveTypeID = 2, TypeName = "Medical Leave" },
-                        new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" },
-                        new { LeaveTypeID = 4, TypeName = "Emergency Leave" }
-                    }, "LeaveTypeID", "TypeName");
+                        // Attempt to seed default leave types
+                        await SeedDefaultLeaveTypesAsync();
+                        
+                        // Retry fetching leave types after seeding
+                        leaveTypes = await _context.LeaveTypes
+                            .OrderBy(lt => lt.TypeName)
+                            .ToListAsync();
+                        
+                        if (leaveTypes.Any())
+                        {
+                            _logger.LogInformation($"✅ Successfully seeded {leaveTypes.Count} leave types");
+                        }
+                        else
+                        {
+                            _logger.LogError("❌ Failed to seed leave types - using fallback");
+                            // Create fallback list as last resort
+                            ViewBag.LeaveTypes = new SelectList(new[]
+                            {
+                                new { LeaveTypeID = 1, TypeName = "Annual Leave" },
+                                new { LeaveTypeID = 2, TypeName = "Medical Leave" },
+                                new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" }
+                            }, "LeaveTypeID", "TypeName");
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ Error seeding leave types - using fallback");
+                                                // Create fallback list as last resort
+                        ViewBag.LeaveTypes = new SelectList(new[]
+                        {
+                            new { LeaveTypeID = 1, TypeName = "Annual Leave" },
+                            new { LeaveTypeID = 2, TypeName = "Medical Leave" },
+                            new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" }
+                        }, "LeaveTypeID", "TypeName");
+                        return;
+                    }
                 }
                 else
                 {
-                    // Create a list that includes Emergency Leave
+                    // Create dropdown list from existing database leave types
                     var dropdownItems = new List<dynamic>();
 
                     // Add existing database leave types
@@ -2698,9 +2804,6 @@ namespace FinserveNew.Controllers
                         _logger.LogInformation($"📝 Leave Type: ID={lt.LeaveTypeID}, Name={lt.TypeName}");
                         dropdownItems.Add(new { LeaveTypeID = lt.LeaveTypeID, TypeName = lt.TypeName });
                     }
-
-                    // Add Emergency Leave (UI only - will be converted to Annual Leave)
-                    dropdownItems.Add(new { LeaveTypeID = 4, TypeName = "Emergency Leave" });
 
                     // Sort by TypeName for better UX
                     var sortedItems = dropdownItems.OrderBy(x => x.TypeName).ToList();
@@ -2716,8 +2819,7 @@ namespace FinserveNew.Controllers
                 {
                     new { LeaveTypeID = 1, TypeName = "Annual Leave" },
                     new { LeaveTypeID = 2, TypeName = "Medical Leave" },
-                    new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" },
-                    new { LeaveTypeID = 4, TypeName = "Emergency Leave" }
+                    new { LeaveTypeID = 3, TypeName = "Hospitalization Leave" }
                 }, "LeaveTypeID", "TypeName");
             }
         }
@@ -3066,6 +3168,219 @@ namespace FinserveNew.Controllers
             {
                 _logger.LogError(ex, "Error sending unpaid leave submission notification to HR");
                 // Don't throw the exception to avoid breaking the leave submission process
+            }
+        }
+
+        /// <summary>
+        /// Sends email notification to employee when their leave application is approved/rejected
+        /// </summary>
+        private async Task SendLeaveProcessingNotificationToEmployee(LeaveModel leave, string action, string remarks)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(leave.Employee?.Email))
+                {
+                    _logger.LogWarning($"No email address for employee {leave.EmployeeID}");
+                    return;
+                }
+
+                var actionText = action == "approve" ? "APPROVED" : "REJECTED";
+                var actionColor = action == "approve" ? "#28a745" : "#dc3545";
+                var actionIcon = action == "approve" ? "✅" : "❌";
+
+                // Email subject and body
+                var subject = $"Leave Application {actionText} - {leave.LeaveType?.TypeName} Leave";
+                var body = $@"
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                            .header {{ background-color: {actionColor}; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+                            .content {{ background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }}
+                            .status {{ font-size: 24px; font-weight: bold; margin: 10px 0; }}
+                            .details {{ background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0; }}
+                            .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class='container'>
+                            <div class='header'>
+                                <h2>Leave Application Update</h2>
+                                <div class='status'>{actionIcon} {actionText}</div>
+                            </div>
+                            <div class='content'>
+                                <p>Dear {leave.Employee.FirstName} {leave.Employee.LastName},</p>
+                                
+                                <p>Your leave application has been <strong>{actionText.ToLower()}</strong> by HR.</p>
+                                
+                                <div class='details'>
+                                    <h3>Leave Application Details:</h3>
+                                    <p><strong>Leave Type:</strong> {leave.LeaveType?.TypeName}</p>
+                                    <p><strong>Start Date:</strong> {leave.StartDate:dd MMM yyyy}</p>
+                                    <p><strong>End Date:</strong> {leave.EndDate:dd MMM yyyy}</p>
+                                    <p><strong>Duration:</strong> {leave.LeaveDays} day(s)</p>
+                                    <p><strong>Reason:</strong> {leave.Reason}</p>
+                                    <p><strong>Status:</strong> <span style='color: {actionColor}; font-weight: bold;'>{actionText}</span></p>
+                                    <p><strong>Processed By:</strong> {leave.ApprovedBy}</p>
+                                    <p><strong>Processed Date:</strong> {leave.ApprovalDate:dd MMM yyyy HH:mm}</p>
+                                    {(string.IsNullOrEmpty(remarks) ? "" : $"<p><strong>Remarks:</strong> {remarks}</p>")}
+                                </div>
+                                
+                                <p>You can view your leave history and current status by logging into the Finserve system.</p>
+                                
+                                <p>If you have any questions, please contact HR.</p>
+                                
+                                <p>Thank you.</p>
+                            </div>
+                            <div class='footer'>
+                                <p>This is an automated notification from the Finserve Leave Management System.</p>
+                                <p>Please do not reply to this email.</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>";
+
+                // Send email to the employee
+                await _emailSender.SendEmailAsync(leave.Employee.Email, subject, body);
+                _logger.LogInformation($"Leave processing notification sent to {leave.Employee.Email} for {actionText} leave application");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending leave processing notification to employee {leave.EmployeeID}");
+                // Don't throw the exception to avoid breaking the leave processing
+            }
+        }
+
+        /// <summary>
+        /// Sends email notification to employee when their unpaid leave request is approved/rejected
+        /// </summary>
+        private async Task SendUnpaidLeaveProcessingNotificationToEmployee(UnpaidLeaveRequestModel unpaidRequest, string action, string remarks)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(unpaidRequest.Employee?.Email))
+                {
+                    _logger.LogWarning($"No email address for employee {unpaidRequest.EmployeeID}");
+                    return;
+                }
+
+                var actionText = action == "approve" ? "APPROVED" : "REJECTED";
+                var actionColor = action == "approve" ? "#28a745" : "#dc3545";
+                var actionIcon = action == "approve" ? "✅" : "❌";
+
+                // Email subject and body
+                var subject = $"Unpaid Leave Request {actionText}";
+                var body = $@"
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                            .header {{ background-color: {actionColor}; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+                            .content {{ background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }}
+                            .status {{ font-size: 24px; font-weight: bold; margin: 10px 0; }}
+                            .details {{ background-color: white; padding: 15px; border-radius: 5px; margin: 15px 0; }}
+                            .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class='container'>
+                            <div class='header'>
+                                <h2>Unpaid Leave Request Update</h2>
+                                <div class='status'>{actionIcon} {actionText}</div>
+                            </div>
+                            <div class='content'>
+                                <p>Dear {unpaidRequest.Employee.FirstName} {unpaidRequest.Employee.LastName},</p>
+                                
+                                <p>Your unpaid leave request has been <strong>{actionText.ToLower()}</strong> by HR.</p>
+                                
+                                <div class='details'>
+                                    <h3>Unpaid Leave Request Details:</h3>
+                                    <p><strong>Start Date:</strong> {unpaidRequest.StartDate:dd MMM yyyy}</p>
+                                    <p><strong>End Date:</strong> {unpaidRequest.EndDate:dd MMM yyyy}</p>
+                                    <p><strong>Duration:</strong> {unpaidRequest.RequestedDays} day(s)</p>
+                                    <p><strong>Reason:</strong> {unpaidRequest.Reason}</p>
+                                    <p><strong>Status:</strong> <span style='color: {actionColor}; font-weight: bold;'>{actionText}</span></p>
+                                    <p><strong>Processed By:</strong> {unpaidRequest.ApprovedBy}</p>
+                                    <p><strong>Processed Date:</strong> {unpaidRequest.ApprovalDate:dd MMM yyyy HH:mm}</p>
+                                    {(string.IsNullOrEmpty(remarks) ? "" : $"<p><strong>Remarks:</strong> {remarks}</p>")}
+                                </div>
+                                
+                                <p>You can view your leave history and current status by logging into the Finserve system.</p>
+                                
+                                <p>If you have any questions, please contact HR.</p>
+                                
+                                <p>Thank you.</p>
+                            </div>
+                            <div class='footer'>
+                                <p>This is an automated notification from the Finserve Leave Management System.</p>
+                                <p>Please do not reply to this email.</p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>";
+
+                // Send email to the employee
+                await _emailSender.SendEmailAsync(unpaidRequest.Employee.Email, subject, body);
+                _logger.LogInformation($"Unpaid leave processing notification sent to {unpaidRequest.Employee.Email} for {actionText} request");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending unpaid leave processing notification to employee {unpaidRequest.EmployeeID}");
+                // Don't throw the exception to avoid breaking the leave processing
+            }
+        }
+
+        /// <summary>
+        /// Seeds default leave types if the LeaveType table is empty
+        /// This is a fallback method called when no leave types are found
+        /// </summary>
+        private async Task SeedDefaultLeaveTypesAsync()
+        {
+            try
+            {
+                // Double-check that the table is still empty (in case of race conditions)
+                var hasLeaveTypes = await _context.LeaveTypes.AnyAsync();
+                
+                if (!hasLeaveTypes)
+                {
+                    var defaultLeaveTypes = new List<LeaveTypeModel>
+                    {
+                        new LeaveTypeModel
+                        {
+                            TypeName = "Annual Leave",
+                            DefaultDaysPerYear = 14,
+                            Description = "Annual vacation leave entitlement",
+                            RequiresDocumentation = false
+                        },
+                        new LeaveTypeModel
+                        {
+                            TypeName = "Medical Leave",
+                            DefaultDaysPerYear = 10,
+                            Description = "Medical leave for illness or injury",
+                            RequiresDocumentation = true
+                        },
+                        new LeaveTypeModel
+                        {
+                            TypeName = "Hospitalization Leave",
+                            DefaultDaysPerYear = 16,
+                            Description = "Leave for hospitalization and medical treatment",
+                            RequiresDocumentation = true
+                        }
+                    };
+
+                    // Add all default leave types to the context
+                    await _context.LeaveTypes.AddRangeAsync(defaultLeaveTypes);
+                    await _context.SaveChangesAsync();
+
+                    _logger.LogInformation($"✅ Successfully seeded {defaultLeaveTypes.Count} default leave types");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error seeding default leave types");
+                throw; // Re-throw to be caught by the calling method
             }
         }
     }

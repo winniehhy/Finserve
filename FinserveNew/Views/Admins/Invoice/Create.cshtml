@@ -170,22 +170,9 @@
                     </div>
                 </div>
 
-                <!-- File Upload and Remarks -->
+                <!-- Additional Notes -->
                 <div class="row mt-4">
-                    <div class="col-md-6">
-                        <h5 class="mb-3 text-primary">
-                            <i class="fas fa-paperclip me-2"></i>
-                            Attachment
-                        </h5>
-
-                        <div class="mb-3">
-                            <label for="invoiceFile" class="form-label">Upload Invoice File (Optional)</label>
-                            <input type="file" name="invoiceFile" id="invoiceFile" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
-                            <small class="text-muted">Accepted formats: PDF, DOC, DOCX, JPG, JPEG, PNG (Max 5MB)</small>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <h5 class="mb-3 text-primary">
                             <i class="fas fa-comment me-2"></i>
                             Additional Notes
@@ -256,6 +243,7 @@
 
     <script>
         let currentPDF = null;
+        let currentPdfUrl = null; // Store blob URL for cleanup
         let itemIndex = @(Model.InvoiceItems?.Count ?? 1);
 
         // Auto-calculate due date when issue date changes (30 days later)
@@ -268,14 +256,7 @@
             }
         });
 
-        // File size validation
-        document.getElementById('invoiceFile').addEventListener('change', function() {
-            var file = this.files[0];
-            if (file && file.size > 5 * 1024 * 1024) {
-                alert('File size must be less than 5MB');
-                this.value = '';
-            }
-        });
+
 
         // Update currency symbol when currency changes
         document.querySelector('select[name="Currency"]').addEventListener('change', function() {
@@ -403,82 +384,146 @@
 
         // Preview and download functions
         async function previewInvoice() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            // Get form data
-            const clientName = document.querySelector('input[name="ClientName"]').value || 'Client Name';
-            const clientCompany = document.querySelector('input[name="ClientCompany"]').value || '';
-            const clientEmail = document.querySelector('input[name="ClientEmail"]').value || '';
-            const issueDate = document.querySelector('input[name="IssueDate"]').value || '';
-            const dueDate = document.querySelector('input[name="DueDate"]').value || '';
-            const totalAmount = document.querySelector('input[name="TotalAmount"]').value || '0.00';
-            const currency = document.querySelector('select[name="Currency"]').value || 'MYR';
-            const remark = document.querySelector('textarea[name="Remark"]').value || '';
-
-            // Get invoice items
-            const items = [];
-            const itemRows = document.querySelectorAll('.invoice-item');
-            itemRows.forEach(row => {
-                const description = row.querySelector('.item-description').value;
-                const quantity = row.querySelector('.item-quantity').value;
-                const price = row.querySelector('.item-price').value;
-                const amount = row.querySelector('.item-amount').value;
-
-                if (description && quantity && price) {
-                    items.push({ description, quantity, price, amount });
-                }
-            });
-
-            // Generate PDF
-            generateInvoicePDF(doc, {
-                clientName,
-                clientCompany,
-                clientEmail,
-                issueDate,
-                dueDate,
-                totalAmount,
-                currency,
-                remark,
-                items
-            });
-
-            currentPDF = doc;
-
-            const pdfOutput = doc.output('datauristring');
-            document.getElementById('pdfPreview').innerHTML =
-                `<iframe src="${pdfOutput}" width="100%" height="100%" style="border: none;"></iframe>`;
-
-            // Upload the PDF to the server so it can be emailed later (ensure valid base64)
             try {
-                const idInput = document.querySelector('input[name="InvoiceID"], input[name="InvoiceId"], input[name="Invoice.InvoiceID"]');
-                const invoiceId = idInput ? idInput.value : null;
-                if (invoiceId) {
-                    const raw = currentPDF.output('datauristring'); // regenerate to be safe
-                    const fd = new FormData();
-                    fd.append('id', invoiceId);
-                    fd.append('pdfBase64', raw);
-                    const token = document.querySelector('input[name="__RequestVerificationToken"]');
-                    if (token) fd.append('__RequestVerificationToken', token.value);
-                    const res = await fetch('@Url.Action("UploadInvoicePdf","Invoice")', { method: 'POST', body: fd });
-                    console.log('PDF upload result', await res.json());
-                }
-            } catch (e) { console.warn('PDF upload skipped:', e); }
+                console.log('🔍 Starting invoice preview generation...');
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
 
-            const modal = new bootstrap.Modal(document.getElementById('previewModal'));
-            modal.show();
+                // Get form data
+                const clientName = document.querySelector('input[name="ClientName"]').value || 'Client Name';
+                const clientCompany = document.querySelector('input[name="ClientCompany"]').value || '';
+                const clientEmail = document.querySelector('input[name="ClientEmail"]').value || '';
+                const issueDate = document.querySelector('input[name="IssueDate"]').value || '';
+                const dueDate = document.querySelector('input[name="DueDate"]').value || '';
+                const totalAmount = document.querySelector('input[name="TotalAmount"]').value || '0.00';
+                const currency = document.querySelector('select[name="Currency"]').value || 'MYR';
+                const remark = document.querySelector('textarea[name="Remark"]').value || '';
+
+                console.log('📋 Form data collected:', { clientName, clientCompany, totalAmount, currency });
+
+                // Get invoice items
+                const items = [];
+                const itemRows = document.querySelectorAll('.invoice-item');
+                itemRows.forEach(row => {
+                    const description = row.querySelector('.item-description').value;
+                    const quantity = row.querySelector('.item-quantity').value;
+                    const price = row.querySelector('.item-price').value;
+                    const amount = row.querySelector('.item-amount').value;
+
+                    if (description && quantity && price) {
+                        items.push({ description, quantity, price, amount });
+                    }
+                });
+
+                console.log('📦 Invoice items:', items);
+
+                // Generate PDF (no attachment handling)
+                console.log('📄 Generating PDF...');
+                await generateInvoicePDF(doc, {
+                    clientName,
+                    clientCompany,
+                    clientEmail,
+                    issueDate,
+                    dueDate,
+                    totalAmount,
+                    currency,
+                    remark,
+                    items
+                });
+
+                console.log('✅ PDF generated successfully');
+
+                currentPDF = doc;
+
+                // Display PDF preview using blob URL
+                const pdfBlob = doc.output('blob');
+                
+                // Clean up previous blob URL if it exists
+                if (currentPdfUrl) {
+                    URL.revokeObjectURL(currentPdfUrl);
+                }
+                
+                const pdfUrl = URL.createObjectURL(pdfBlob);
+                currentPdfUrl = pdfUrl; // Store for cleanup
+                
+                console.log('📄 PDF generated, attempting to display preview...');
+                console.log('📊 PDF blob size:', pdfBlob.size);
+
+                // Try iframe with blob URL (most reliable)
+                try {
+                    document.getElementById('pdfPreview').innerHTML = 
+                        `<iframe src="${pdfUrl}" width="100%" height="100%" style="border: none;" type="application/pdf"></iframe>`;
+                    console.log('✅ PDF preview displayed using blob URL');
+                } catch (iframeError) {
+                    console.warn('⚠️ Iframe method failed, trying alternative:', iframeError);
+                    
+                    // Fallback with download link
+                    document.getElementById('pdfPreview').innerHTML = 
+                        `<div style="text-align: center; padding: 50px; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;">
+                            <i class="fas fa-file-pdf fa-3x text-danger mb-3"></i>
+                            <h5>PDF Preview Not Available</h5>
+                            <p class="text-muted mb-3">Your browser doesn't support PDF preview in this format.</p>
+                            <a href="${pdfUrl}" target="_blank" class="btn btn-primary">
+                                <i class="fas fa-external-link-alt me-2"></i>Open PDF in New Tab
+                            </a>
+                            <button onclick="downloadPDF()" class="btn btn-success ms-2">
+                                <i class="fas fa-download me-2"></i>Download PDF
+                            </button>
+                        </div>`;
+                    console.log('✅ Fallback preview displayed');
+                }
+
+                console.log('🖼️ PDF preview setup completed');
+
+                // Upload the PDF to the server so it can be emailed later (ensure valid base64)
+                try {
+                    const idInput = document.querySelector('input[name="InvoiceID"], input[name="InvoiceId"], input[name="Invoice.InvoiceID"]');
+                    const invoiceId = idInput ? idInput.value : null;
+                    if (invoiceId) {
+                        const raw = currentPDF.output('datauristring'); // regenerate to be safe
+                        const fd = new FormData();
+                        fd.append('id', invoiceId);
+                        fd.append('pdfBase64', raw);
+                        const token = document.querySelector('input[name="__RequestVerificationToken"]');
+                        if (token) fd.append('__RequestVerificationToken', token.value);
+                        const res = await fetch('@Url.Action("UploadInvoicePdf","Invoice")', { method: 'POST', body: fd });
+                        console.log('PDF upload result', await res.json());
+                    }
+                } catch (e) { console.warn('PDF upload skipped:', e); }
+
+                // Set modal title
+                const modalTitle = document.getElementById('previewModalLabel');
+                modalTitle.textContent = 'Invoice Preview';
+
+                const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+                modal.show();
+                
+                console.log('🎉 Preview modal opened successfully');
+                
+            } catch (error) {
+                console.error('❌ Error in previewInvoice:', error);
+                alert('Error generating PDF preview: ' + error.message);
+            }
         }
 
-        function generateInvoicePDF(doc, data) {
-            const currencySymbol = data.currency === 'MYR' ? 'RM' : '$';
 
-            // Header
-            doc.setFontSize(24);
-            doc.setFont(undefined, 'bold');
-            doc.text('Finserve', 20, 30);
 
-            doc.setFontSize(20);
-            doc.text('Invoice', 150, 30);
+        async function generateInvoicePDF(doc, data) {
+            try {
+                console.log('📄 Starting PDF generation with data:', data);
+                
+                const currencySymbol = data.currency === 'MYR' ? 'RM' : '$';
+
+                // Header
+                doc.setFontSize(24);
+                doc.setFont(undefined, 'bold');
+                doc.text('Finserve', 20, 30);
+
+                doc.setFontSize(20);
+                doc.text('Invoice', 150, 30);
+                
+                console.log('✅ Header added to PDF');
 
             // Invoice details (top right)
             doc.setFontSize(10);
@@ -580,7 +625,25 @@
             doc.setFont(undefined, 'italic');
             doc.text('Thank you for your business!', 20, currentY);
             doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 150, currentY);
+
+            console.log('🎉 PDF generation completed successfully');
+            
+            } catch (error) {
+                console.error('❌ Error in generateInvoicePDF:', error);
+                // Add error page to PDF
+                doc.addPage();
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('Error Generating PDF', 20, 30);
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text('An error occurred while generating the PDF:', 20, 50);
+                doc.text(error.message, 20, 65);
+                throw error; // Re-throw to be caught by previewInvoice
+            }
         }
+
+
 
         function downloadPDF() {
             if (currentPDF) {

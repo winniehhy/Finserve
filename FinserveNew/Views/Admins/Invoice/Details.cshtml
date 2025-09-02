@@ -262,6 +262,14 @@
                         </button>
                     </form>
                         }
+                    @if (Model.CanResend)
+                        {
+                    <form asp-action="ResendToClient" asp-route-id="@Model.InvoiceID" method="post" class="mb-2">
+                        <button type="submit" class="btn btn-info btn-sm w-100" onclick="return confirm('Resend this invoice to client with updated content?')">
+                            <i class="fas fa-paper-plane me-1"></i>Resend to Client
+                        </button>
+                    </form>
+                        }
                     @if (Model.CanMarkPaid)
                         {
                     <form asp-action="MarkAsPaid" asp-route-id="@Model.InvoiceID" method="post" class="mb-2">
@@ -358,7 +366,7 @@
             const doc = new jsPDF();
 
             // Generate PDF with current invoice data
-            generateInvoicePDF(doc, {
+            await generateInvoicePDF(doc, {
                 invoiceNumber: '@Model.InvoiceNumber',
                 clientName: '@Html.Raw(Html.Encode(Model.ClientName))',
                 clientCompany: '@Html.Raw(Html.Encode(Model.ClientCompany ?? ""))',
@@ -374,7 +382,9 @@
                     quantity = item.Quantity,
                     price = item.UnitPrice.ToString("F2"),
                     amount = item.LineTotal.ToString("F2")
-                }).ToList()))
+                }).ToList())),
+                hasAttachment: @(string.IsNullOrEmpty(Model.FilePath) ? "false" : "true"),
+                attachmentPath: '@Html.Raw(Html.Encode(Model.FilePath ?? ""))'
             });
 
             currentPDF = doc;
@@ -410,7 +420,7 @@
             }
         }
 
-        function generateInvoicePDF(doc, data) {
+        async function generateInvoicePDF(doc, data) {
             const currencySymbol = data.currency === 'MYR' ? 'RM' : data.currency === 'USD' ? '$' : data.currency;
 
             // Header
@@ -535,6 +545,42 @@
             doc.setFont(undefined, 'italic');
             doc.text('Thank you for your business!', 20, pageHeight - 20);
             doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 150, pageHeight - 20);
+
+            // Handle attachment if present
+            if (data.hasAttachment && data.attachmentPath) {
+                await addAttachmentInfoToPDF(doc, data.attachmentPath);
+            }
+        }
+
+        // Function to add attachment information to PDF
+        async function addAttachmentInfoToPDF(doc, attachmentPath) {
+            try {
+                // Add new page for attachment info
+                doc.addPage();
+                
+                // Header for attachment page
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('Attachment Information', 20, 30);
+                
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text(`File: ${attachmentPath.split('/').pop()}`, 20, 45);
+                doc.text(`Path: ${attachmentPath}`, 20, 55);
+                doc.text(`Note: This attachment is included with the invoice`, 20, 75);
+                doc.text(`and will be sent to the client via email.`, 20, 85);
+                
+                // Add note about attachment
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'italic');
+                doc.text('Note: The actual attachment file will be included when the invoice is sent to the client.', 20, 120);
+                
+            } catch (error) {
+                console.error('Error adding attachment info to PDF:', error);
+                // Add error message to PDF
+                doc.setFontSize(12);
+                doc.text('Error: Could not process attachment information.', 20, 80);
+            }
         }
     </script>
 }

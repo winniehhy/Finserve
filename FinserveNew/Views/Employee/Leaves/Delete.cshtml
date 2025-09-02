@@ -1,17 +1,17 @@
-﻿@model dynamic
+﻿@model FinserveNew.Models.LeaveModel
 
 @{
     ViewData["Title"] = "Cancel Leave Application";
-    var isUnpaidLeave = Model.GetType().Name == "UnpaidLeaveRequestModel";
-    var leaveId = isUnpaidLeave ? Model.UnpaidLeaveRequestID : Model.LeaveID;
-    var leaveType = isUnpaidLeave ? Model.LeaveType?.TypeName : Model.LeaveType?.TypeName;
-    var employee = isUnpaidLeave ? Model.Employee?.Username : Model.Employee?.Username;
-    var status = isUnpaidLeave ? Model.Status : Model.Status;
-    var startDate = isUnpaidLeave ? Model.StartDate : Model.StartDate;
-    var endDate = isUnpaidLeave ? Model.EndDate : Model.EndDate;
-    var reason = isUnpaidLeave ? Model.Reason : Model.Reason;
-    var approvedBy = isUnpaidLeave ? Model.ApprovedBy : Model.ApprovedBy;
-    var totalDays = isUnpaidLeave ? Model.RequestedDays : (Model.EndDate.DayNumber - Model.StartDate.DayNumber) + 1;
+    var isUnpaidLeave = ViewBag.IsUnpaidLeave == true;
+    var leaveId = Model.LeaveID; // For unpaid leaves, this is already negative; for regular leaves, it's positive
+    var leaveType = Model.LeaveType?.TypeName;
+    var employee = Model.Employee?.Username;
+    var status = Model.Status;
+    var startDate = Model.StartDate;
+    var endDate = Model.EndDate;
+    var reason = Model.Reason;
+    var approvedBy = Model.ApprovedBy;
+    var totalDays = isUnpaidLeave ? Model.LeaveDays : (Model.EndDate.DayNumber - Model.StartDate.DayNumber) + 1;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -174,7 +174,7 @@
                     </div>
                 }
 
-                <form asp-action="DeleteConfirmed" method="post" class="d-flex justify-content-end gap-2">
+                <form asp-action="Delete" method="post" class="d-flex justify-content-end gap-2">
                     <input type="hidden" name="id" value="@leaveId" />
 
                     @if (isUnpaidLeave)

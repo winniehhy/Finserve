@@ -206,10 +206,10 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="Reason" class="form-label">
+                                    <label for="UnpaidLeaveReason" class="form-label">
                                         Reason for Unpaid Leave <span class="text-danger">*</span>
                                     </label>
-                                    <textarea name="Reason" id="Reason"
+                                    <textarea name="UnpaidLeaveReason" id="UnpaidLeaveReason"
                                               class="form-control" rows="4"
                                               placeholder="Please provide a reason for why you need to take unpaid leave beyond your allocated balance. This will be reviewed by HR for approval."></textarea>
                                     <div class="form-text">
@@ -921,23 +921,15 @@
                 // Check reason field based on mode
                 let reasonText = '';
                 if (isUnpaidLeaveMode) {
-                                            // For unpaid leave, both Reason fields are required
-                        const mainReason = $('#Reason').val().trim();
-                        const unpaidReason = $('#Reason').val().trim();
-                        
-                        if (!mainReason) {
-                            alert('Please provide a reason for your leave application.');
-                            $('#Reason').focus();
-                            e.preventDefault();
-                            return false;
-                        }
-                        
-                        if (!unpaidReason) {
-                            alert('Please provide a reason for unpaid leave.');
-                            $('#Reason').focus();
-                            e.preventDefault();
-                            return false;
-                        }
+                    // For unpaid leave, only the unpaid leave reason field is required
+                    const unpaidReason = $('#UnpaidLeaveReason').val().trim();
+                    
+                    if (!unpaidReason) {
+                        alert('Please provide a reason for unpaid leave.');
+                        $('#UnpaidLeaveReason').focus();
+                        e.preventDefault();
+                        return false;
+                    }
 
                     if (!$('#confirmUnpaidLeave').is(':checked')) {
                         alert('Please confirm that you understand this will be an unpaid leave request.');

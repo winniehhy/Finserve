@@ -13,12 +13,9 @@
             <div class="col-md-4 text-end">
                 <div class="btn-group" role="group">
                     <a asp-action="LeaveIndex" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to All Leaves
+                        <i class="fas fa-money-bill-alt me-2"></i>All Leaves
                     </a>
-                    <a asp-action="PendingLeaves" class="btn btn-outline-warning">
-                        <i class="fas fa-clock me-2"></i>Pending Leaves
-                    </a>
-                    <a asp-action="EmployeeLeaveBalance" class="btn btn-outline-info">
+                    <a asp-action="EmployeeLeaveBalance" class="btn btn-outline-secondary">
                         <i class="fas fa-balance-scale me-2"></i>Employee Balance
                     </a>
                 </div>
@@ -79,12 +76,13 @@
                             <table class="table table-hover" id="unpaidLeaveTable">
                                 <thead>
                                     <tr>
-                                        <th>Request ID</th>
+                                        <th>Leave ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Leave Type</th>
-                                        <th>Period</th>
-                                        <th>Requested Days</th>
-                                        <th>Unpaid Days</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Duration</th>
                                         <th>Status</th>
                                         <th>Submission Date</th>
                                         <th>Actions</th>
@@ -95,83 +93,49 @@
                                     {
                                     <tr class="leave-row" data-status="@request.Status.ToLower()">
                                         <td>#LVE-@request.UnpaidLeaveRequestID.ToString("D3")</td>
-                                        <td>
-                                            <span class="badge bg-secondary">@request.EmployeeID</span>
-                                            <br />
-                                            <small class="text-muted">@request.Employee.Username</small>
-                                        </td>
+                                        <td><span class="badge bg-secondary">@request.EmployeeID</span></td>
+                                        <td>@(request.Employee != null ? ($"{request.Employee.FirstName} {request.Employee.LastName}") : "-")</td>
                                         <td><span class="badge bg-info">@request.LeaveType.TypeName</span></td>
+                                        <td>@request.StartDate.ToString("dd MMM yyyy")</td>
+                                        <td>@request.EndDate.ToString("dd MMM yyyy")</td>
                                         <td>
-                                            <strong>@request.StartDate.ToString("dd MMM")</strong> -
-                                            <strong>@request.EndDate.ToString("dd MMM yyyy")</strong>
-                                            <br />
-                                            <small class="text-muted">
-                                                @{
-                                                        var totalDays = (request.EndDate.DayNumber - request.StartDate.DayNumber) + 1;
-                                                }
-                                                (@totalDays day@(totalDays != 1 ? "s" : "") total)
-                                            </small>
-                                        </td>
-                                        <td><span class="badge bg-primary">@request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")</span></td>
-                                        <td><span class="badge bg-warning text-dark">@request.ExcessDays day@(request.ExcessDays != 1 ? "s" : "")</span></td>
-                                        <td>
-                                            @if (request.Status == "Pending")
-                                                {
-                                            <span class="badge bg-warning">@request.Status</span>
-                                                }
-                                                else if (request.Status == "Approved")
-                                                {
-                                            <span class="badge bg-success">@request.Status</span>
-                                                    if (request.ApprovalDate.HasValue)
-                                                    {
-                                            <br />
-                                            <small class="text-muted">@request.ApprovalDate.Value.ToString("dd MMM yyyy")</small>
-                                                    }
-                                                }
-                                                else
-                                                {
-                                            <span class="badge bg-danger">@request.Status</span>
-                                                    if (request.ApprovalDate.HasValue)
-                                                    {
-                                            <br />
-                                            <small class="text-muted">@request.ApprovalDate.Value.ToString("dd MMM yyyy")</small>
-                                                    }
-                                                }
-                                        </td>
-                                        <td>
-                                            @request.SubmissionDate.ToString("dd MMM yyyy")
-                                            <br />
-                                            <small class="text-muted">@request.SubmissionDate.ToString("HH:mm")</small>
+                                            <strong class="text-success">
+                                                @request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")
+                                            </strong>
                                         </td>
                                         <td>
                                             @if (request.Status == "Pending")
+                                            {
+                                                <span class="badge bg-warning">@request.Status</span>
+                                            }
+                                            else if (request.Status == "Approved")
+                                            {
+                                                <span class="badge bg-success">@request.Status</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">@request.Status</span>
+                                            }
+                                        </td>
+                                        <td>@request.SubmissionDate.ToString("dd MMM yyyy")</td>
+                                        <td>
+                                            <div class="btn-group">
+                                                @if (request.Status == "Pending")
                                                 {
-                                            <a asp-action="ProcessUnpaidLeave" asp-route-id="@request.UnpaidLeaveRequestID"
-                                               class="btn btn-sm btn-primary" title="Process Request">
-                                                <i class="fas fa-clipboard-check me-1"></i>Process
-                                            </a>
+                                                    <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewUnpaidLeave(@request.UnpaidLeaveRequestID)">
+                                                        <i class="fas fa-eye me-1"></i> View
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-primary" title="Process Leave" onclick="processUnpaidLeave(@request.UnpaidLeaveRequestID)">
+                                                        <i class="fas fa-edit me-1"></i> Process
+                                                    </button>
                                                 }
                                                 else
                                                 {
-                                            <button type="button" class="btn btn-sm btn-outline-info"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#detailsModal"
-                                                    data-request-id="@request.UnpaidLeaveRequestID"
-                                                    data-employee="@request.Employee.Username"
-                                                    data-leave-type="@request.LeaveType.TypeName"
-                                                    data-start="@request.StartDate.ToString("yyyy-MM-dd")"
-                                                    data-end="@request.EndDate.ToString("yyyy-MM-dd")"
-                                                    data-requested="@request.RequestedDays"
-                                                    data-unpaid="@request.ExcessDays"
-                                                    data-reason="@request.Reason"
-                                                    data-justification="@request.Reason"
-                                                    data-status="@request.Status"
-                                                    data-approval-date="@(request.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")"
-                                                    data-approval-remarks="@(request.ApprovalRemarks ?? "No remarks")"
-                                                    title="View Details">
-                                                <i class="fas fa-eye me-1"></i>Details
-                                            </button>
+                                                    <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewUnpaidLeave(@request.UnpaidLeaveRequestID)">
+                                                        <i class="fas fa-eye me-1"></i> View
+                                                    </button>
                                                 }
+                                            </div>
                                         </td>
                                     </tr>
                                     }
@@ -195,12 +159,13 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Request ID</th>
+                                        <th>Leave ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Leave Type</th>
-                                        <th>Period</th>
-                                        <th>Requested Days</th>
-                                        <th>Unpaid Days</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Duration</th>
                                         <th>Status</th>
                                         <th>Submission Date</th>
                                         <th>Actions</th>
@@ -210,26 +175,28 @@
                                     @foreach (var request in Model.Where(u => u.Status == "Pending").OrderByDescending(u => u.SubmissionDate))
                                     {
                                     <tr>
-                                        <td><strong>#LVE-@request.UnpaidLeaveRequestID.ToString("D3")</strong></td>
-                                        <td>
-                                            <span class="badge bg-secondary">@request.EmployeeID</span>
-                                            <br />
-                                            <small class="text-muted">@request.Employee.Username</small>
-                                        </td>
+                                        <td>#LVE-@request.UnpaidLeaveRequestID.ToString("D3")</td>
+                                        <td><span class="badge bg-secondary">@request.EmployeeID</span></td>
+                                        <td>@(request.Employee != null ? ($"{request.Employee.FirstName} {request.Employee.LastName}") : "-")</td>
                                         <td><span class="badge bg-info">@request.LeaveType.TypeName</span></td>
+                                        <td>@request.StartDate.ToString("dd MMM yyyy")</td>
+                                        <td>@request.EndDate.ToString("dd MMM yyyy")</td>
                                         <td>
-                                            <strong>@request.StartDate.ToString("dd MMM")</strong> -
-                                            <strong>@request.EndDate.ToString("dd MMM yyyy")</strong>
+                                            <strong class="text-success">
+                                                @request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")
+                                            </strong>
                                         </td>
-                                        <td><span class="badge bg-primary">@request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")</span></td>
-                                        <td><span class="badge bg-warning text-dark">@request.ExcessDays day@(request.ExcessDays != 1 ? "s" : "")</span></td>
                                         <td><span class="badge bg-warning">@request.Status</span></td>
                                         <td>@request.SubmissionDate.ToString("dd MMM yyyy")</td>
                                         <td>
-                                            <a asp-action="ProcessUnpaidLeave" asp-route-id="@request.UnpaidLeaveRequestID"
-                                               class="btn btn-sm btn-primary" title="Process Request">
-                                                <i class="fas fa-clipboard-check me-1"></i>Process
-                                            </a>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewUnpaidLeave(@request.UnpaidLeaveRequestID)">
+                                                    <i class="fas fa-eye me-1"></i> View
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-primary" title="Process Leave" onclick="processUnpaidLeave(@request.UnpaidLeaveRequestID)">
+                                                    <i class="fas fa-edit me-1"></i> Process
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                     }
@@ -253,12 +220,13 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Request ID</th>
+                                        <th>Leave ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Leave Type</th>
-                                        <th>Period</th>
-                                        <th>Requested Days</th>
-                                        <th>Unpaid Days</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Duration</th>
                                         <th>Status</th>
                                         <th>Approval Date</th>
                                         <th>Actions</th>
@@ -268,39 +236,22 @@
                                     @foreach (var request in Model.Where(u => u.Status == "Approved").OrderByDescending(u => u.ApprovalDate))
                                     {
                                     <tr>
-                                        <td><strong>#LVE-@request.UnpaidLeaveRequestID.ToString("D3")</strong></td>
-                                        <td>
-                                            <span class="badge bg-secondary">@request.EmployeeID</span>
-                                            <br />
-                                            <small class="text-muted">@request.Employee.Username</small>
-                                        </td>
+                                        <td>#LVE-@request.UnpaidLeaveRequestID.ToString("D3")</td>
+                                        <td><span class="badge bg-secondary">@request.EmployeeID</span></td>
+                                        <td>@(request.Employee != null ? ($"{request.Employee.FirstName} {request.Employee.LastName}") : "-")</td>
                                         <td><span class="badge bg-info">@request.LeaveType.TypeName</span></td>
+                                        <td>@request.StartDate.ToString("dd MMM yyyy")</td>
+                                        <td>@request.EndDate.ToString("dd MMM yyyy")</td>
                                         <td>
-                                            <strong>@request.StartDate.ToString("dd MMM")</strong> -
-                                            <strong>@request.EndDate.ToString("dd MMM yyyy")</strong>
+                                            <strong class="text-success">
+                                                @request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")
+                                            </strong>
                                         </td>
-                                        <td><span class="badge bg-primary">@request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")</span></td>
-                                        <td><span class="badge bg-warning text-dark">@request.ExcessDays day@(request.ExcessDays != 1 ? "s" : "")</span></td>
                                         <td><span class="badge bg-success">@request.Status</span></td>
                                         <td>@(request.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-outline-info"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#detailsModal"
-                                                    data-request-id="@request.UnpaidLeaveRequestID"
-                                                    data-employee="@request.Employee.Username"
-                                                    data-leave-type="@request.LeaveType.TypeName"
-                                                    data-start="@request.StartDate.ToString("yyyy-MM-dd")"
-                                                    data-end="@request.EndDate.ToString("yyyy-MM-dd")"
-                                                    data-requested="@request.RequestedDays"
-                                                    data-unpaid="@request.ExcessDays"
-                                                    data-reason="@request.Reason"
-                                                    data-justification="@request.Reason"
-                                                    data-status="@request.Status"
-                                                    data-approval-date="@(request.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")"
-                                                    data-approval-remarks="@(request.ApprovalRemarks ?? "No remarks")"
-                                                    title="View Details">
-                                                <i class="fas fa-eye me-1"></i>Details
+                                            <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewUnpaidLeave(@request.UnpaidLeaveRequestID)">
+                                                <i class="fas fa-eye me-1"></i> View
                                             </button>
                                         </td>
                                     </tr>
@@ -325,12 +276,13 @@
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Request ID</th>
+                                        <th>Leave ID</th>
                                         <th>Employee ID</th>
+                                        <th>Employee Name</th>
                                         <th>Leave Type</th>
-                                        <th>Period</th>
-                                        <th>Requested Days</th>
-                                        <th>Unpaid Days</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Duration</th>
                                         <th>Status</th>
                                         <th>Rejection Date</th>
                                         <th>Actions</th>
@@ -340,39 +292,22 @@
                                     @foreach (var request in Model.Where(u => u.Status == "Rejected").OrderByDescending(u => u.ApprovalDate))
                                     {
                                     <tr>
-                                        <td><strong>#LVE-@request.UnpaidLeaveRequestID.ToString("D3")</strong></td>
-                                        <td>
-                                            <span class="badge bg-secondary">@request.EmployeeID</span>
-                                            <br />
-                                            <small class="text-muted">@request.Employee.Username</small>
-                                        </td>
+                                        <td>#LVE-@request.UnpaidLeaveRequestID.ToString("D3")</td>
+                                        <td><span class="badge bg-secondary">@request.EmployeeID</span></td>
+                                        <td>@(request.Employee != null ? ($"{request.Employee.FirstName} {request.Employee.LastName}") : "-")</td>
                                         <td><span class="badge bg-info">@request.LeaveType.TypeName</span></td>
+                                        <td>@request.StartDate.ToString("dd MMM yyyy")</td>
+                                        <td>@request.EndDate.ToString("dd MMM yyyy")</td>
                                         <td>
-                                            <strong>@request.StartDate.ToString("dd MMM")</strong> -
-                                            <strong>@request.EndDate.ToString("dd MMM yyyy")</strong>
+                                            <strong class="text-success">
+                                                @request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")
+                                            </strong>
                                         </td>
-                                        <td><span class="badge bg-primary">@request.RequestedDays day@(request.RequestedDays != 1 ? "s" : "")</span></td>
-                                        <td><span class="badge bg-warning text-dark">@request.ExcessDays day@(request.ExcessDays != 1 ? "s" : "")</span></td>
                                         <td><span class="badge bg-danger">@request.Status</span></td>
                                         <td>@(request.ApprovalDate?.ToString("dd MMM yyyy") ?? "N/A")</td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-outline-info"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#detailsModal"
-                                                    data-request-id="@request.UnpaidLeaveRequestID"
-                                                    data-employee="@request.Employee.Username"
-                                                    data-leave-type="@request.LeaveType.TypeName"
-                                                    data-start="@request.StartDate.ToString("yyyy-MM-dd")"
-                                                    data-end="@request.EndDate.ToString("yyyy-MM-dd")"
-                                                    data-requested="@request.RequestedDays"
-                                                    data-unpaid="@request.ExcessDays"
-                                                    data-reason="@request.Reason"
-                                                    data-justification="@request.Reason"
-                                                    data-status="@request.Status"
-                                                    data-approval-date="@(request.ApprovalDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")"
-                                                    data-approval-remarks="@(request.ApprovalRemarks ?? "No remarks")"
-                                                    title="View Details">
-                                                <i class="fas fa-eye me-1"></i>Details
+                                            <button class="btn btn-sm btn-outline-info" title="View Details" onclick="viewUnpaidLeave(@request.UnpaidLeaveRequestID)">
+                                                <i class="fas fa-eye me-1"></i> View
                                             </button>
                                         </td>
                                     </tr>
@@ -393,165 +328,16 @@
         </div>
     </div>
 
-    <!-- Details Modal -->
-    <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="detailsModalLabel">
-                        <i class="fas fa-money-bill-alt me-2"></i>Unpaid Leave Request Details
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="text-primary">Request Information</h6>
-                            <p><strong>Request ID:</strong> <span id="modal-request-id"></span></p>
-                            <p><strong>Employee:</strong> <span id="modal-employee"></span></p>
-                            <p><strong>Leave Type:</strong> <span id="modal-leave-type"></span></p>
-                            <p><strong>Total Period:</strong> <span id="modal-period"></span></p>
-                            <p><strong>Total Days:</strong> <span id="modal-total-days"></span></p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="text-primary">Status Information</h6>
-                            <p><strong>Status:</strong> <span id="modal-status"></span></p>
-                            <p><strong>Processed Date:</strong> <span id="modal-approval-date"></span></p>
-                            <p><strong>HR Remarks:</strong></p>
-                            <div class="bg-light p-2 rounded">
-                                <span id="modal-approval-remarks"></span>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Leave Days Breakdown -->
-                    <hr />
-                    <div class="row">
-                        <div class="col-12">
-                            <h6 class="text-primary">Leave Days Breakdown</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="card border-success">
-                                        <div class="card-body text-center">
-                                            <h6 class="card-title text-success">
-                                                <i class="fas fa-hospital me-2"></i>Hospitalization Leave
-                                            </h6>
-                                            <p class="card-text">
-                                                <strong id="modal-hospital-period"></strong><br>
-                                                <span class="badge bg-success" id="modal-requested-badge"></span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="card border-warning">
-                                        <div class="card-body text-center">
-                                            <h6 class="card-title text-warning">
-                                                <i class="fas fa-money-bill-alt me-2"></i>Unpaid Leave
-                                            </h6>
-                                            <p class="card-text">
-                                                <strong id="modal-unpaid-period"></strong><br>
-                                                <span class="badge bg-warning text-dark" id="modal-unpaid-badge"></span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr />
-                    <div class="row">
-                        <div class="col-12">
-                            <h6 class="text-primary">Employee Reason</h6>
-                            <div class="bg-light p-2 rounded mb-3">
-                                <span id="modal-reason"></span>
-                            </div>
-                            <h6 class="text-primary">Reason for Unpaid Leave</h6>
-                            <div class="bg-warning bg-opacity-10 p-2 rounded border border-warning">
-                                <span id="modal-justification"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     @section Scripts {
         <script>
-            $(document).ready(function () {
-                // Details modal
-                $('#detailsModal').on('show.bs.modal', function (event) {
-                    const button = $(event.relatedTarget);
+            function viewUnpaidLeave(leaveId) {
+                window.location.href = '@Url.Action("UnpaidLeaveDetails", "Leaves")/' + leaveId;
+            }
 
-                    // Basic information
-                    $('#modal-request-id').text('#LVE-' + button.data('request-id').toString().padStart(3, '0'));
-                    $('#modal-employee').text(button.data('employee'));
-                    $('#modal-leave-type').text(button.data('leave-type'));
-                    const reason = button.data('reason');
-                    if (!reason || reason === 'Leave request') {
-                        $('#modal-reason').html('<span class="text-muted"><i class="fas fa-info-circle me-1"></i>No specific reason provided</span>');
-                    } else {
-                        $('#modal-reason').text(reason);
-                    }
-                    $('#modal-justification').text(button.data('justification') || 'No reason provided');
-                    $('#modal-status').html('<span class="badge bg-' +
-                        (button.data('status') === 'Approved' ? 'success' : 'danger') + '">' +
-                        button.data('status') + '</span>');
-                    $('#modal-approval-date').text(button.data('approval-date'));
-                    $('#modal-approval-remarks').text(button.data('approval-remarks'));
-
-                    // Calculate dates and periods
-                    const startDate = new Date(button.data('start'));
-                    const endDate = new Date(button.data('end'));
-                    const requestedDays = parseInt(button.data('requested'));
-                    const unpaidDays = parseInt(button.data('unpaid'));
-                    const totalDays = requestedDays + unpaidDays;
-
-                    // Calculate hospital leave end date (requested days from start)
-                    const hospitalEndDate = new Date(startDate);
-                    hospitalEndDate.setDate(hospitalEndDate.getDate() + requestedDays - 1);
-
-                    // Calculate unpaid leave start date (day after hospital leave ends)
-                    const unpaidStartDate = new Date(hospitalEndDate);
-                    unpaidStartDate.setDate(unpaidStartDate.getDate() + 1);
-
-                    // Format dates
-                    const formatDate = (date) => {
-                        return date.toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: '2-digit'
-                        });
-                    };
-
-                    const formatDateFull = (date) => {
-                        return date.toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                        });
-                    };
-
-                    // Update modal content
-                    $('#modal-period').text(formatDateFull(startDate) + ' - ' + formatDateFull(endDate));
-                    $('#modal-total-days').text(totalDays + ' days total');
-
-                    // Hospital leave period
-                    $('#modal-hospital-period').text(
-                        formatDate(startDate) + ' - ' + formatDate(hospitalEndDate)
-                    );
-                    $('#modal-requested-badge').text(requestedDays + ' day' + (requestedDays !== 1 ? 's' : ''));
-
-                    // Unpaid leave period
-                    $('#modal-unpaid-period').text(
-                        formatDate(unpaidStartDate) + ' - ' + formatDate(endDate)
-                    );
-                    $('#modal-unpaid-badge').text(unpaidDays + ' day' + (unpaidDays !== 1 ? 's' : ''));
-                });
-            });
+            function processUnpaidLeave(leaveId) {
+                window.location.href = '@Url.Action("ProcessUnpaidLeave", "Leaves")/' + leaveId;
+            }
         </script>
     }

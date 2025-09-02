@@ -99,22 +99,23 @@ namespace FinserveNew.Controllers
                     .CountAsync();
 
                 // Invoice statistics (if you have invoices)
-                var totalInvoices = await _context.Invoices.CountAsync();
-                var pendingInvoices = await _context.Invoices.Where(i => i.Status == "Pending").CountAsync();
-                var sentInvoices = await _context.Invoices.Where(i => i.Status == "Sent").CountAsync();
-                var paidInvoices = await _context.Invoices.Where(i => i.Status == "Paid").CountAsync();
+                var totalInvoices = await _context.Invoices.Where(i => !i.IsDeleted).CountAsync();
+                var pendingInvoices = await _context.Invoices.Where(i => !i.IsDeleted && i.Status == "Pending").CountAsync();
+                var sentInvoices = await _context.Invoices.Where(i => !i.IsDeleted && i.Status == "Sent").CountAsync();
+                var paidInvoices = await _context.Invoices.Where(i => !i.IsDeleted && i.Status == "Paid").CountAsync();
 
                 var recentInvoices = await _context.Invoices
+                    .Where(i => !i.IsDeleted)
                     .OrderByDescending(i => i.IssueDate)
                     .Take(10)
                     .ToListAsync();
 
                 var thisMonthTotal = await _context.Invoices
-                    .Where(i => i.IssueDate.Month == currentMonth && i.IssueDate.Year == currentYear && i.Status == "Paid")
+                    .Where(i => !i.IsDeleted && i.IssueDate.Month == currentMonth && i.IssueDate.Year == currentYear && i.Status == "Paid")
                     .SumAsync(i => i.TotalAmount);
 
                 var outstanding = await _context.Invoices
-                    .Where(i => i.Status == "Pending" || i.Status == "Sent" || i.Status == "Overdue")
+                    .Where(i => !i.IsDeleted && (i.Status == "Pending" || i.Status == "Sent" || i.Status == "Overdue"))
                     .SumAsync(i => i.TotalAmount);
 
                 // Set ViewBag properties for claims (using HR Index logic)
@@ -462,6 +463,7 @@ namespace FinserveNew.Controllers
         }
 
         // Employee Dashboard - Only accessible by Employee
+        // Employee Dashboard - Only accessible by Employee
         [Authorize(Roles = "Employee")]
         public async Task<IActionResult> EmployeeDashboard()
         {
@@ -516,7 +518,7 @@ namespace FinserveNew.Controllers
 
                 // Combine and sort all leave requests (regular + unpaid)
                 var allLeaveRequests = new List<object>();
-                
+
                 // Add regular leaves
                 foreach (var leave in recentLeaves)
                 {
@@ -565,11 +567,11 @@ namespace FinserveNew.Controllers
                 var pendingRegularLeaves = await _context.Leaves
                     .Where(l => l.EmployeeID == employeeId && l.Status == "Pending")
                     .CountAsync();
-                
+
                 var pendingUnpaidLeaves = await _context.UnpaidLeaveRequests
                     .Where(u => u.EmployeeID == employeeId && u.Status == "Pending")
                     .CountAsync();
-                
+
                 var pendingRequestsCount = pendingRegularLeaves + pendingUnpaidLeaves;
 
                 // Claims data
@@ -652,6 +654,7 @@ namespace FinserveNew.Controllers
                 _logger.LogInformation($"Dashboard loaded successfully for employee {employeeId}");
                 _logger.LogInformation($"Leave balances: {string.Join(", ", leaveBalances.Select(b => $"{b.Key}: {((dynamic)b.Value).RemainingDays}/{((dynamic)b.Value).DefaultDays}"))}");
 
+                // FIXED: Return the proper employee dashboard view
                 return View("~/Views/Employee/Dashboard.cshtml");
             }
             catch (Exception ex)
@@ -678,6 +681,7 @@ namespace FinserveNew.Controllers
                 ViewBag.PendingLeaves = 0;
 
                 TempData["Error"] = "An error occurred while loading the dashboard.";
+                // FIXED: Return the proper employee dashboard view in catch block too
                 return View("~/Views/Employee/Dashboard.cshtml");
             }
         }
