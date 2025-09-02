@@ -6,18 +6,18 @@
 <!-- Dashboard Content -->
 <div class="dashboard-container">
     <!-- Page Header -->
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="page-title">
-                    <i class="fas fa-user-shield me-2"></i>
+    <div class="page-header mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+            <div class="mb-3 mb-md-0">
+                <h1 class="page-title mb-2">
+                    <i class="fas fa-user-shield me-2 text-primary"></i>
                     Admin Dashboard
                 </h1>
-                <p class="page-subtitle">Welcome back, @User.Identity.Name | @ViewBag.CurrentMonth</p>
+                <p class="page-subtitle text-muted mb-0">Welcome back, @User.Identity.Name | @ViewBag.CurrentMonth</p>
             </div>
             <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-secondary" onclick="refreshDashboard()">
-                    <i class="fas fa-sync-alt me-1"></i>
+                <button class="btn btn-outline-secondary" onclick="refreshDashboard()" title="Refresh Dashboard">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
                 </button>
                 <div class="dropdown">
                     <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
@@ -33,107 +33,129 @@
     </div>
 
     <!-- Quick Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card stat-card-primary">
-                <div class="stat-icon bg-primary">
-                    <i class="fas fa-file-invoice-dollar"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-number">@ViewBag.TotalInvoices</div>
-                    <div class="stat-label">Total Invoices</div>
-                    <div class="stat-change positive">
-                        <i class="fas fa-check-circle"></i> @ViewBag.Paid completed
+    <div class="row g-3 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card stat-card-primary h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <div class="ms-3 flex-grow-1">
+                            <div class="stat-number h4 mb-1">@ViewBag.TotalInvoices</div>
+                            <div class="stat-label text-muted">Total Invoices</div>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-progress">
-                    @{
-                        var totalInvoices = (int)(ViewBag.TotalInvoices ?? 0);
-                        var paidInvoices = (int)(ViewBag.Paid ?? 0);
-                        var completionRate = totalInvoices > 0 ? (paidInvoices * 100.0 / totalInvoices) : 0;
-                    }
-                    <div class="progress">
-                        <div class="progress-bar bg-success" style="width: @completionRate%"></div>
+                    <div class="stat-details">
+                        <div class="d-flex align-items-center text-success mb-2">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <small>@ViewBag.Paid completed</small>
+                        </div>
+                        @{
+                            var totalInvoices = (int)(ViewBag.TotalInvoices ?? 0);
+                            var paidInvoices = (int)(ViewBag.Paid ?? 0);
+                            var completionRate = totalInvoices > 0 ? (paidInvoices * 100.0 / totalInvoices) : 0;
+                        }
+                        <div class="progress mb-2" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: @completionRate%"></div>
+                        </div>
+                        <small class="text-muted">@completionRate.ToString("F1")% completion rate</small>
                     </div>
-                    <small class="text-muted">@completionRate.ToString("F1")% completion rate</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card stat-card-warning">
-                <div class="stat-icon bg-warning">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-number">@ViewBag.TotalEmployees</div>
-                    <div class="stat-label">Total Employees</div>
-                    <div class="stat-change positive">
-                        <i class="fas fa-user-check"></i> @ViewBag.ActiveEmployees active
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card stat-card-warning h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="ms-3 flex-grow-1">
+                            <div class="stat-number h4 mb-1">@ViewBag.TotalEmployees</div>
+                            <div class="stat-label text-muted">Total Employees</div>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-progress">
-                    @{
-                        var totalEmployees = (int)(ViewBag.TotalEmployees ?? 0);
-                        var activeEmployees = (int)(ViewBag.ActiveEmployees ?? 0);
-                        var activeRate = totalEmployees > 0 ? (activeEmployees * 100.0 / totalEmployees) : 0;
-                    }
-                    <div class="progress">
-                        <div class="progress-bar bg-success" style="width: @activeRate%"></div>
+                    <div class="stat-details">
+                        <div class="d-flex align-items-center text-success mb-2">
+                            <i class="fas fa-user-check me-2"></i>
+                            <small>@ViewBag.ActiveEmployees active</small>
+                        </div>
+                        @{
+                            var totalEmployees = (int)(ViewBag.TotalEmployees ?? 0);
+                            var activeEmployees = (int)(ViewBag.ActiveEmployees ?? 0);
+                            var activeRate = totalEmployees > 0 ? (activeEmployees * 100.0 / totalEmployees) : 0;
+                        }
+                        <div class="progress mb-2" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: @activeRate%"></div>
+                        </div>
+                        <small class="text-muted">@activeRate.ToString("F1")% active rate</small>
                     </div>
-                    <small class="text-muted">@activeRate.ToString("F1")% active rate</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card stat-card-info">
-                <div class="stat-icon bg-info">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-number">@((int)(ViewBag.TotalPendingLeaves ?? 0) + (int)(ViewBag.TotalPendingClaims ?? 0))</div>
-                    <div class="stat-label">Pending Requests</div>
-                    <div class="stat-change @(((int)(ViewBag.TotalPendingLeaves ?? 0) + (int)(ViewBag.TotalPendingClaims ?? 0)) > 10 ? "negative" : "neutral")">
-                        <i class="fas fa-@(((int)(ViewBag.TotalPendingLeaves ?? 0) + (int)(ViewBag.TotalPendingClaims ?? 0)) > 10 ? "exclamation-triangle" : "hourglass-half")"></i>
-                        @(((int)(ViewBag.TotalPendingLeaves ?? 0) + (int)(ViewBag.TotalPendingClaims ?? 0)) > 10 ? "Needs attention" : "Under control")
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card stat-card-success h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="ms-3 flex-grow-1">
+                            <div class="stat-number h4 mb-1">RM @(((decimal?)ViewBag.ThisMonthTotal ?? 0m).ToString("N0"))</div>
+                            <div class="stat-label text-muted">This Month's Revenue</div>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-progress">
-                    <small class="text-muted">@ViewBag.TotalPendingLeaves leaves • @ViewBag.TotalPendingClaims claims</small>
+                    <div class="stat-details">
+                        <div class="d-flex align-items-center text-primary">
+                            <i class="fas fa-chart-line me-2"></i>
+                            <small>Outstanding: RM @(((decimal?)ViewBag.Outstanding ?? 0m).ToString("N0"))</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card stat-card-success">
-                <div class="stat-icon bg-success">
-                    <i class="fas fa-money-bill-wave"></i>
-                </div>
-                <div class="stat-content">
-                    <div class="stat-number">RM @(((decimal?)ViewBag.ThisMonthTotal ?? 0m).ToString("N0"))</div>
-                    <div class="stat-label">This Month's Revenue</div>
-                    <div class="stat-change positive">
-                        <i class="fas fa-chart-line"></i> Monthly revenue
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card stat-card-info h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="ms-3 flex-grow-1">
+                            @{
+                                var collectionRate = totalInvoices > 0 ? (paidInvoices * 100.0 / totalInvoices) : 0;
+                            }
+                            <div class="stat-number h4 mb-1">@collectionRate.ToString("F1")%</div>
+                            <div class="stat-label text-muted">Collection Rate</div>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-progress">
-                    <small class="text-muted">Outstanding: RM @(((decimal?)ViewBag.Outstanding ?? 0m).ToString("N0"))</small>
+                    <div class="stat-details">
+                        <div class="d-flex align-items-center text-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <small>Invoice payment efficiency</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Main Content Grid -->
-    <div class="row">
+    <div class="row g-4">
         <!-- Left Column - Main Content -->
         <div class="col-lg-8">
             <!-- System Overview Cards -->
-            <div class="row mb-4">
+            <div class="row g-4 mb-4">
                 <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Invoice Status Distribution</h6>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-light border-0 py-3">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-chart-pie me-2 text-primary"></i>Invoice Status Distribution
+                            </h6>
                         </div>
                         <div class="card-body">
                             @{
@@ -148,9 +170,11 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="fas fa-users-cog me-2"></i>System Activity</h6>
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-light border-0 py-3">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-users-cog me-2 text-warning"></i>System Activity
+                            </h6>
                         </div>
                         <div class="card-body">
                             <div class="activity-list">
@@ -159,26 +183,8 @@
                                         <i class="fas fa-file-invoice"></i>
                                     </div>
                                     <div class="activity-content">
-                                        <h6>@ViewBag.TotalInvoices Total Invoices</h6>
+                                        <h6 class="mb-1">@ViewBag.TotalInvoices Total Invoices</h6>
                                         <small class="text-muted">All time system records</small>
-                                    </div>
-                                </div>
-                                <div class="activity-item">
-                                    <div class="activity-icon bg-warning">
-                                        <i class="fas fa-calendar-check"></i>
-                                    </div>
-                                    <div class="activity-content">
-                                        <h6>@ViewBag.TotalPendingLeaves Pending Leaves</h6>
-                                        <small class="text-muted">Awaiting HR approval</small>
-                                    </div>
-                                </div>
-                                <div class="activity-item">
-                                    <div class="activity-icon bg-info">
-                                        <i class="fas fa-file-medical"></i>
-                                    </div>
-                                    <div class="activity-content">
-                                        <h6>@ViewBag.TotalPendingClaims Pending Claims</h6>
-                                        <small class="text-muted">Total amount: RM @ViewBag.TotalClaimAmount.ToString("N0")</small>
                                     </div>
                                 </div>
                                 <div class="activity-item">
@@ -186,7 +192,7 @@
                                         <i class="fas fa-users"></i>
                                     </div>
                                     <div class="activity-content">
-                                        <h6>@ViewBag.ActiveEmployees Active Staff</h6>
+                                        <h6 class="mb-1">@ViewBag.ActiveEmployees Active Staff</h6>
                                         <small class="text-muted">Out of @ViewBag.TotalEmployees total employees</small>
                                     </div>
                                 </div>
@@ -197,44 +203,50 @@
             </div>
 
             <!-- Quick Actions -->
-            <div class="card mb-4">
-                <div class="card-header">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light border-0 py-3">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-bolt me-2"></i>Administrative Actions
+                        <i class="fas fa-bolt me-2 text-warning"></i>Administrative Actions
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("Create", "Invoice")" class="quick-action-btn">
-                                <div class="quick-action-icon bg-primary">
-                                    <i class="fas fa-plus"></i>
-                                </div>
-                                <div class="quick-action-content">
-                                    <h6>Create Invoice</h6>
-                                    <p>Generate new invoice</p>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("InvoiceRecord", "Invoice")" class="quick-action-btn">
-                                <div class="quick-action-icon bg-warning">
-                                    <i class="fas fa-list-alt"></i>
-                                </div>
-                                <div class="quick-action-content">
-                                    <h6>Manage Invoices</h6>
-                                    <p>View all invoices</p>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <a href="@Url.Action("Create", "Invoice")" class="quick-action-btn text-decoration-none">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center p-4">
+                                        <div class="quick-action-icon bg-primary text-white rounded-circle mx-auto mb-3">
+                                            <i class="fas fa-plus"></i>
+                                        </div>
+                                        <h6 class="card-title">Create Invoice</h6>
+                                        <p class="card-text text-muted small mb-0">Generate new invoice</p>
+                                    </div>
                                 </div>
                             </a>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <a href="@Url.Action("ReviewReports", "Report")" class="quick-action-btn">
-                                <div class="quick-action-icon bg-info">
-                                    <i class="fas fa-chart-line"></i>
+                        <div class="col-md-4">
+                            <a href="@Url.Action("InvoiceRecord", "Invoice")" class="quick-action-btn text-decoration-none">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center p-4">
+                                        <div class="quick-action-icon bg-warning text-white rounded-circle mx-auto mb-3">
+                                            <i class="fas fa-list-alt"></i>
+                                        </div>
+                                        <h6 class="card-title">Manage Invoices</h6>
+                                        <p class="card-text text-muted small mb-0">View all invoices</p>
+                                    </div>
                                 </div>
-                                <div class="quick-action-content">
-                                    <h6>View Reports</h6>
-                                    <p>Analytics & insights</p>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="@Url.Action("ReviewReports", "Report")" class="quick-action-btn text-decoration-none">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    <div class="card-body text-center p-4">
+                                        <div class="quick-action-icon bg-info text-white rounded-circle mx-auto mb-3">
+                                            <i class="fas fa-chart-line"></i>
+                                        </div>
+                                        <h6 class="card-title">View Reports</h6>
+                                        <p class="card-text text-muted small mb-0">Analytics & insights</p>
+                                    </div>
                                 </div>
                             </a>
                         </div>
@@ -243,35 +255,35 @@
             </div>
 
             <!-- Recent Invoices -->
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light border-0 py-3 d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-file-invoice me-2"></i>Recent Invoices
+                        <i class="fas fa-file-invoice me-2 text-success"></i>Recent Invoices
                     </h5>
                     <a href="@Url.Action("InvoiceRecord", "Invoice")" class="btn btn-sm btn-outline-primary">View All</a>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     @if (ViewBag.RecentInvoices != null && ((IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices).Any())
                     {
                         <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
                                     <tr>
-                                        <th>Invoice ID</th>
-                                        <th>Client</th>
-                                        <th>Issue Date</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
+                                        <th class="border-0">Invoice ID</th>
+                                        <th class="border-0">Client</th>
+                                        <th class="border-0">Issue Date</th>
+                                        <th class="border-0">Amount</th>
+                                        <th class="border-0">Status</th>
+                                        <th class="border-0">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach (var inv in (IEnumerable<FinserveNew.Models.Invoice>)ViewBag.RecentInvoices)
                                     {
                                         <tr>
-                                            <td>#@inv.InvoiceNumber</td>
+                                            <td class="fw-medium">#@inv.InvoiceNumber</td>
                                             <td>@inv.ClientName</td>
-                                            <td>@inv.IssueDate.ToString("dd MMM, yyyy")</td>
+                                            <td class="text-muted">@inv.IssueDate.ToString("dd MMM, yyyy")</td>
                                             <td><strong class="text-primary">@inv.FormattedAmount</strong></td>
                                             <td>
                                                 <span class="badge @inv.StatusBadgeClass">
@@ -281,25 +293,20 @@
                                             <td>
                                                 @if (inv.Status.Equals("Paid", StringComparison.OrdinalIgnoreCase))
                                                 {
-                                                    <!-- Show only View button for paid invoices -->
                                                     <a href="@Url.Action("Details", "Invoice", new { id = inv.InvoiceID })"
-                                                       class="btn btn-sm btn-outline-primary"
-                                                       title="View Invoice Details">
+                                                       class="btn btn-sm btn-outline-primary">
                                                         <i class="fas fa-eye me-1"></i>View
                                                     </a>
                                                 }
                                                 else
                                                 {
-                                                    <!-- Show Edit and Delete buttons for pending and sent invoices -->
                                                     <div class="btn-group" role="group">
                                                         <a href="@Url.Action("Edit", "Invoice", new { id = inv.InvoiceID })"
-                                                           class="btn btn-sm btn-outline-warning"
-                                                           title="Edit Invoice">
+                                                           class="btn btn-sm btn-outline-warning">
                                                             <i class="fas fa-edit me-1"></i>Edit
                                                         </a>
                                                         <button type="button" class="btn btn-sm btn-outline-danger"
-                                                                onclick="confirmDelete(@inv.InvoiceID, '@inv.InvoiceNumber')"
-                                                                title="Delete Invoice">
+                                                                onclick="confirmDelete(@inv.InvoiceID, '@inv.InvoiceNumber')">
                                                             <i class="fas fa-trash me-1"></i>Delete
                                                         </button>
                                                     </div>
@@ -313,9 +320,9 @@
                     }
                     else
                     {
-                        <div class="text-center py-4">
+                        <div class="text-center py-5">
                             <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">No recent invoices</p>
+                            <p class="text-muted mb-3">No recent invoices</p>
                             <a href="@Url.Action("Create", "Invoice")" class="btn btn-primary">Create New Invoice</a>
                         </div>
                     }
@@ -326,94 +333,50 @@
         <!-- Right Column - Sidebar -->
         <div class="col-lg-4">
             <!-- Financial Overview -->
-            <div class="card mb-4">
-                <div class="card-header">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light border-0 py-3">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-chart-line me-2"></i>Financial Overview
+                        <i class="fas fa-chart-line me-2 text-success"></i>Financial Overview
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="financial-overview">
                         <div class="financial-item">
-                            <div class="financial-icon">
+                            <div class="financial-icon bg-success bg-opacity-10">
                                 <i class="fas fa-money-bill-wave text-success"></i>
                             </div>
                             <div class="financial-content">
-                                <h6>Monthly Revenue</h6>
-                                <h5 class="text-success">RM @(((decimal?)ViewBag.ThisMonthTotal ?? 0m).ToString("N2"))</h5>
+                                <h6 class="text-uppercase fw-normal">Paid Revenue</h6>
+                                <h5 class="text-success mb-0">RM @(((decimal?)ViewBag.ThisMonthTotal ?? 0m).ToString("N2"))</h5>
                             </div>
                         </div>
                         <div class="financial-item">
-                            <div class="financial-icon">
+                            <div class="financial-icon bg-warning bg-opacity-10">
                                 <i class="fas fa-exclamation-triangle text-warning"></i>
                             </div>
                             <div class="financial-content">
-                                <h6>Outstanding Amount</h6>
-                                <h5 class="text-warning">RM @(((decimal?)ViewBag.Outstanding ?? 0m).ToString("N2"))</h5>
+                                <h6 class="text-uppercase fw-normal">Outstanding</h6>
+                                <h5 class="text-warning mb-0">RM @(((decimal?)ViewBag.Outstanding ?? 0m).ToString("N2"))</h5>
                             </div>
                         </div>
                         <div class="financial-item">
-                            <div class="financial-icon">
+                            <div class="financial-icon bg-info bg-opacity-10">
                                 <i class="fas fa-percentage text-info"></i>
                             </div>
                             <div class="financial-content">
-                                <h6>Collection Rate</h6>
-                                @{
-                                    var collectionRate = totalInvoices > 0 ? (paidInvoices * 100.0 / totalInvoices) : 0;
-                                }
-                                <h5 class="text-info">@collectionRate.ToString("F1")%</h5>
+                                <h6 class="text-uppercase fw-normal">Collection Rate</h6>
+                                <h5 class="text-info mb-0">@collectionRate.ToString("F1")%</h5>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- System Alerts -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-bell me-2"></i>System Alerts
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert-list">
-                        @if ((int)(ViewBag.Pending ?? 0) > 5)
-                        {
-                            <div class="alert alert-warning alert-sm">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>@ViewBag.Pending pending invoices</strong> need attention
-                            </div>
-                        }
-                        @if ((int)(ViewBag.TotalPendingLeaves ?? 0) > 3)
-                        {
-                            <div class="alert alert-info alert-sm">
-                                <i class="fas fa-calendar-times me-2"></i>
-                                <strong>@ViewBag.TotalPendingLeaves leave requests</strong> pending approval
-                            </div>
-                        }
-                        @if ((int)(ViewBag.TotalPendingClaims ?? 0) > 2)
-                        {
-                            <div class="alert alert-secondary alert-sm">
-                                <i class="fas fa-file-medical me-2"></i>
-                                <strong>@ViewBag.TotalPendingClaims claim requests</strong> pending review
-                            </div>
-                        }
-                        @if ((int)(ViewBag.Pending ?? 0) <= 5 && (int)(ViewBag.TotalPendingLeaves ?? 0) <= 3 && (int)(ViewBag.TotalPendingClaims ?? 0) <= 2)
-                        {
-                            <div class="alert alert-success alert-sm">
-                                <i class="fas fa-check-circle me-2"></i>
-                                All systems running smoothly
-                            </div>
-                        }
                     </div>
                 </div>
             </div>
 
             <!-- Quick Links -->
-            <div class="card">
-                <div class="card-header">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light border-0 py-3">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-external-link-alt me-2"></i>Quick Links
+                        <i class="fas fa-external-link-alt me-2 text-info"></i>Quick Links
                     </h5>
                 </div>
                 <div class="card-body">
@@ -495,13 +458,11 @@
         // Auto refresh dashboard data
         function startAutoRefresh() {
             setInterval(function() {
-                // Refresh critical numbers every 5 minutes
                 refreshCriticalStats();
             }, 300000); // 5 minutes
         }
 
         function refreshCriticalStats() {
-            // This would make AJAX calls to update stats without page reload
             console.log('Refreshing dashboard stats...');
         }
 
@@ -512,7 +473,6 @@
                 const icon = refreshBtn.querySelector('i');
                 icon.classList.add('fa-spin');
 
-                // Simulate refresh
                 setTimeout(function() {
                     icon.classList.remove('fa-spin');
                     location.reload();
@@ -520,25 +480,13 @@
             }
         }
 
-        // Export report functionality
-        function exportReport() {
-            alert('Admin Report export functionality will be implemented soon!');
-        }
-
-        // System settings functionality
-        function showSystemSettings() {
-            alert('System settings panel will be implemented soon!');
-        }
-
         // Delete confirmation function for invoices
         function confirmDelete(invoiceId, invoiceNumber) {
             if (confirm(`Are you sure you want to delete Invoice #${invoiceNumber}? This action cannot be undone.`)) {
-                // Create a form to submit the delete request
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '@Url.Action("Delete", "Invoice")';
 
-                // Add anti-forgery token if available
                 const token = document.querySelector('input[name="__RequestVerificationToken"]');
                 if (token) {
                     const tokenInput = document.createElement('input');
@@ -548,20 +496,18 @@
                     form.appendChild(tokenInput);
                 }
 
-                // Add invoice ID
                 const idInput = document.createElement('input');
                 idInput.type = 'hidden';
                 idInput.name = 'id';
                 idInput.value = invoiceId;
                 form.appendChild(idInput);
 
-                // Submit form
                 document.body.appendChild(form);
                 form.submit();
             }
         }
 
-        // Notification functions (similar to HR dashboard)
+        // Notification functions
         let readNotifications = JSON.parse(localStorage.getItem('admin_readNotifications') || '[]');
 
         function loadReadNotifications() {
@@ -644,10 +590,35 @@
     <link rel="stylesheet" href="~/css/rbac_dashboard.css" />
     <style>
         /* Enhanced Admin Dashboard Styles */
+        .dashboard-container {
+            padding: 0 15px;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 2rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid #007bff;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .page-subtitle {
+            font-size: 1rem;
+            color: #6c757d;
+        }
+
+        /* Stat Cards */
         .stat-card {
-            position: relative;
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
             overflow: hidden;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
             .stat-card:hover {
@@ -671,23 +642,53 @@
             border-left: 4px solid #28a745;
         }
 
-        .stat-progress {
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px solid #eee;
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
         }
 
-        .progress {
-            height: 8px;
-            border-radius: 10px;
-            margin-bottom: 5px;
+        .stat-number {
+            font-weight: 700;
+            color: #2c3e50;
         }
 
-        .progress-bar {
-            border-radius: 10px;
+        .stat-label {
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
         }
 
-        /* Activity List Styles */
+        .stat-details {
+            border-top: 1px solid #f1f3f4;
+            padding-top: 1rem;
+        }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .card-header {
+            background: #f8f9fa !important;
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 0.75rem 0.75rem 0 0 !important;
+        }
+
+        .card-title {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Activity List */
         .activity-list {
             max-height: 200px;
             overflow-y: auto;
@@ -696,110 +697,116 @@
         .activity-item {
             display: flex;
             align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 1rem 0;
+            border-bottom: 1px solid #f1f3f4;
         }
 
             .activity-item:last-child {
                 border-bottom: none;
+                padding-bottom: 0;
             }
 
         .activity-icon {
             width: 40px;
             height: 40px;
-            border-radius: 50%;
+            border-radius: 0.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 15px;
+            margin-right: 1rem;
             color: white;
         }
 
         .activity-content h6 {
-            margin: 0;
-            font-size: 0.9rem;
             font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
         }
 
-        .activity-content small {
-            font-size: 0.8rem;
+        /* Quick Action Buttons */
+        .quick-action-btn {
+            display: block;
+            transition: all 0.3s ease;
         }
 
-        /* Financial Overview Styles */
+            .quick-action-btn:hover {
+                transform: translateY(-2px);
+                text-decoration: none !important;
+            }
+
+            .quick-action-btn .card {
+                transition: all 0.3s ease;
+            }
+
+            .quick-action-btn:hover .card {
+                box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            }
+
+        .quick-action-icon {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        /* Financial Overview */
         .financial-overview {
-            space-y: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
         }
 
         .financial-item {
             display: flex;
             align-items: center;
-            padding: 15px 0;
-            border-bottom: 1px solid #f0f0f0;
         }
-
-            .financial-item:first-child {
-                padding-top: 0;
-            }
-
-            .financial-item:last-child {
-                border-bottom: none;
-                padding-bottom: 0;
-            }
 
         .financial-icon {
             width: 50px;
             height: 50px;
-            border-radius: 10px;
+            border-radius: 0.5rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 15px;
-            background: rgba(0,123,255,0.1);
+            margin-right: 1rem;
         }
 
             .financial-icon i {
-                font-size: 1.5rem;
+                font-size: 1.25rem;
             }
 
         .financial-content h6 {
-            margin: 0 0 5px 0;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            font-size: 0.75rem;
+            font-weight: 500;
             color: #6c757d;
+            margin-bottom: 0.25rem;
+            letter-spacing: 0.5px;
         }
 
         .financial-content h5 {
+            font-weight: 700;
             margin: 0;
-            font-weight: bold;
         }
 
-        /* Alert Styles */
-        .alert-sm {
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            font-size: 0.9rem;
-        }
-
-            .alert-sm:last-child {
-                margin-bottom: 0;
-            }
-
-        /* Quick Links Styles */
+        /* Quick Links */
         .quick-links {
-            space-y: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
 
         .quick-link-item {
             display: flex;
             align-items: center;
-            padding: 12px 15px;
+            padding: 1rem;
             background: #f8f9fa;
-            border-radius: 8px;
+            border-radius: 0.5rem;
             text-decoration: none;
             color: #495057;
-            transition: all 0.2s ease;
-            margin-bottom: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid #e9ecef;
         }
 
             .quick-link-item:hover {
@@ -807,11 +814,14 @@
                 color: #495057;
                 text-decoration: none;
                 transform: translateX(5px);
+                border-color: #dee2e6;
             }
 
             .quick-link-item i:first-child {
-                margin-right: 15px;
+                margin-right: 1rem;
                 font-size: 1.1rem;
+                width: 20px;
+                text-align: center;
             }
 
             .quick-link-item span {
@@ -824,77 +834,131 @@
                 opacity: 0.6;
             }
 
-        /* Button group styling for invoice actions */
-        .btn-group .btn {
-            border-radius: 0;
+        /* Table Styling */
+        .table thead th {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-            .btn-group .btn:first-child {
-                border-top-left-radius: 0.375rem;
-                border-bottom-left-radius: 0.375rem;
-            }
+        .table tbody tr:hover {
+            background-color: rgba(0,123,255,0.05);
+        }
+
+        /* Button Groups */
+        .btn-group .btn {
+            border-radius: 0.375rem;
+            margin-right: 0.25rem;
+        }
 
             .btn-group .btn:last-child {
-                border-top-right-radius: 0.375rem;
-                border-bottom-right-radius: 0.375rem;
+                margin-right: 0;
             }
 
-        /* Gradient Backgrounds */
-        .bg-gradient-primary {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        /* Badge Styling */
+        .badge {
+            font-weight: 500;
+            padding: 0.5em 0.75em;
         }
 
-        .bg-gradient-warning {
-            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        /* Progress Bars */
+        .progress {
+            border-radius: 10px;
+            background-color: #e9ecef;
         }
 
-        .bg-gradient-info {
-            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        .progress-bar {
+            border-radius: 10px;
         }
 
-        /* Quick action buttons hover effects */
-        .quick-action-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            transition: all 0.3s ease;
-        }
-
-        /* Chart container */
-        .chart-container {
-            position: relative;
-        }
-
-        /* Responsive improvements */
+        /* Responsive Design */
         @@media (max-width: 768px) {
-            .stat-card
+            .dashboard-container
 
         {
+            padding: 0 10px;
+        }
+
+        .page-header {
+            padding: 1.5rem;
             margin-bottom: 1rem;
         }
 
-        .quick-action-btn {
-            margin-bottom: 1rem;
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .stat-card .card-body {
+            padding: 1.5rem;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
         }
 
         .financial-item,
         .activity-item {
-            padding: 10px 0;
+            padding: 0.75rem 0;
+        }
+
+        .financial-icon,
+        .activity-icon {
+            width: 35px;
+            height: 35px;
         }
 
         .btn-group {
             display: flex;
             flex-direction: column;
-            width: 100%;
+            gap: 0.25rem;
         }
 
             .btn-group .btn {
-                border-radius: 0.375rem !important;
-                margin-bottom: 2px;
+                margin-right: 0;
             }
+
+        .quick-action-btn .card-body {
+            padding: 2rem 1.5rem;
+        }
+
+        .quick-action-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
 
         }
 
-        /* Loading animation for refresh button */
+        @@media (max-width: 576px) {
+            .page-header .d-flex
+
+        {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.25rem;
+        }
+
+        .financial-content h5 {
+            font-size: 1.1rem;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        .quick-link-item {
+            padding: 0.75rem;
+        }
+
+        }
+
+        /* Loading Animation */
         .fa-spin {
             animation: fa-spin 2s infinite linear;
         }
@@ -908,6 +972,76 @@
 
         100% {
             transform: rotate(360deg);
+        }
+
+        }
+
+        /* Smooth Transitions */
+        * {
+            transition: box-shadow 0.15s ease-in-out;
+        }
+
+        /* Focus States */
+        .btn:focus,
+        .card:focus-within {
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+        }
+
+        /* Custom Scrollbar */
+        .activity-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .activity-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .activity-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+
+            .activity-list::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+
+        /* Enhanced Visual Hierarchy */
+        .card-header h5,
+        .card-header h6 {
+            color: #2c3e50;
+        }
+
+        .text-muted {
+            color: #6c757d !important;
+        }
+
+        /* Better spacing for mobile */
+        @@media (max-width: 991px) {
+            .col-lg-4
+
+        {
+            margin-top: 1rem;
+        }
+
+        }
+
+        /* Print styles */
+        @@media print {
+            .btn, .dropdown, .quick-action-btn
+
+        {
+            display: none !important;
+        }
+
+        .card {
+            box-shadow: none !important;
+            border: 1px solid #dee2e6 !important;
+        }
+
+        .page-header {
+            background: none !important;
+            border: 1px solid #dee2e6 !important;
         }
 
         }

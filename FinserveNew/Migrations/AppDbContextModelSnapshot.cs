@@ -121,7 +121,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.Property<string>("ActionBy")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -1094,8 +1093,7 @@ namespace FinserveNew.Migrations
                     b.HasOne("FinserveNew.Models.Employee", "ActionByEmployee")
                         .WithMany()
                         .HasForeignKey("ActionBy")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("FinserveNew.Models.Employee", "Employee")
                         .WithMany()

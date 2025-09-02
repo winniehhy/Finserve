@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FinserveNew.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250823184623_UpdateApprovalActionBy")]
-    partial class UpdateApprovalActionBy
+    [Migration("20250901152935_RestartTable")]
+    partial class RestartTable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -37,6 +37,12 @@ namespace FinserveNew.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("longtext");
 
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DeactivationReason")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
@@ -50,6 +56,12 @@ namespace FinserveNew.Migrations
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeactivated")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDefaultAccount")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -112,7 +124,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.Property<string>("ActionBy")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -214,6 +225,9 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(3)")
                         .HasDefaultValue("MYR");
 
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
@@ -223,42 +237,10 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<decimal?>("ExchangeRate")
-                        .HasPrecision(10, 6)
-                        .HasColumnType("decimal(10,6)");
-
-                    b.Property<bool>("IsOCRProcessed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("OCRAmountVerified")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int?>("OCRConfidence")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("OCRDetectedAmount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("OCRDetectedCurrency")
-                        .HasMaxLength(3)
-                        .HasColumnType("varchar(3)");
-
-                    b.Property<string>("OCRPriceAnalysis")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("OCRProcessedDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("OCRRawText")
-                        .HasColumnType("LONGTEXT");
-
-                    b.Property<decimal?>("OriginalAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("OriginalCurrency")
-                        .HasMaxLength(3)
-                        .HasColumnType("varchar(3)");
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -850,7 +832,8 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(30)");
 
                     b.Property<string>("ProjectName")
-                        .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<decimal>("TotalEmployerCost")
                         .HasColumnType("decimal(18,2)");
@@ -1113,8 +1096,7 @@ namespace FinserveNew.Migrations
                     b.HasOne("FinserveNew.Models.Employee", "ActionByEmployee")
                         .WithMany()
                         .HasForeignKey("ActionBy")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("FinserveNew.Models.Employee", "Employee")
                         .WithMany()
@@ -1136,11 +1118,13 @@ namespace FinserveNew.Migrations
 
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
                 {
-                    b.HasOne("FinserveNew.Models.Employee", null)
+                    b.HasOne("FinserveNew.Models.Employee", "Employee")
                         .WithMany("Claims")
                         .HasForeignKey("EmployeeID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
