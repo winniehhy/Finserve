@@ -40,6 +40,9 @@ public class DbInitializer
         // Save changes to the custom Roles table
         await context.SaveChangesAsync();
 
+        // Seed default leave types if table is empty
+        await SeedLeaveTypesAsync(context);
+
         // Create ONLY ONE default HR user
         var defaultHrUser = await userManager.FindByEmailAsync("hr@finserve.com");
         if (defaultHrUser == null)
@@ -154,5 +157,65 @@ public class DbInitializer
             "Admin" => "Administrator with invoice and report viewing",
             _ => $"System role: {roleName}"
         };
+    }
+
+    /// <summary>
+    /// Seeds the LeaveType table with default leave types if the table is empty
+    /// </summary>
+    public static async Task SeedLeaveTypesAsync(AppDbContext context)
+    {
+        try
+        {
+            // Check if LeaveType table is empty
+            var hasLeaveTypes = await context.LeaveTypes.AnyAsync();
+            
+            if (!hasLeaveTypes)
+            {
+                var defaultLeaveTypes = new List<LeaveTypeModel>
+                {
+                    new LeaveTypeModel
+                    {
+                        TypeName = "Annual Leave",
+                        DefaultDaysPerYear = 14,
+                        Description = "Annual vacation leave entitlement",
+                        RequiresDocumentation = false
+                    },
+                    new LeaveTypeModel
+                    {
+                        TypeName = "Medical Leave",
+                        DefaultDaysPerYear = 10,
+                        Description = "Medical leave for illness or injury",
+                        RequiresDocumentation = true
+                    },
+                    new LeaveTypeModel
+                    {
+                        TypeName = "Hospitalization Leave",
+                        DefaultDaysPerYear = 16,
+                        Description = "Leave for hospitalization and medical treatment",
+                        RequiresDocumentation = true
+                    }
+                };
+
+                // Add all default leave types to the context
+                await context.LeaveTypes.AddRangeAsync(defaultLeaveTypes);
+                await context.SaveChangesAsync();
+
+                // Log the successful seeding
+                Console.WriteLine("✅ Default leave types have been seeded successfully!");
+                Console.WriteLine($"   - Added {defaultLeaveTypes.Count} leave types to the database");
+                Console.WriteLine("   - Annual Leave: 14 days (no documentation required)");
+                Console.WriteLine("   - Medical Leave: 10 days (documentation required)");
+                Console.WriteLine("   - Hospitalization Leave: 16 days (documentation required)");
+            }
+            else
+            {
+                Console.WriteLine("ℹ️  LeaveType table already contains data. Skipping seed operation.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error seeding leave types: {ex.Message}");
+            // Don't throw the exception to avoid breaking the application startup
+        }
     }
 }

@@ -190,17 +190,16 @@
         }
         else if (invoice.Status == "Overdue")
         {
-            <!-- ALLOW EDIT for Overdue invoices -->
-            <a asp-action="Edit" asp-route-id="@invoice.InvoiceID" class="btn btn-sm btn-outline-success" title="Edit">
-                <i class="fas fa-edit"></i>
-            </a>
-            
+            <!-- Only View and Delete allowed for Overdue invoices -->
             <button class="btn btn-sm btn-outline-danger" onclick="removeInvoice(@invoice.InvoiceID)" title="Delete">
                 <i class="fas fa-times text-danger"></i>
             </button>
-                    
-            <button class="btn btn-sm btn-success" onclick="markAsPaid(@invoice.InvoiceID)" title="Mark as Paid">
-                <i class="fas fa-dollar-sign"></i>
+        }
+        else if (invoice.Status == "Cancelled")
+        {
+            <!-- Only View and Delete allowed for Cancelled invoices -->
+            <button class="btn btn-sm btn-outline-danger" onclick="removeInvoice(@invoice.InvoiceID)" title="Delete">
+                <i class="fas fa-times text-danger"></i>
             </button>
         }
         

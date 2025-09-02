@@ -2,14 +2,43 @@
 
 @{
     ViewData["Title"] = "Cancel Leave Application";
+    var isUnpaidLeave = ViewBag.IsUnpaidLeave == true;
+    var leaveId = Model.LeaveID; // For unpaid leaves, this is already negative; for regular leaves, it's positive
+    var leaveType = Model.LeaveType?.TypeName;
+    var employee = Model.Employee?.Username;
+    var status = Model.Status;
+    var startDate = Model.StartDate;
+    var endDate = Model.EndDate;
+    var reason = Model.Reason;
+    var approvedBy = Model.ApprovedBy;
+    var totalDays = isUnpaidLeave ? Model.LeaveDays : (Model.EndDate.DayNumber - Model.StartDate.DayNumber) + 1;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="page-title mb-0">Cancel Leave Application</h2>
-    <a href="/Leaves/LeaveRecords" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>
-        Back to My Leaves
-    </a>
+    <h2 class="page-title mb-0">
+        @if (isUnpaidLeave)
+        {
+            <text>Cancel Unpaid Leave Request</text>
+        }
+        else
+        {
+            <text>Cancel Leave Application</text>
+        }
+    </h2>
+    @if (isUnpaidLeave)
+    {
+        <a href="/Leaves/UnpaidLeaveRequests" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>
+            Back to Unpaid Leave Requests
+        </a>
+    }
+    else
+    {
+        <a href="/Leaves/LeaveRecords" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>
+            Back to My Leaves
+        </a>
+    }
 </div>
 
 <div class="row justify-content-center">
@@ -18,7 +47,14 @@
             <div class="card-header bg-danger text-white">
                 <h4 class="card-title mb-0">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    Confirm Leave Cancellation
+                    @if (isUnpaidLeave)
+                    {
+                        <text>Confirm Unpaid Leave Cancellation</text>
+                    }
+                    else
+                    {
+                        <text>Confirm Leave Cancellation</text>
+                    }
                 </h4>
             </div>
             <div class="card-body">
@@ -35,34 +71,46 @@
                                     <i class="fas fa-info-circle me-2"></i>Application Details
                                 </h6>
                                 <div class="mb-2">
-                                    <strong>Application ID:</strong> #LVE-@Model.LeaveID.ToString("D3")
-                                </div>
-                                <div class="mb-2">
-                                    <strong>Leave Type:</strong>
-                                    <span class="badge bg-primary">@Model.LeaveType?.TypeName</span>
-                                </div>
-                                <div class="mb-2">
-                                    <strong>Employee:</strong> @Model.Employee?.Username
-                                </div>
-                                <div class="mb-2">
-                                    <strong>Status:</strong>
-                                    @if (Model.Status == "Pending")
+                                    <strong>Application ID:</strong> 
+                                    @if (isUnpaidLeave)
                                     {
-                                        <span class="badge bg-warning">@Model.Status</span>
-                                    }
-                                    else if (Model.Status == "Approved")
-                                    {
-                                        <span class="badge bg-success">@Model.Status</span>
+                                        <text>#LVE-@leaveId.ToString("D3")</text>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-danger">@Model.Status</span>
+                                        <text>#LVE-@leaveId.ToString("D3")</text>
                                     }
                                 </div>
-                                @if (!string.IsNullOrEmpty(Model.ApprovedBy))
+                                <div class="mb-2">
+                                    <strong>Leave Type:</strong>
+                                    <span class="badge bg-primary">@leaveType</span>
+                                    @if (isUnpaidLeave)
+                                    {
+                                        <span class="badge bg-warning text-dark ms-1">Unpaid</span>
+                                    }
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Employee:</strong> @employee
+                                </div>
+                                <div class="mb-2">
+                                    <strong>Status:</strong>
+                                    @if (status == "Pending")
+                                    {
+                                        <span class="badge bg-warning">@status</span>
+                                    }
+                                    else if (status == "Approved")
+                                    {
+                                        <span class="badge bg-success">@status</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">@status</span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(approvedBy))
                                 {
                                     <div class="mb-0">
-                                        <strong>Approved By:</strong> @Model.ApprovedBy
+                                        <strong>Approved By:</strong> @approvedBy
                                     </div>
                                 }
                             </div>
@@ -75,19 +123,19 @@
                                     <i class="fas fa-calendar-alt me-2"></i>Leave Duration
                                 </h6>
                                 <div class="mb-2">
-                                    <strong>Start Date:</strong> @Model.StartDate.ToString("dd MMM yyyy")
+                                    <strong>Start Date:</strong> @startDate.ToString("dd MMM yyyy")
                                 </div>
                                 <div class="mb-2">
-                                    <strong>End Date:</strong> @Model.EndDate.ToString("dd MMM yyyy")
+                                    <strong>End Date:</strong> @endDate.ToString("dd MMM yyyy")
                                 </div>
                                 <div class="mb-2">
                                     <strong>Total Days:</strong>
-                                    <span class="badge bg-info">@((Model.EndDate.DayNumber - Model.StartDate.DayNumber) + 1) day(s)</span>
+                                    <span class="badge bg-info">@totalDays.ToString("0.#") day(s)</span>
                                 </div>
                                 <div class="mb-0">
                                     <strong>Days Until Start:</strong>
                                     @{
-                                        var daysUntilStart = (Model.StartDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
+                                        var daysUntilStart = (startDate.ToDateTime(TimeOnly.MinValue) - DateTime.Now).Days;
                                     }
                                     @if (daysUntilStart > 0)
                                     {
@@ -113,12 +161,12 @@
                             <h6 class="card-title text-primary">
                                 <i class="fas fa-comment-alt me-2"></i>Reason for Leave
                             </h6>
-                            <p class="mb-0">@Model.Reason</p>
+                            <p class="mb-0">@reason</p>
                         </div>
                     </div>
                 </div>
 
-                @if (Model.Status == "Approved")
+                @if (status == "Approved")
                 {
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
@@ -127,12 +175,22 @@
                 }
 
                 <form asp-action="Delete" method="post" class="d-flex justify-content-end gap-2">
-                    <input type="hidden" asp-for="LeaveID" />
+                    <input type="hidden" name="id" value="@leaveId" />
 
-                    <a asp-action="LeaveRecords" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>
-                        Go Back
-                    </a>
+                    @if (isUnpaidLeave)
+                    {
+                        <a asp-action="UnpaidLeaveRequests" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Go Back
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-action="LeaveRecords" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Go Back
+                        </a>
+                    }
 
                     <button type="submit" class="btn btn-danger" id="confirmDeleteBtn">
                         <i class="fas fa-trash-alt me-2"></i>
@@ -210,11 +268,11 @@
             $('#confirmDeleteBtn').on('click', function(e) {
                 e.preventDefault();
 
-                const leaveId = @Model.LeaveID;
-                const leaveType = '@Model.LeaveType?.TypeName';
-                const startDate = '@Model.StartDate.ToString("dd MMM yyyy")';
-                const endDate = '@Model.EndDate.ToString("dd MMM yyyy")';
-                const status = '@Model.Status';
+                const leaveId = @leaveId;
+                const leaveType = '@leaveType';
+                const startDate = '@startDate.ToString("dd MMM yyyy")';
+                const endDate = '@endDate.ToString("dd MMM yyyy")';
+                const status = '@status';
 
                 let confirmMessage = `Are you sure you want to cancel this leave application?\n\n`;
                 confirmMessage += `Leave Type: ${leaveType}\n`;
@@ -269,7 +327,14 @@
 
             // Auto-focus on the go back button for better UX
             setTimeout(function() {
-                $('a[href*="LeaveRecords"]').first().focus();
+                @if (isUnpaidLeave)
+                {
+                    <text>$('a[href*="UnpaidLeaveRequests"]').first().focus();</text>
+                }
+                else
+                {
+                    <text>$('a[href*="LeaveRecords"]').first().focus();</text>
+                }
             }, 100);
         });
     </script>

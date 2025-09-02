@@ -148,9 +148,18 @@
 
                                         <!-- Reason (Truncated) -->
                                         <td>
-                                            <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@request.Reason">
-                                                @(request.Reason?.Length > 50 ? request.Reason.Substring(0, 50) + "..." : request.Reason ?? "No reason provided")
-                                            </span>
+                                                                    @if (string.IsNullOrEmpty(request.Reason) || request.Reason == "Leave request")
+                        {
+                            <span class="text-muted" title="No specific reason provided">
+                                <i class="fas fa-info-circle me-1"></i>No specific reason provided
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-truncate d-inline-block" style="max-width: 200px;" title="@request.Reason">
+                                @(request.Reason.Length > 50 ? request.Reason.Substring(0, 50) + "..." : request.Reason)
+                            </span>
+                        }
                                         </td>
 
                                         <!-- Status -->
@@ -191,7 +200,7 @@
                                             </button>
                                             @if (request.Status.ToLower() == "pending")
                                             {
-                                                <a asp-action="Edit" asp-route-id="@request.UnpaidLeaveRequestID" class="btn btn-sm btn-outline-success" title="Edit">
+                                                <a asp-action="EditUnpaidLeave" asp-route-id="@request.UnpaidLeaveRequestID" class="btn btn-sm btn-outline-success" title="Edit">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 <a asp-action="Delete" asp-route-id="@request.UnpaidLeaveRequestID" class="btn btn-sm btn-outline-danger" title="Cancel">
@@ -226,15 +235,15 @@
                                                             <i class="fas fa-comment-alt me-1"></i>
                                                             Leave Reason
                                                         </h6>
-                                                        <p class="mb-3">@(string.IsNullOrEmpty(request.Reason) ? "No reason provided" : request.Reason)</p>
+                                                       
 
-                                                        @if (!string.IsNullOrEmpty(request.JustificationReason))
+                                                        @if (!string.IsNullOrEmpty(request.Reason))
                                                         {
                                                             <h6 class="text-warning">
                                                                 <i class="fas fa-exclamation-circle me-1"></i>
-                                                                Justification for Excess Days
+                                                                Reason for Excess Days
                                                             </h6>
-                                                            <p class="mb-3">@request.JustificationReason</p>
+                                                            <p class="mb-3">@request.Reason</p>
                                                         }
                                                     </div>
 

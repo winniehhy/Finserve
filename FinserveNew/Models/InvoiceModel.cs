@@ -96,6 +96,7 @@ namespace FinserveNew.Models
         public bool CanDelete => Status == "Pending" && !IsDeleted;
         public bool IsOverdue => (Status == "Sent") && DueDate < DateTime.Now;
         public bool CanSend => Status == "Pending" && !IsDeleted;
+        public bool CanResend => (Status == "Sent" || Status == "Overdue") && !IsDeleted;
         public bool CanMarkPaid => (Status == "Sent" || Status == "Overdue") && !IsDeleted;
 
         // Method to calculate total from items
