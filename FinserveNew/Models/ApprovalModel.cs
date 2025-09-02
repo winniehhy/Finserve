@@ -19,10 +19,9 @@ namespace FinserveNew.Models
         [MaxLength(500)]
         public string Action { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Action by is required")]
         [Display(Name = "Action By")]
         [MaxLength(100)]
-        public string ActionBy { get; set; } = string.Empty;
+        public string? ActionBy { get; set; }
 
         [MaxLength(30)]
         [RegularExpression("^(Pending|Pending Approval|Approved|Rejected|Paid)$", 

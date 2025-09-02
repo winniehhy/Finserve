@@ -121,7 +121,6 @@ namespace FinserveNew.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.Property<string>("ActionBy")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -151,7 +150,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("PayrollID");
 
-                    b.ToTable("Approvals");
+                    b.ToTable("Approvals", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.BankInformation", b =>
@@ -179,7 +178,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("BankID");
 
-                    b.ToTable("BankInformations");
+                    b.ToTable("BankInformations", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Claim", b =>
@@ -266,7 +265,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Claims");
+                    b.ToTable("Claims", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimDetails", b =>
@@ -309,7 +308,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("ClaimTypeID");
 
-                    b.ToTable("ClaimDetails");
+                    b.ToTable("ClaimDetails", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ClaimType", b =>
@@ -348,7 +347,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ClaimTypes");
+                    b.ToTable("ClaimTypes", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmergencyContact", b =>
@@ -376,7 +375,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("EmergencyID");
 
-                    b.ToTable("EmergencyContacts");
+                    b.ToTable("EmergencyContacts", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Employee", b =>
@@ -475,7 +474,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("RoleID");
 
-                    b.ToTable("Employees");
+                    b.ToTable("Employees", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.EmployeeDocument", b =>
@@ -505,11 +504,14 @@ namespace FinserveNew.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<DateTime>("UploadDate")
+                        .HasColumnType("datetime(6)");
+
                     b.HasKey("DocumentID");
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("EmployeeDocuments");
+                    b.ToTable("EmployeeDocuments", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Invoice", b =>
@@ -590,7 +592,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("InvoiceID");
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.InvoiceItem", b =>
@@ -625,7 +627,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("InvoiceID");
 
-                    b.ToTable("InvoiceItems");
+                    b.ToTable("InvoiceItems", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.JobRole", b =>
@@ -647,7 +649,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("RoleID");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveDetailsModel", b =>
@@ -683,7 +685,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("LeaveTypeID");
 
-                    b.ToTable("LeaveDetails");
+                    b.ToTable("LeaveDetails", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveModel", b =>
@@ -747,7 +749,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("LeaveTypeID");
 
-                    b.ToTable("Leaves");
+                    b.ToTable("Leaves", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.LeaveTypeModel", b =>
@@ -775,7 +777,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("LeaveTypeID");
 
-                    b.ToTable("LeaveTypes");
+                    b.ToTable("LeaveTypes", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.Payroll", b =>
@@ -846,7 +848,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("EmployeeID");
 
-                    b.ToTable("Payrolls");
+                    b.ToTable("Payrolls", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.ProcessOCRSubmissionModel", b =>
@@ -881,7 +883,7 @@ namespace FinserveNew.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProcessOCRSubmissions");
+                    b.ToTable("ProcessOCRSubmissions", (string)null);
                 });
 
             modelBuilder.Entity("FinserveNew.Models.UnpaidLeaveRequestModel", b =>
@@ -954,7 +956,7 @@ namespace FinserveNew.Migrations
 
                     b.HasIndex("LeaveTypeID");
 
-                    b.ToTable("UnpaidLeaveRequests");
+                    b.ToTable("UnpaidLeaveRequests", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -1094,8 +1096,7 @@ namespace FinserveNew.Migrations
                     b.HasOne("FinserveNew.Models.Employee", "ActionByEmployee")
                         .WithMany()
                         .HasForeignKey("ActionBy")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("FinserveNew.Models.Employee", "Employee")
                         .WithMany()

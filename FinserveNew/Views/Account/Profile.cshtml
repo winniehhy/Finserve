@@ -205,12 +205,11 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label asp-for="EmergencyContactRelationship" class="form-label"></label>
-                        <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships, Model.EmergencyContactRelationship))" class="form-control select2-dropdown" disabled>
-                            <option value="">-- Select Relationship --</option>
-                        </select>
-                        <span asp-validation-for="EmergencyContactRelationship" class="text-danger"></span>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label asp-for="EmergencyContactRelationship" class="form-label"></label>
+                            <select asp-for="EmergencyContactRelationship" asp-items="@(new SelectList(Model.Relationships))" class="form-control" disabled></select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -235,11 +234,11 @@
                                         <td>@doc.DocumentType</td>
                                         <td>@doc.FileName</td>
                                         <td>
-                                            <a href="@doc.FilePath" class="btn btn-sm btn-info" target="_blank">
-                                                <i class="fas fa-eye"></i> View
+                                            <a href="@doc.FilePath" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                <i class="fas fa-eye"></i>
                                             </a>
-                                            <button type="submit" class="btn btn-sm btn-danger delete-doc-btn d-none" asp-controller="Account" asp-action="DeleteDocument" asp-route-documentId="@doc.DocumentID">
-                                                <i class="fas fa-trash"></i> Delete
+                                            <button type="submit" class="btn btn-sm btn-outline-danger delete-doc-btn d-none" asp-controller="Account" asp-action="DeleteDocument" asp-route-documentId="@doc.DocumentID">
+                                                <i class="fas fa-trash"></i>
                                             </button>
                                         </td>
                                     </tr>
@@ -257,6 +256,20 @@
 
                 <div class="mt-4 d-none" id="documentUploadSection">
                     <h5>Upload New Documents</h5>
+                    
+                    <!-- Display validation errors for document uploads -->
+                    @if (ViewData.ModelState["NewDocuments"] != null && ViewData.ModelState["NewDocuments"].Errors.Any())
+                    {
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                @foreach (var error in ViewData.ModelState["NewDocuments"].Errors)
+                                {
+                                    <li>@error.ErrorMessage</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    
                     <div id="documentRows">
                         <div class="row mb-2 document-row">
                             <div class="col-md-5">

@@ -339,6 +339,7 @@ namespace FinserveNew.Controllers
                 Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray(),
                 BankNames = bankNames,
                 BankTypes = new[] { "Savings", "Current" },
+                Relationships = new[] { "Parent", "Spouse", "Sibling", "Child", "Friend", "Relative", "Other" }
             };
 
             return View("~/Views/Account/Profile.cshtml", vm);
@@ -347,7 +348,7 @@ namespace FinserveNew.Controllers
         // POST: Account/Profile
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [PreventRoleTampering] // Add security attribute
+        //[PreventRoleTampering] 
         [ProfileSecurity] // Add additional security measures
         public async Task<IActionResult> Profile(EmployeeDetailsViewModel vm)
         {
@@ -357,30 +358,59 @@ namespace FinserveNew.Controllers
 
             var banks = GetBanksFromJson();
 
+            var employee = await _context.Employees
+                .Include(e => e.BankInformation)
+                .Include(e => e.EmergencyContact)
+                .Include(e => e.Role) 
+                .Include(e => e.EmployeeDocuments)
+                .FirstOrDefaultAsync(e => e.EmployeeID == vm.EmployeeID);
+
+            if (employee == null)
+                return NotFound();
+
             // Additional security check: Ensure current user can only update their own profile
             if (User.Identity?.Name != user.UserName)
             {
                 return Forbid();
             }
 
+            // SECURITY: Populate restricted fields from database to avoid validation errors
+            // These fields are not submitted from the form but are required in the model
+            vm.Email = employee.Email;
+            vm.Position = employee.Position;
+            vm.ConfirmationStatus = employee.ConfirmationStatus;
+            vm.JoinDate = employee.JoinDate;
+            vm.ResignationDate = employee.ResignationDate;
+            vm.RoleName = employee.Role?.RoleName ?? "Unknown";
+
+            // Clear any validation errors for restricted fields since we're populating them from DB
+            ModelState.Remove("Email");
+            ModelState.Remove("Position");
+            ModelState.Remove("ConfirmationStatus");
+            ModelState.Remove("JoinDate");
+            ModelState.Remove("ResignationDate");
+
             if (!ModelState.IsValid)
             {
                 vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
                 vm.BankNames = banks.Select(b => b["name"]).ToArray();
                 vm.BankTypes = new[] { "Savings", "Current" };
+                vm.Relationships = new[] { "Parent", "Spouse", "Sibling", "Child", "Friend", "Relative", "Other" };
+                vm.Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>();
+
+                // Debug: Log validation errors
+                foreach (var modelError in ModelState)
+                {
+                    if (modelError.Value.Errors.Count > 0)
+                    {
+                        _logger.LogWarning("Model validation error for {PropertyName}: {ErrorMessage}", 
+                            modelError.Key, string.Join("; ", modelError.Value.Errors.Select(e => e.ErrorMessage)));
+                    }
+                }
 
                 return View("~/Views/Account/Profile.cshtml", vm);
             }
-
-            var employee = await _context.Employees
-                .Include(e => e.BankInformation)
-                .Include(e => e.EmergencyContact)
-                .Include(e => e.Role) // Include role for validation
-                .FirstOrDefaultAsync(e => e.EmployeeID == vm.EmployeeID);
-
-            if (employee == null)
-                return NotFound();
-
+                        
             // SECURITY: Store original administrative fields to prevent unauthorized changes
             var originalEmploymentData = new
             {
@@ -407,6 +437,8 @@ namespace FinserveNew.Controllers
                     vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
                     vm.BankNames = banks.Select(b => b["name"]).ToArray();
                     vm.BankTypes = new[] { "Savings", "Current" };
+                    vm.Relationships = new[] { "Parent", "Spouse", "Sibling", "Child", "Friend", "Relative", "Other" };
+                    vm.Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>();
                     return View("~/Views/Account/Profile.cshtml", vm);
                 }
                 employee.IC = null;
@@ -447,6 +479,7 @@ namespace FinserveNew.Controllers
             }
 
             // Handle multi-file document uploads from the profile page (optional)
+            var uploadErrors = new List<string>();
             if (vm.NewDocuments != null && vm.NewDocumentTypes != null && vm.NewDocuments.Count == vm.NewDocumentTypes.Count)
             {
                 for (int i = 0; i < vm.NewDocuments.Count; i++)
@@ -458,13 +491,42 @@ namespace FinserveNew.Controllers
                     {
                         var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
                         var ext = Path.GetExtension(file.FileName).ToLower();
-                        if (!allowedExtensions.Contains(ext) || file.Length > 5 * 1024 * 1024)
+                        
+                        // Validate file extension
+                        if (!allowedExtensions.Contains(ext))
+                        {
+                            uploadErrors.Add($"File '{file.FileName}' has an invalid file type. Only PDF, JPG, PNG, DOC, and DOCX files are allowed.");
                             continue;
+                        }
+                        
+                        // Validate file size (5MB max)
+                        if (file.Length > 5 * 1024 * 1024)
+                        {
+                            uploadErrors.Add($"File '{file.FileName}' is too large. Maximum file size is 5MB.");
+                            continue;
+                        }
 
                         var filePath = await SaveFile(file, "documents", docType);
                         await AddEmployeeDocument(vm.EmployeeID, docType, filePath, file.FileName);
                     }
                 }
+            }
+
+            // If there are upload errors, add them to ModelState and return the view
+            if (uploadErrors.Any())
+            {
+                foreach (var error in uploadErrors)
+                {
+                    ModelState.AddModelError("NewDocuments", error);
+                }
+                
+                vm.Nationalities = ISO3166.Country.List.OrderBy(c => c.Name).Select(c => c.Name).ToArray();
+                vm.BankNames = banks.Select(b => b["name"]).ToArray();
+                vm.BankTypes = new[] { "Savings", "Current" };
+                vm.Relationships = new[] { "Parent", "Spouse", "Sibling", "Child", "Friend", "Relative", "Other" };
+                vm.Documents = employee.EmployeeDocuments?.ToList() ?? new List<EmployeeDocument>();
+                
+                return View("~/Views/Account/Profile.cshtml", vm);
             }
 
             try
@@ -625,7 +687,8 @@ namespace FinserveNew.Controllers
                 EmployeeID = employeeId,
                 DocumentType = documentType,
                 FilePath = filePath,
-                FileName = fileName
+                FileName = fileName,
+                UploadDate = DateTime.UtcNow
             };
 
             _context.EmployeeDocuments.Add(document);

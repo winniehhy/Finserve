@@ -482,7 +482,8 @@ namespace FinserveNew.Controllers
                                 EmployeeID = employeeId,
                                 DocumentType = docType,
                                 FilePath = filePath,
-                                FileName = file.FileName
+                                FileName = file.FileName,
+                                UploadDate = DateTime.UtcNow
                             };
                             _context.EmployeeDocuments.Add(document);
                         }
@@ -754,7 +755,8 @@ namespace FinserveNew.Controllers
                             EmployeeID = employeeId,
                             DocumentType = docType,
                             FilePath = filePath,
-                            FileName = file.FileName
+                            FileName = file.FileName,
+                            UploadDate = DateTime.UtcNow
                         };
                         _context.EmployeeDocuments.Add(document);
                     }
@@ -1141,7 +1143,8 @@ namespace FinserveNew.Controllers
                 EmployeeID = employeeId,
                 DocumentType = documentType,
                 FilePath = filePath,
-                FileName = fileName
+                FileName = fileName,
+                UploadDate = DateTime.UtcNow
             };
 
             _context.EmployeeDocuments.Add(document);

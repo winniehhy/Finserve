@@ -124,25 +124,18 @@ namespace FinserveNew.Models.ViewModels
         public string[] ConfirmationStatuses { get; set; } = new[] { "Probation", "Confirmed", "Terminated" };
         
         // Enhanced relationship options with comprehensive list
-        public string[] Relationships { get; set; } = new[] { 
-            "Spouse", 
-            "Parent", 
+        public string[] Relationships { get; set; } = new[] {
+            "Spouse",
             "Father",
-            "Mother", 
+            "Mother",
             "Child",
-            "Son",
-            "Daughter",
-            "Sibling", 
-            "Brother",
-            "Sister",
+            "Sibling",
             "Grandparent",
             "Grandfather",
             "Grandmother",
-            "In-Law",
             "Father-in-Law",
             "Mother-in-Law",
-            "Partner",
-            "Friend", 
+            "Friend",
             "Relative",
             "Guardian",
             "Colleague",
