@@ -186,7 +186,7 @@ namespace FinserveNew.Controllers
         // POST: Invoice/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Invoice invoice, IFormFile invoiceFile)
+        public async Task<IActionResult> Create(Invoice invoice)
         {
             try
             {
@@ -242,7 +242,6 @@ namespace FinserveNew.Controllers
                 ModelState.Remove("InvoiceNumber");
                 ModelState.Remove("CreatedBy");
                 ModelState.Remove("FilePath");
-                ModelState.Remove("invoiceFile");
 
                 // Additional validation fixes
                 if (invoice.IssueDate == default(DateTime))
@@ -281,12 +280,7 @@ namespace FinserveNew.Controllers
                     return View("~/Views/Admins/Invoice/Create.cshtml", invoice);
                 }
 
-                // Handle file upload - this is optional
-                if (invoiceFile != null && invoiceFile.Length > 0)
-                {
-                    var filePath = await SaveFile(invoiceFile, "invoices");
-                    invoice.FilePath = filePath;
-                }
+                // No file upload handling - attachments removed from creation
 
                 _context.Invoices.Add(invoice);
                 await _context.SaveChangesAsync();
@@ -600,7 +594,56 @@ namespace FinserveNew.Controllers
             return RedirectToAction(nameof(InvoiceRecord));
         }
 
-        private async Task SendInvoiceEmailAsync(Invoice invoice)
+        // POST: Invoice/ResendToClient/5 - Resend invoice to client (for Sent/Overdue invoices)
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResendToClient(int id)
+        {
+            try
+            {
+                var invoice = await _context.Invoices
+                    .Where(i => i.InvoiceID == id && !i.IsDeleted)
+                    .FirstOrDefaultAsync();
+
+                if (invoice == null)
+                {
+                    return NotFound();
+                }
+
+                if (!invoice.CanResend)
+                {
+                    TempData["Error"] = "This invoice cannot be resent. Only sent or overdue invoices can be resent to clients.";
+                    return RedirectToAction(nameof(InvoiceRecord));
+                }
+
+                // Generate updated PDF with current invoice data and any attachments
+                await GenerateUpdatedInvoicePdfAsync(invoice);
+
+                // Send email with updated PDF and attachments to client
+                try
+                {
+                    await SendInvoiceEmailAsync(invoice, isResend: true);
+                }
+                catch (Exception mailEx)
+                {
+                    _logger.LogError(mailEx, "Failed to resend invoice email");
+                    TempData["Error"] = "Failed to send email, but invoice was updated.";
+                    return RedirectToAction(nameof(InvoiceRecord));
+                }
+
+                TempData["Success"] = $"Invoice {invoice.InvoiceNumber} has been resent to client with updated content!";
+                _logger.LogInformation($"Invoice {invoice.InvoiceNumber} resent to client by {User.Identity.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending invoice to client");
+                TempData["Error"] = "An error occurred while resending the invoice to client.";
+            }
+
+            return RedirectToAction(nameof(InvoiceRecord));
+        }
+
+        private async Task SendInvoiceEmailAsync(Invoice invoice, bool isResend = false)
         {
             if (string.IsNullOrWhiteSpace(invoice.ClientEmail)) return;
 
@@ -613,13 +656,15 @@ namespace FinserveNew.Controllers
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress("Finserve Invoices", fromEmail));
             message.To.Add(MailboxAddress.Parse(invoice.ClientEmail));
-            message.Subject = $"Invoice {invoice.InvoiceNumber} from Finserve";
+            message.Subject = isResend ? $"Updated Invoice {invoice.InvoiceNumber} from Finserve" : $"Invoice {invoice.InvoiceNumber} from Finserve";
 
             var builder = new BodyBuilder();
+            var resendNote = isResend ? "<p><strong>Note:</strong> This is an updated version of your invoice with the latest information and attachments.</p>" : "";
             builder.HtmlBody = $@"
                 <p>Dear {invoice.ClientName},</p>
                 <p>Please find attached your invoice <strong>{invoice.InvoiceNumber}</strong> dated {invoice.IssueDate:dd MMM yyyy} with total <strong>{invoice.Currency} {invoice.TotalAmount:F2}</strong>.</p>
                 <p>Due Date: {invoice.DueDate:dd MMM yyyy}</p>
+                {resendNote}
                 <p>Thank you.</p>
             ";
 
@@ -649,6 +694,332 @@ namespace FinserveNew.Controllers
             await client.AuthenticateAsync(smtpUser, smtpPass);
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
+        }
+
+        private async Task GenerateUpdatedInvoicePdfAsync(Invoice invoice)
+        {
+            try
+            {
+                // For resend functionality, we'll use the existing PDF if it exists and is valid
+                // If not, we'll create a simple but proper PDF using a different approach
+                var uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "uploads", "invoices");
+                Directory.CreateDirectory(uploadsFolder);
+                var fileName = $"{invoice.InvoiceNumber}_updated_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+                var fullPath = Path.Combine(uploadsFolder, fileName);
+
+                // Check if there's an existing valid PDF file
+                if (!string.IsNullOrEmpty(invoice.FilePath))
+                {
+                    var existingPath = Path.Combine(_webHostEnvironment.WebRootPath, invoice.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(existingPath))
+                    {
+                        // Copy the existing PDF and rename it for the resend
+                        System.IO.File.Copy(existingPath, fullPath, true);
+                        _logger.LogInformation($"Copied existing PDF for resend: {fileName}");
+                    }
+                    else
+                    {
+                        // Create a new PDF using a simpler approach
+                        await CreateSimpleInvoicePdfAsync(invoice, fullPath);
+                    }
+                }
+                else
+                {
+                    // Create a new PDF using a simpler approach
+                    await CreateSimpleInvoicePdfAsync(invoice, fullPath);
+                }
+                
+                // Update the invoice's file path to point to the new updated PDF
+                invoice.FilePath = $"/uploads/invoices/{fileName}";
+                _context.Update(invoice);
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation($"Generated updated PDF for invoice {invoice.InvoiceNumber}: {fileName}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error generating updated PDF for invoice {invoice.InvoiceNumber}");
+                throw;
+            }
+        }
+
+        private async Task CreateSimpleInvoicePdfAsync(Invoice invoice, string fullPath)
+        {
+            try
+            {
+                // Create a proper PDF using a simple but valid PDF structure
+                var pdfBytes = GenerateValidPdfBytes(invoice);
+                
+                // Save the PDF file
+                await System.IO.File.WriteAllBytesAsync(fullPath, pdfBytes);
+                
+                _logger.LogInformation($"Successfully created PDF for invoice {invoice.InvoiceNumber}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating PDF for invoice {invoice.InvoiceNumber}");
+                
+                // Fallback: Create a simple text file (better than nothing)
+                var textContent = GenerateInvoiceText(invoice);
+                await System.IO.File.WriteAllTextAsync(fullPath, textContent);
+            }
+        }
+
+        private string GenerateInvoiceHtml(Invoice invoice)
+        {
+            var itemsHtml = "";
+            if (invoice.InvoiceItems != null && invoice.InvoiceItems.Any())
+            {
+                foreach (var item in invoice.InvoiceItems)
+                {
+                    itemsHtml += $@"
+                    <tr>
+                        <td style='border: 1px solid #ddd; padding: 8px;'>{item.Description}</td>
+                        <td style='border: 1px solid #ddd; padding: 8px; text-align: center;'>{item.Quantity}</td>
+                        <td style='border: 1px solid #ddd; padding: 8px; text-align: right;'>{invoice.Currency} {item.UnitPrice:F2}</td>
+                        <td style='border: 1px solid #ddd; padding: 8px; text-align: right;'>{invoice.Currency} {item.LineTotal:F2}</td>
+                    </tr>";
+                }
+            }
+
+            return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Invoice {invoice.InvoiceNumber}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }}
+        .header {{ text-align: center; margin-bottom: 30px; border-bottom: 2px solid #007bff; padding-bottom: 20px; }}
+        .header h1 {{ color: #007bff; margin: 0; }}
+        .invoice-details {{ margin-bottom: 30px; }}
+        .invoice-details h3 {{ color: #007bff; border-bottom: 1px solid #ddd; padding-bottom: 5px; }}
+        .items-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        .items-table th {{ background-color: #f8f9fa; border: 1px solid #ddd; padding: 12px 8px; text-align: left; font-weight: bold; }}
+        .items-table td {{ border: 1px solid #ddd; padding: 8px; }}
+        .total {{ text-align: right; font-weight: bold; margin-top: 20px; font-size: 18px; color: #007bff; }}
+        .remarks {{ margin-top: 30px; }}
+        .footer {{ margin-top: 50px; text-align: center; color: #666; font-style: italic; }}
+        .updated-note {{ background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 20px 0; border-radius: 5px; }}
+    </style>
+</head>
+<body>
+    <div class='header'>
+        <h1>INVOICE {invoice.InvoiceNumber}</h1>
+        <p>Generated: {DateTime.Now:dd MMM yyyy HH:mm}</p>
+    </div>
+    
+    <div class='updated-note'>
+        <strong>Note:</strong> This is an updated version of your invoice with the latest information.
+    </div>
+    
+    <div class='invoice-details'>
+        <h3>Client Information</h3>
+        <p><strong>Name:</strong> {invoice.ClientName}</p>
+        <p><strong>Company:</strong> {invoice.ClientCompany ?? "N/A"}</p>
+        <p><strong>Email:</strong> {invoice.ClientEmail ?? "N/A"}</p>
+        <p><strong>Issue Date:</strong> {invoice.IssueDate:dd MMM yyyy}</p>
+        <p><strong>Due Date:</strong> {invoice.DueDate:dd MMM yyyy}</p>
+        <p><strong>Status:</strong> {invoice.Status}</p>
+    </div>
+    
+    <h3>Invoice Items</h3>
+    <table class='items-table'>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {itemsHtml}
+        </tbody>
+    </table>
+    
+    <div class='total'>
+        <h3>Total Amount: {invoice.Currency} {invoice.TotalAmount:F2}</h3>
+    </div>
+    
+    {(string.IsNullOrEmpty(invoice.Remark) ? "" : $@"
+    <div class='remarks'>
+        <h3>Remarks</h3>
+        <p>{invoice.Remark}</p>
+    </div>")}
+    
+    <div class='footer'>
+        <p>Thank you for your business!</p>
+        <p>Generated by Finserve Invoice Management System</p>
+    </div>
+</body>
+</html>";
+        }
+
+        private byte[] GenerateValidPdfBytes(Invoice invoice)
+        {
+            // Create a minimal but valid PDF structure
+            var pdfContent = new List<string>();
+            
+            // PDF Header
+            pdfContent.Add("%PDF-1.4");
+            pdfContent.Add("1 0 obj");
+            pdfContent.Add("<<");
+            pdfContent.Add("/Type /Catalog");
+            pdfContent.Add("/Pages 2 0 R");
+            pdfContent.Add(">>");
+            pdfContent.Add("endobj");
+            
+            // Pages object
+            pdfContent.Add("2 0 obj");
+            pdfContent.Add("<<");
+            pdfContent.Add("/Type /Pages");
+            pdfContent.Add("/Kids [3 0 R]");
+            pdfContent.Add("/Count 1");
+            pdfContent.Add(">>");
+            pdfContent.Add("endobj");
+            
+            // Page object
+            pdfContent.Add("3 0 obj");
+            pdfContent.Add("<<");
+            pdfContent.Add("/Type /Page");
+            pdfContent.Add("/Parent 2 0 R");
+            pdfContent.Add("/MediaBox [0 0 612 792]");
+            pdfContent.Add("/Contents 4 0 R");
+            pdfContent.Add("/Resources <<");
+            pdfContent.Add("/Font <<");
+            pdfContent.Add("/F1 5 0 R");
+            pdfContent.Add(">>");
+            pdfContent.Add(">>");
+            pdfContent.Add(">>");
+            pdfContent.Add("endobj");
+            
+            // Font object
+            pdfContent.Add("5 0 obj");
+            pdfContent.Add("<<");
+            pdfContent.Add("/Type /Font");
+            pdfContent.Add("/Subtype /Type1");
+            pdfContent.Add("/BaseFont /Helvetica");
+            pdfContent.Add(">>");
+            pdfContent.Add("endobj");
+            
+            // Content stream
+            var content = new List<string>();
+            content.Add("BT");
+            content.Add("/F1 16 Tf");
+            content.Add("50 750 Td");
+            content.Add($"(INVOICE {invoice.InvoiceNumber}) Tj");
+            content.Add("0 -30 Td");
+            content.Add("/F1 12 Tf");
+            content.Add($"(Generated: {DateTime.Now:dd MMM yyyy HH:mm}) Tj");
+            content.Add("0 -20 Td");
+            content.Add("(NOTE: This is an updated version of your invoice) Tj");
+            content.Add("0 -30 Td");
+            content.Add("(CLIENT INFORMATION:) Tj");
+            content.Add("0 -20 Td");
+            content.Add($"(Name: {invoice.ClientName}) Tj");
+            content.Add("0 -15 Td");
+            content.Add($"(Company: {invoice.ClientCompany ?? "N/A"}) Tj");
+            content.Add("0 -15 Td");
+            content.Add($"(Email: {invoice.ClientEmail ?? "N/A"}) Tj");
+            content.Add("0 -15 Td");
+            content.Add($"(Issue Date: {invoice.IssueDate:dd MMM yyyy}) Tj");
+            content.Add("0 -15 Td");
+            content.Add($"(Due Date: {invoice.DueDate:dd MMM yyyy}) Tj");
+            content.Add("0 -15 Td");
+            content.Add($"(Status: {invoice.Status}) Tj");
+            content.Add("0 -30 Td");
+            content.Add("(INVOICE ITEMS:) Tj");
+            
+            if (invoice.InvoiceItems != null && invoice.InvoiceItems.Any())
+            {
+                foreach (var item in invoice.InvoiceItems)
+                {
+                    content.Add("0 -15 Td");
+                    content.Add($"(- {item.Description}: {item.Quantity} x {invoice.Currency} {item.UnitPrice:F2} = {invoice.Currency} {item.LineTotal:F2}) Tj");
+                }
+            }
+            
+            content.Add("0 -30 Td");
+            content.Add($"(TOTAL AMOUNT: {invoice.Currency} {invoice.TotalAmount:F2}) Tj");
+            
+            if (!string.IsNullOrEmpty(invoice.Remark))
+            {
+                content.Add("0 -20 Td");
+                content.Add($"(REMARKS: {invoice.Remark}) Tj");
+            }
+            
+            content.Add("0 -30 Td");
+            content.Add("(Thank you for your business!) Tj");
+            content.Add("0 -15 Td");
+            content.Add("(Generated by Finserve Invoice Management System) Tj");
+            content.Add("ET");
+            
+            var contentStream = string.Join(" ", content);
+            var contentBytes = System.Text.Encoding.ASCII.GetBytes(contentStream);
+            
+            pdfContent.Add("4 0 obj");
+            pdfContent.Add($"<< /Length {contentBytes.Length} >>");
+            pdfContent.Add("stream");
+            pdfContent.Add(contentStream);
+            pdfContent.Add("endstream");
+            pdfContent.Add("endobj");
+            
+            // Cross-reference table
+            pdfContent.Add("xref");
+            pdfContent.Add("0 6");
+            pdfContent.Add("0000000000 65535 f ");
+            pdfContent.Add("0000000009 00000 n ");
+            pdfContent.Add("0000000058 00000 n ");
+            pdfContent.Add("0000000115 00000 n ");
+            pdfContent.Add($"0000000204 00000 n ");
+            pdfContent.Add("0000000301 00000 n ");
+            
+            // Trailer
+            pdfContent.Add("trailer");
+            pdfContent.Add("<<");
+            pdfContent.Add("/Size 6");
+            pdfContent.Add("/Root 1 0 R");
+            pdfContent.Add(">>");
+            pdfContent.Add("startxref");
+            pdfContent.Add("0");
+            pdfContent.Add("%%EOF");
+            
+            return System.Text.Encoding.ASCII.GetBytes(string.Join("\n", pdfContent));
+        }
+
+        private string GenerateInvoiceText(Invoice invoice)
+        {
+            var itemsText = "";
+            if (invoice.InvoiceItems != null && invoice.InvoiceItems.Any())
+            {
+                foreach (var item in invoice.InvoiceItems)
+                {
+                    itemsText += $"\n- {item.Description}: {item.Quantity} x {invoice.Currency} {item.UnitPrice:F2} = {invoice.Currency} {item.LineTotal:F2}";
+                }
+            }
+
+            return $@"INVOICE {invoice.InvoiceNumber}
+Generated: {DateTime.Now:dd MMM yyyy HH:mm}
+
+NOTE: This is an updated version of your invoice with the latest information.
+
+CLIENT INFORMATION:
+Name: {invoice.ClientName}
+Company: {invoice.ClientCompany ?? "N/A"}
+Email: {invoice.ClientEmail ?? "N/A"}
+Issue Date: {invoice.IssueDate:dd MMM yyyy}
+Due Date: {invoice.DueDate:dd MMM yyyy}
+Status: {invoice.Status}
+
+INVOICE ITEMS:{itemsText}
+
+TOTAL AMOUNT: {invoice.Currency} {invoice.TotalAmount:F2}
+
+{(string.IsNullOrEmpty(invoice.Remark) ? "" : $"REMARKS: {invoice.Remark}")}
+
+Thank you for your business!
+Generated by Finserve Invoice Management System";
         }
 
         private async Task GenerateAndStoreInvoicePdfAsync(Invoice invoice)

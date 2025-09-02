@@ -234,19 +234,7 @@
                             </div>
                         }
 
-                        <div class="mb-3">
-                            <label for="invoiceFile" class="form-label">
-                                @(string.IsNullOrEmpty(Model.FilePath) ? "Upload Invoice File (Optional)" : "Replace Invoice File (Optional)")
-                            </label>
-                            <input type="file" name="invoiceFile" id="invoiceFile" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
-                            <small class="text-muted">
-                                @if (!string.IsNullOrEmpty(Model.FilePath))
-                                {
-                                    <text>Leave empty to keep current file. </text>
-                                }
-                                Accepted formats: PDF, DOC, DOCX, JPG, JPEG, PNG (Max 5MB)
-                            </small>
-                        </div>
+                        
                     </div>
 
                     <div class="col-md-6">

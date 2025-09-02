@@ -52,7 +52,7 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" data-bs-toggle="tab" href="#rejected" role="tab">
-                        Rejected <span class="badge bg-secondary">@(Model?.Count(l => l.Status == "Rejected") ?? 0)</span>
+                        Rejected <span class="badge bg-danger">@Model.Count(u => u.Status == "Rejected")</span>
                     </a>
                 </li>
             </ul>

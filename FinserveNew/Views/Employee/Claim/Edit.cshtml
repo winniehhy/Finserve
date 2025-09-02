@@ -69,7 +69,10 @@
                         <div class="mb-3">
                             <label asp-for="ClaimAmount" class="form-label">Claim Amount <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <span class="input-group-text">@((Model?.Currency == "USD" ? "$" : "RM"))</span>
+                                <select asp-for="Currency" id="currencySelect" class="input-group-text" style="border-right: none; background-color: #e9ecef;">
+                                    <option value="MYR">RM</option>
+                                    <option value="USD">$</option>
+                                </select>
                                 <input asp-for="ClaimAmount" class="form-control" type="number" step="0.01" min="0.01" id="claimAmount" required />
                             </div>
                             <span asp-validation-for="ClaimAmount" class="text-danger"></span>
@@ -483,7 +486,7 @@
                 ClaimDate: document.getElementById('claimDate').value || '@Model.ClaimDate.ToString("yyyy-MM-dd")',
                 ClaimAmount: document.getElementById('claimAmount').value || '@Model.ClaimAmount',
                 Description: document.getElementById('description').value || '@(Model.Description ?? string.Empty)'.replace(/\n/g, ' '),
-                Currency: '@Model.Currency',
+                Currency: document.getElementById('currencySelect').value || '@Model.Currency',
                 Files: []
             };
 
@@ -696,6 +699,9 @@
 
             return true;
         });
+
+        // Currency change handler (no longer needed as currency is now part of the select element)
+        // The currency select element will automatically update its display value
 
         // FIXED: Initialize the page properly
                 document.addEventListener('DOMContentLoaded', function() {

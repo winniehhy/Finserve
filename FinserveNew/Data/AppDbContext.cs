@@ -27,7 +27,7 @@ namespace FinserveNew.Data
         public DbSet<UnpaidLeaveRequestModel> UnpaidLeaveRequests { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<InvoiceItem> InvoiceItems { get; set; }
-        public DbSet<ProcessOCRSubmissionModel> ProcessOCRSubmissions { get; set; }
+   
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -199,8 +199,7 @@ namespace FinserveNew.Data
                 entity.Property(u => u.EndDate).IsRequired();
                 entity.Property(u => u.RequestedDays).IsRequired().HasPrecision(4, 1); // Support decimal values
                 entity.Property(u => u.ExcessDays).IsRequired().HasPrecision(4, 1); // Support decimal values
-                entity.Property(u => u.Reason).IsRequired().HasMaxLength(500);
-                entity.Property(u => u.JustificationReason).IsRequired().HasMaxLength(1000);
+                entity.Property(u => u.Reason).IsRequired().HasMaxLength(1000);
                 entity.Property(u => u.Status).IsRequired().HasMaxLength(20).HasDefaultValue("Pending");
                 entity.Property(u => u.SubmissionDate).IsRequired();
                 entity.Property(u => u.ApprovedBy).HasMaxLength(450); // Standard length for Identity UserId
